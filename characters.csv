@@ -1,0 +1,3 @@
+name	HP_max	HP	LV	E	Str	Skill	Spd	Luck	Def	Res	Move	Con	Aid	Trv	Affin	Cond	WRank
+"Ike"	30	30	1	0	4	5	2	10	10	1	1	1	5	None	None	0	['E','N','N','N','N','N','N','N']
+"Boyd"	30	30	1	0	4	5	2	10	10	1	3	1	5	None	None	0	['E','N','N','N','N','N','N','N']
