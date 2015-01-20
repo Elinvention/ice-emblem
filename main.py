@@ -3,7 +3,7 @@
 #
 #  Ice Emblem.py
 #
-#  Copyright 2014 Elia Argentieri <elia.argentieri@openmailbox.org>
+#  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -19,163 +19,160 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
-#
-#
 
-import random
+
 import time
 import pygame
 import csv
 import sys
 
-from pygame.locals import *
-
-from ie_item import ie_item, ie_weapon
-from ie_map import ie_map
-from ie_unit import ie_unit
+from IEItem import IEItem, IEWeapon
+from IEMap import IEMap
+from IEUnit import IEUnit
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
-YELLOW = (255,200,0)
+YELLOW = (255, 200, 0)
+GREY = (160, 160, 160)
 
 
-def battle(attacking, defending):
-	at = 1
-	dt = 1
-	if attacking.Spd > defending.Spd:
-		at += 1
-	elif defending.Spd > attacking.Spd:
-		dt += 1
+def draw_map(screen, iemap, clock):
+	"""Let's draw everything!"""
+	screen_w, screen_h = screen.get_size()
+	#screen_rect = screen.get_rect()
 
-	for i in range(at + dt):
-		aw = attacking.getActiveWeapon()
-		if aw is None or aw.Uses == 0:
-			dmg = attacking.Str
-			hit = attacking.Skill * 2 + attacking.Luck / 2
-			print("%s attacks %s x%d" % (attacking.name, defending.name, at))
-			print("Dmg: %d  Hit: %d" % (dmg, hit))
-			if random.randrange(0, 100) > hit:
-				print("%s misses %s" % (attacking.name, defending.name))
-			else:
-				print("%s inflicts %s %d damages" % (attacking.name, defending.name, dmg))
-				defending.inflictDamage(dmg)
-		else:
-			dmg = attacking.Str + ((aw.Might))  # TODO
-			hit = (attacking.Skill * 2) + aw.Hit + (attacking.Luck / 2)
-			print("%s attacks %s using %s x%d" % (attacking.name, defending.name, aw.name, at))
-			print("Dmg: %d  Hit: %d" % (dmg, hit))
-			if random.randrange(0, 100) > hit:
-				print("%s misses %s" % (attacking.name, defending.name))
-			else:
-				print("%s inflicts %s %d damages" % (attacking.name, defending.name, dmg))
-				defending.inflictDamage(dmg)
-				if not aw.use():
-					break
+	square = iemap.square
 
-		if defending.HP == 0:
-			break
+	map_w = square * iemap.w
+	map_h = square * iemap.h
 
-		at -= 1
-
-		if dt > 0:
-			t = attacking
-			attacking = defending
-			defending = t
-			t = at
-			at = dt
-			dt = t
-
-
-def draw_map(screen, iemap):
-	screenx = screen.get_size()[0]
-	screeny = screen.get_size()[1]
-	screenxy = screen.get_rect()
-
-	dx = screenx / iemap.dim[0]
-	dy = screeny / iemap.dim[1]
-
-	node_background = pygame.Surface((dx - 2, dy - 2)).convert()
+	node_background = pygame.Surface((square - 2, square - 2)).convert()
 	node_background.fill(GREEN)
 
-	selected_node_background = pygame.Surface((dx - 2, dy - 2)).convert()
+	selected_node_background = pygame.Surface((square - 2, square - 2)).convert()
 	selected_node_background.fill(YELLOW)
 
-	unit_range_move_background = pygame.Surface((dx - 2, dy - 2)).convert()
-	unit_range_move_background.fill(BLUE)
+	unit_move_range_background = pygame.Surface((square - 2, square - 2)).convert()
+	unit_move_range_background.fill(BLUE)
 
-	unit_attack_range_backgroud = pygame.Surface((dx - 2, dy - 2)).convert()
+	unit_attack_range_backgroud = pygame.Surface((square - 2, square - 2)).convert()
 	unit_attack_range_backgroud.fill(RED)
+
+	unit_played_backgroud = pygame.Surface((square - 2, square - 2)).convert()
+	unit_played_backgroud.fill(GREY)
 
 	screen.fill(BLACK)
 
-	FONT = pygame.font.SysFont("Liberation Sans", 12)
+	FONT = pygame.font.SysFont("Liberation Sans", 24)
 
-	for i in range(0, iemap.dim[0]):
-		pygame.draw.line(screen, WHITE, (i * dx, 0), (i * dx, screeny), 1)
-		for j in range(0, iemap.dim[1]):
-			pygame.draw.line(screen, WHITE, (0, j * dy), (screenx, j * dy), 1)
+	for i in range(0, iemap.w):
+		pygame.draw.line(screen, WHITE, (i * square, 0), (i * square, map_h), 1)
+		for j in range(0, iemap.h):
+			pygame.draw.line(screen, WHITE, (0, j * square), (map_w, j * square), 1)
 
 			node = iemap.matrix[i][j]
 			unit = node.unit
 
-			if iemap.isSelected((i, j)):
-				screen.blit(selected_node_background, (i * dx + 1, j * dy + 1))
-			elif iemap.is_in_range((i, j)):
-				screen.blit(unit_range_move_background, (i * dx + 1, j * dy + 1))
+			if iemap.is_selected((i, j)):
+				screen.blit(selected_node_background, (i * square + 1, j * square + 1))
+			elif iemap.is_in_move_range((i, j)):
+				screen.blit(unit_move_range_background, (i * square + 1, j * square + 1))
+			elif iemap.is_in_attack_range((i, j)):
+				screen.blit(unit_attack_range_backgroud, (i * square + 1, j * square + 1))
+			elif iemap.is_played((i, j)):
+				screen.blit(unit_played_backgroud, (i * square + 1, j * square + 1))
 			else:
-				screen.blit(node_background, (i * dx + 1, j * dy + 1))
+				screen.blit(node_background, (i * square + 1, j * square + 1))
 
 			if unit is not None:
 				if unit.image is None:
 					scritta = FONT.render(unit.name, 1, BLACK)
-					screen.blit(scritta, (i * dx + 1, j * dy + 1))
+					screen.blit(scritta, (i * square + 1, j * square + 1))
 				else:
-					if unit.image.get_size()[0] - 2 > dx or unit.image.get_size()[1] - 2 > dy:
-						iemap.matrix[i][j].unit.image = pygame.transform.smoothscale(unit.image, (dx - 2, dy - 2))
-						unit.image = iemap.matrix[i][j].unit.image
-					screen.blit(unit.image, (i * dx + 1, j * dy + 1))
+					if unit.image.get_size()[0] != square - 2 or unit.image.get_size()[1] != square - 2:
+						image = pygame.transform.smoothscale(unit.image, (square - 2, square - 2))
+					else:
+						image = unit.image
+					screen.blit(image, (i * square + 1, j * square + 1))
 
+	fps = clock.get_fps()
+	fpslabel = FONT.render(str(int(fps)) + ' FPS', True, (255, 255, 255))
+	rec = fpslabel.get_rect(top=5, right=screen_w - 5)
+	screen.blit(fpslabel, rec)
 	pygame.display.flip()
 
+def center(rect1, rect2, xoffset=0, yoffset=0):
+	"""Center rect2 in rect1 with offset."""
+	return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
 
-def main_menu(screen):
-	main_menu_sound = pygame.mixer.Sound('music/Beyond The Clouds (Dungeon Plunder).ogg')
-	main_menu_sound.play()
+def wait_for_user_input(clock, timeout=-1):
+	"""
+	This function waits for the user to left-click somewhere and,
+	if the timeout argument is positive, exits after the specified
+	number of seconds.
+	"""
+	done = False
+
+	now = start = time.time()
+	
+	while not done and (now - start < timeout or timeout < 0):
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:  # If user clicked close
+				pygame.quit()
+				sys.exit()
+			elif event.type == pygame.MOUSEBUTTONDOWN:
+				if event.button == 1:
+					done = True
+		clock.tick(10)
+		now = time.time()
+
+def main_menu(screen, clock): # Main Menu
+	pygame.mixer.Sound('music/Beyond The Clouds (Dungeon Plunder).ogg').play()
+	
 	screen_rect = screen.get_rect()
-	main_menu_image = pygame.image.load('Logo.jpg').convert()
+
+	screen.fill(BLACK)
+	FONT = pygame.font.SysFont("Liberation Sans", 36)
+	elinvention = FONT.render("Elinvention", 1, WHITE)
+	presents = FONT.render("PRESENTS", 1, WHITE)
+	
+	screen.blit(elinvention, center(screen_rect, elinvention.get_rect()))
+	
+	screen.blit(presents, center(screen_rect, presents.get_rect(), yoffset=FONT.get_linesize()))
+	
+	pygame.display.flip()
+
+	wait_for_user_input(clock, 6)
+
+	
+	main_menu_image = pygame.image.load('logo-tmp.jpg').convert()
 	main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
+
+	click_to_start = FONT.render("Click to Start", 1, BLACK)
+	
 	screen.blit(main_menu_image, (0, 0))
+	screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
+	
 	pygame.display.flip()
 	
-	done = False
-	while not done:
-		event = pygame.event.wait()
-		if event.type == QUIT:  # If user clicked clos
-			pygame.quit()
-			sys.exit()
-		elif event.type == MOUSEBUTTONDOWN:
-			if event.button == 1:
-				done = True
+	wait_for_user_input(clock)
+
+	pygame.mixer.fadeout(2000)
+	time.sleep(2)
 
 
 def main():
-
-	"""data = csv.reader(open('characters.csv'), delimiter='\t')
-	# Read the column names from the first line of the file
-	fields = data.next()
-	for row in data:
-		# Zip together the field names and values
-		items = zip(fields, row)
-	item = {}
-	# Add the value to our dictionary
-	for (name, value) in items:
-		item[name] = value.strip()"""
-	
 	pygame.init()
-	screen = pygame.display.set_mode((800,600))
+	# pygame.FULLSCREEN    create a fullscreen display
+	# pygame.DOUBLEBUF     recommended for HWSURFACE or OPENGL
+	# pygame.HWSURFACE     hardware accelerated, only in FULLSCREEN
+	# pygame.OPENGL        create an OpenGL renderable display
+	# pygame.RESIZABLE     display window should be sizeable
+	# pygame.NOFRAME       display window will have no border or controls
+	screen = pygame.display.set_mode((800,600), pygame.RESIZABLE)
 	pygame.display.set_caption("Ice Emblem")
 	clock = pygame.time.Clock()
 
@@ -184,41 +181,39 @@ def main():
 		reader = csv.reader(f, delimiter='\t')
 		fields = reader.next()
 		for row in reader:
-			characters.append(ie_unit(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17]))
+			characters.append(IEUnit(row[0], row[1], row[2], row[3],
+				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
+				row[11], row[12], row[13], row[14], row[15], row[16],
+				row[17]))
 			print(row[0] + " loaded")
 
-	w1 = ie_weapon("Biga feroce", 'E', 5, 10, 75, 3, 2, 20, 100, 20)
-	w2 = ie_weapon("Stuzzicadenti", 'E', 2, 1, 100, 20, 1, 1, 1, 1)
-	# print(w1)
-	# print(w2)
+	w1 = IEWeapon("Biga feroce", 'E', 5, 10, 75, 3, 2, 20, 100, 20)
+	w2 = IEWeapon("Stuzzicadenti", 'E', 2, 1, 100, 20, 1, 1, 1, 1)
 
 	characters[0].giveWeapon(w1)
 	characters[1].giveWeapon(w2)
 
-	# while p1.HP > 0 and p2.HP > 0:
-	#    print(p1)
-	#    print(p2)
-	#    print("------------------------------")
-	#    battle(p1, p2)
+	iemap = IEMap((15, 10), screen.get_size())
+	iemap.position_unit(characters[0], (1, 2))
+	iemap.position_unit(characters[1], (9, 9))
 
-	iemap = ie_map((15, 10))
-	iemap.setUnit(characters[0], (1, 2))
-	iemap.setUnit(characters[1], (9, 9))
-
-	main_menu(screen)
-
-	pygame.mixer.fadeout(2000)
-	time.sleep(2)
+	main_menu(screen, clock)
 
 	done = False
 	while not done:
 		for event in pygame.event.get():  # User did something
-			if event.type == QUIT:  # If user clicked clos
-				done=True  # Flag that we are done so we exit this loop
-			elif event.type == MOUSEBUTTONDOWN:
+			if event.type == pygame.QUIT:  # If user clicked close
+				done = True
+			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
 				if event.button == 1:
-					iemap.select(screen.get_rect(), event.pos)
-		draw_map(screen, iemap)
+					iemap.select(event.pos)
+			elif event.type == pygame.VIDEORESIZE: # user resized window
+				# It looks like this is the only way to update pygame's display
+				# However this causes some issues while resizing the window
+				screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
+				iemap.screen_resize(event.size) # update map sizes
+
+		draw_map(screen, iemap, clock)
 		clock.tick(10)
 
 	pygame.quit()
