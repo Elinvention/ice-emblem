@@ -126,7 +126,7 @@ class IEMap(object):
 				self.attack_range = []
 			else:
 				self.list_move_range((x, y), unit.Move)
-				self.list_attack_range((x, y), unit.Move, unit.getActiveWeapon().Range)
+				self.list_attack_range((x, y), unit.Move, unit.get_active_weapon().Range)
 		else:
 			sx, sy = self.selection
 			prev_unit = self.matrix[sx][sy].unit
@@ -155,7 +155,7 @@ class IEMap(object):
 				self.attack_range = []
 				if curr_unit is not None and not curr_unit.played:
 					self.list_move_range((x, y), curr_unit.Move)
-					self.list_attack_range((x, y), curr_unit.Move, curr_unit.getActiveWeapon().Range)
+					self.list_attack_range((x, y), curr_unit.Move, curr_unit.get_active_weapon().Range)
 
 	def is_in_move_range(self, (x, y)):
 		return (x, y) in self.move_range

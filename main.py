@@ -190,8 +190,8 @@ def main():
 	w1 = IEWeapon("Biga feroce", 'E', 5, 10, 75, 3, 2, 20, 100, 20)
 	w2 = IEWeapon("Stuzzicadenti", 'E', 2, 1, 100, 20, 1, 1, 1, 1)
 
-	characters[0].giveWeapon(w1)
-	characters[1].giveWeapon(w2)
+	characters[0].give_weapon(w1)
+	characters[1].give_weapon(w2)
 
 	iemap = IEMap((15, 10), screen.get_size())
 	iemap.position_unit(characters[0], (1, 2))
