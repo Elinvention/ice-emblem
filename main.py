@@ -20,6 +20,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
+from datetime import datetime
+from datetime import timedelta
 
 import time
 import pygame
@@ -37,7 +39,10 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 200, 0)
 GREY = (160, 160, 160)
+ICE = (92, 247, 251)
 
+def timestamp_millis_64():
+    return int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() * 1000) 
 
 def draw_map(screen, iemap, clock):
 	"""Let's draw everything!"""
@@ -73,7 +78,7 @@ def draw_map(screen, iemap, clock):
 		for j in range(0, iemap.h):
 			pygame.draw.line(screen, WHITE, (0, j * square), (map_w, j * square), 1)
 
-			node = iemap.matrix[i][j]
+			node = iemap.map[i][j]
 			unit = node.unit
 
 			if iemap.is_selected((i, j)):
@@ -112,11 +117,11 @@ def wait_for_user_input(clock, timeout=-1):
 	"""
 	This function waits for the user to left-click somewhere and,
 	if the timeout argument is positive, exits after the specified
-	number of seconds.
+	number of milliseconds.
 	"""
 	done = False
 
-	now = start = time.time()
+	now = start = timestamp_millis_64()
 	
 	while not done and (now - start < timeout or timeout < 0):
 		for event in pygame.event.get():
@@ -127,7 +132,7 @@ def wait_for_user_input(clock, timeout=-1):
 				if event.button == 1:
 					done = True
 		clock.tick(10)
-		now = time.time()
+		now = timestamp_millis_64()
 
 def main_menu(screen, clock): # Main Menu
 	pygame.mixer.Sound('music/Beyond The Clouds (Dungeon Plunder).ogg').play()
@@ -135,7 +140,7 @@ def main_menu(screen, clock): # Main Menu
 	screen_rect = screen.get_rect()
 
 	screen.fill(BLACK)
-	FONT = pygame.font.SysFont("Liberation Sans", 36)
+	FONT = pygame.font.SysFont("URW Bookman L", 48)
 	elinvention = FONT.render("Elinvention", 1, WHITE)
 	presents = FONT.render("PRESENTS", 1, WHITE)
 	
@@ -145,13 +150,13 @@ def main_menu(screen, clock): # Main Menu
 	
 	pygame.display.flip()
 
-	wait_for_user_input(clock, 6)
+	wait_for_user_input(clock, 6000)
 
 	
-	main_menu_image = pygame.image.load('logo-tmp.jpg').convert()
+	main_menu_image = pygame.image.load('images/IceEmblemLogo_prototype3.png').convert_alpha()
 	main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
 
-	click_to_start = FONT.render("Click to Start", 1, BLACK)
+	click_to_start = FONT.render("Click to Start", 1, ICE)
 	
 	screen.blit(main_menu_image, (0, 0))
 	screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
@@ -177,7 +182,7 @@ def main():
 	clock = pygame.time.Clock()
 
 	characters = []
-	with open('characters.csv', 'r') as f:
+	with open('data/characters.csv', 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
 		fields = reader.next()
 		for row in reader:

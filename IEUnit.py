@@ -50,7 +50,7 @@ class IEUnit:
 		self.WRank	=	WRank       	# Weapons' Levels.
 		self.Items	=	[]          	# List of items
 		self.played	=	False       	# Wether unit was used or not in a turn
-		path = os.path.abspath(self.name + '.png')
+		path = os.path.abspath('sprites/' + self.name + '.png')
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
 		except pygame.error, e:
