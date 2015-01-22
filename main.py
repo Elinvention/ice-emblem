@@ -125,7 +125,7 @@ def wait_for_user_input(clock, timeout=-1):
 				pygame.quit()
 				sys.exit()
 			elif event.type == pygame.MOUSEBUTTONDOWN:
-				return event.button
+				return event
 		clock.tick(10)
 		now = timestamp_millis_64()
 	return -1
@@ -134,11 +134,14 @@ def main_menu(screen, clock): # Main Menu
 	pygame.mixer.Sound('music/Beyond The Clouds (Dungeon Plunder).ogg').play()
 	
 	screen_rect = screen.get_rect()
+	screen_w, screen_h = screen.get_size()
 
 	screen.fill(BLACK)
 
 	path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
 	FONT = pygame.font.Font(path, 48)
+	SMALLFONT = pygame.font.Font(path, 24)
+	
 	elinvention = FONT.render("Elinvention", 1, WHITE)
 	presents = FONT.render("PRESENTS", 1, WHITE)
 	
@@ -149,19 +152,31 @@ def main_menu(screen, clock): # Main Menu
 	pygame.display.flip()
 
 	wait_for_user_input(clock, 6000)
+	
 
 	path = os.path.abspath('images/Ice Emblem.png')
 	main_menu_image = pygame.image.load(path).convert_alpha()
 	main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
 
 	click_to_start = FONT.render("Click to Start", 1, ICE)
+	click_license = SMALLFONT.render("License", 1, WHITE)
 	
 	screen.blit(main_menu_image, (0, 0))
 	screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
+	license_w, license_h = click_license.get_size()
+	screen.blit(click_license, (screen_w - license_w, screen_h - license_h))
 	
 	pygame.display.flip()
-	
-	wait_for_user_input(clock)
+
+	click_x, click_y = wait_for_user_input(clock).pos
+	if click_x > screen_w - license_w and click_y > screen_h - license_h:
+		path = os.path.abspath('images/GNU GPL.jpg')
+		gpl_image = pygame.image.load(path).convert()
+		gpl_image = pygame.transform.smoothscale(gpl_image, (screen_rect.w, screen_rect.h))
+		screen.blit(gpl_image, (0, 0))
+		pygame.display.flip()
+		time.sleep(5)
+		wait_for_user_input(clock)
 
 	pygame.mixer.fadeout(2000)
 	time.sleep(2)
