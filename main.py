@@ -75,6 +75,8 @@ def draw_map(screen, iemap, clock, tileset):
 				screen.blit(iemap.unit_played_backgroud, (i * side, j * side))
 
 			if unit is not None:
+				rect = pygame.Rect((i * side, j * side), (side, side))
+				pygame.draw.rect(screen, iemap.whose_unit(unit).color, rect, 1)
 				if unit.image is None:
 					scritta = FONT.render(unit.name, 1, BLACK)
 					screen.blit(scritta, (i * side, j * side))
@@ -95,6 +97,13 @@ def draw_map(screen, iemap, clock, tileset):
 		cell_label = FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
 		rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
 		screen.blit(cell_label, rec)
+
+	turn = iemap.whose_turn()
+	turn_label = FONT.render('phase', True, WHITE)
+	rec = turn_label.get_rect(bottom=screen_h - 5, left=200)
+	screen.blit(turn_label, rec)
+	rect = pygame.Rect((195 - side, screen_h - 5 - side), (side, side))
+	pygame.draw.rect(screen, turn.color, rect, 0)
 	pygame.display.flip()
 
 def center(rect1, rect2, xoffset=0, yoffset=0):
@@ -107,20 +116,19 @@ def wait_for_user_input(clock, timeout=-1):
 	if the timeout argument is positive, exits after the specified
 	number of milliseconds.
 	"""
-	done = False
 
 	now = start = timestamp_millis_64()
 	
-	while not done and (now - start < timeout or timeout < 0):
+	while now - start < timeout or timeout < 0:
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:  # If user clicked close
 				pygame.quit()
 				sys.exit()
 			elif event.type == pygame.MOUSEBUTTONDOWN:
-				if event.button == 1:
-					done = True
+				return event.button
 		clock.tick(10)
 		now = timestamp_millis_64()
+	return -1
 
 def main_menu(screen, clock): # Main Menu
 	pygame.mixer.Sound('music/Beyond The Clouds (Dungeon Plunder).ogg').play()
@@ -142,7 +150,7 @@ def main_menu(screen, clock): # Main Menu
 
 	wait_for_user_input(clock, 6000)
 
-	path = os.path.abspath('images/Ice_Emblem_Logo_prototype4.png')
+	path = os.path.abspath('images/Ice Emblem.png')
 	main_menu_image = pygame.image.load(path).convert_alpha()
 	main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
 
@@ -191,7 +199,7 @@ def main():
 	player1 = IEPlayer("Player 1", [characters[0]], BLUE, True)
 	player2 = IEPlayer("Player 2", [characters[1]], RED)
 
-	test_map = IEMap((15, 10), screen.get_size(), YELLOW_A50, BLUE_A50, RED_A50, GREY_A50)
+	test_map = IEMap((15, 10), screen.get_size(), YELLOW_A50, BLUE_A50, RED_A50, GREY_A50, [player1, player2])
 
 	test_map.position_unit(characters[0], (1, 2))
 	test_map.position_unit(characters[1], (9, 9))
@@ -203,6 +211,7 @@ def main():
 	test_map.map[8][8].tile =(130, 545)
 	test_map.map[2][8].tile =(192, 545)
 	test_map.map[2][2].tile =(32, 160)
+	test_map.map[2][2].walkable = False
 
 	main_menu(screen, clock)
 
@@ -217,19 +226,22 @@ def main():
 			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
 				if event.button == 1:
 					map_coords = test_map.mouse2cell(event.pos)
-					if map_coords is not None:
+					if map_coords[0] is not None and map_coords[1] is not None:
 						sel = test_map.select(map_coords)
 						if sel == 1:
 							print("Attack!!!")
 							pygame.mixer.Sound('music/The Last Encounter Short Loop.ogg').play()
 							# battle()
 							# pygame.mixer.fadeout(2000)
+						
 					if player1.my_turn:
 						if player1.is_turn_over():
 							player1.end_turn()
+							player2.begin_turn()
 					elif player2.my_turn:
 						if player2.is_turn_over():
 							player2.end_turn()
+							player1.begin_turn()
 			elif event.type == pygame.VIDEORESIZE: # user resized window
 				# It looks like this is the only way to update pygame's display
 				# However this causes some issues while resizing the window

@@ -172,4 +172,9 @@ class IEPlayer(object):
 	def end_turn(self):
 		for unit in self.units:
 			unit.played = False
+		self.my_turn = False
 		print("Player %s ends its turn" % self.name)
+
+	def begin_turn(self):
+		self.my_turn = True
+		print("Player %s begins its turn" % self.name)

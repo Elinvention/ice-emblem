@@ -35,7 +35,7 @@ class IEMap(object):
 	"""The map is composed of nodes."""
 	def __init__(self, (w, h), (screen_w, screen_h),
 			selected_node_color, unit_move_range_color,
-				unit_attack_range_color, unit_played_color):
+				unit_attack_range_color, unit_played_color, players):
 		self.w = w
 		self.h = h
 		self.map = [[IEMapNode() for i in range(h)] for j in range(w)]
@@ -46,32 +46,24 @@ class IEMap(object):
 		square_y = screen_h / h
 		self.tile_size = min(square_x, square_y)
 		self.square = (self.tile_size, self.tile_size)
-
+		
+		self.selected_node_color = selected_node_color
 		self.selected_node_background = Surface(self.square).convert_alpha()
 		self.selected_node_background.fill(selected_node_color)
-
+		
+		self.unit_move_range_color = unit_move_range_color
 		self.unit_move_range_background = Surface(self.square).convert_alpha()
 		self.unit_move_range_background.fill(unit_move_range_color)
 
+		self.unit_attack_range_color = unit_attack_range_color
 		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
 		self.unit_attack_range_backgroud.fill(unit_attack_range_color)
 
+		self.unit_played_color = unit_played_color
 		self.unit_played_backgroud = Surface(self.square).convert_alpha()
 		self.unit_played_backgroud.fill(unit_played_color)
 
-	def set_backgrounds(self, selected_node_color, unit_move_range_color,
-				unit_attack_range_color, unit_played_color):
-		self.selected_node_background = Surface(self.square).convert_alpha()
-		self.selected_node_background.fill(selected_node_color)
-
-		self.unit_move_range_background = Surface(self.square).convert_alpha()
-		self.unit_move_range_background.fill(unit_move_range_color)
-
-		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
-		self.unit_attack_range_backgroud.fill(unit_attack_range_color)
-
-		self.unit_played_backgroud = Surface(self.square).convert_alpha()
-		self.unit_played_backgroud.fill(unit_played_color)
+		self.players = players
 
 	def position_unit(self, unit, (x, y)):
 		"""Set an unit to the coordinates."""
@@ -86,6 +78,20 @@ class IEMap(object):
 		square_x = screen_w / self.w
 		square_y = screen_h / self.h
 		self.tile_size = min(square_x, square_y)
+		self.square = (self.tile_size, self.tile_size)
+
+		self.selected_node_background = Surface(self.square).convert_alpha()
+		self.selected_node_background.fill(self.selected_node_color)
+
+		self.unit_move_range_background = Surface(self.square).convert_alpha()
+		self.unit_move_range_background.fill(self.unit_move_range_color)
+
+		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
+		self.unit_attack_range_backgroud.fill(self.unit_attack_range_color)
+
+		self.unit_played_backgroud = Surface(self.square).convert_alpha()
+		self.unit_played_backgroud.fill(self.unit_played_color)
+		
 
 	def mouse2cell(self, (cursor_x, cursor_y)):
 		"""mouse position to map indexes."""
@@ -132,8 +138,7 @@ class IEMap(object):
 				y_limit_min = Move + 1 - x_distance
 				x_limit_min = Move + 1 - y_distance
 				try:
-					if (self.map[px][py].walkable and
-						x_distance <= x_limit_max and
+					if (x_distance <= x_limit_max and
 						y_distance <= y_limit_max and
 						x_distance >= x_limit_min and
 						y_distance >= y_limit_min):
@@ -145,7 +150,8 @@ class IEMap(object):
 
 	def select(self, (x, y)):
 		"""set selected."""
-
+		active_player = self.get_active_player()
+		
 		if self.selection is None:
 			unit = self.map[x][y].unit
 			self.selection = (x, y)
@@ -164,13 +170,13 @@ class IEMap(object):
 				self.selection = None
 				self.move_range = []
 				self.attack_range = []
-			elif prev_unit is not None and not prev_unit.played and self.is_in_move_range((x, y)):
+			elif prev_unit is not None and not prev_unit.played and active_player.is_mine(prev_unit) and self.is_in_move_range((x, y)):
 				self.move(prev_unit, (x, y))
 				self.selection = None
 				self.move_range = []
 				self.attack_range = []
 				prev_unit.played = True
-			elif prev_unit is not None and not prev_unit.played and curr_unit is not None and self.is_in_attack_range((x, y)):
+			elif prev_unit is not None and not prev_unit.played and active_player.is_mine(prev_unit) and curr_unit is not None and not active_player.is_mine(curr_unit) and self.is_in_attack_range((x, y)):
 				return 1
 			else:
 				self.selection = (x, y)
@@ -194,3 +200,22 @@ class IEMap(object):
 			return False
 		else:
 			return self.map[x][y].unit.played
+
+	def get_active_player(self):
+		for player in self.players:
+			if player.my_turn:
+				return player
+		return None
+
+	def whose_unit(self, unit):
+		for player in self.players:
+			for player_unit in player.units:
+				if player_unit == unit:
+					return player
+		return None
+
+	def whose_turn(self):
+		for player in self.players:
+			if player.my_turn:
+				return player
+		return None
