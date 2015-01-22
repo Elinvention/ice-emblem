@@ -21,92 +21,80 @@
 #  MA 02110-1301, USA.
 
 from datetime import datetime
-from datetime import timedelta
+#from datetime import timedelta
 
 import time
 import pygame
 import csv
 import sys
+import os.path
 
 from IEItem import IEItem, IEWeapon
 from IEMap import IEMap
-from IEUnit import IEUnit
+from IEUnit import IEUnit, IEPlayer
 
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 200, 0)
-GREY = (160, 160, 160)
-ICE = (92, 247, 251)
+from Colors import *
 
 def timestamp_millis_64():
     return int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() * 1000) 
 
-def draw_map(screen, iemap, clock):
+def draw_map(screen, iemap, clock, tileset):
 	"""Let's draw everything!"""
 	screen_w, screen_h = screen.get_size()
 	#screen_rect = screen.get_rect()
 
-	square = iemap.square
+	square = (iemap.tile_size - 2, iemap.tile_size - 2)
+	side = iemap.tile_size
 
 	map_w = square * iemap.w
 	map_h = square * iemap.h
-
-	node_background = pygame.Surface((square - 2, square - 2)).convert()
-	node_background.fill(GREEN)
-
-	selected_node_background = pygame.Surface((square - 2, square - 2)).convert()
-	selected_node_background.fill(YELLOW)
-
-	unit_move_range_background = pygame.Surface((square - 2, square - 2)).convert()
-	unit_move_range_background.fill(BLUE)
-
-	unit_attack_range_backgroud = pygame.Surface((square - 2, square - 2)).convert()
-	unit_attack_range_backgroud.fill(RED)
-
-	unit_played_backgroud = pygame.Surface((square - 2, square - 2)).convert()
-	unit_played_backgroud.fill(GREY)
 
 	screen.fill(BLACK)
 
 	FONT = pygame.font.SysFont("Liberation Sans", 24)
 
 	for i in range(0, iemap.w):
-		pygame.draw.line(screen, WHITE, (i * square, 0), (i * square, map_h), 1)
+		# pygame.draw.line(screen, WHITE, (i * side, 0), (i * side, map_h), 1)
 		for j in range(0, iemap.h):
-			pygame.draw.line(screen, WHITE, (0, j * square), (map_w, j * square), 1)
+			# pygame.draw.line(screen, WHITE, (0, j * side), (map_w, j * side), 1)
 
 			node = iemap.map[i][j]
 			unit = node.unit
 
+			node_background = tileset.subsurface(pygame.Rect(iemap.map[i][j].tile, (64, 64)))
+			node_background = pygame.transform.smoothscale(node_background, square)
+			screen.blit(node_background, (i * side, j * side))
+
 			if iemap.is_selected((i, j)):
-				screen.blit(selected_node_background, (i * square + 1, j * square + 1))
+				screen.blit(iemap.selected_node_background, (i * side, j * side))
 			elif iemap.is_in_move_range((i, j)):
-				screen.blit(unit_move_range_background, (i * square + 1, j * square + 1))
+				screen.blit(iemap.unit_move_range_background, (i * side, j * side))
 			elif iemap.is_in_attack_range((i, j)):
-				screen.blit(unit_attack_range_backgroud, (i * square + 1, j * square + 1))
+				screen.blit(iemap.unit_attack_range_backgroud, (i * side, j * side))
 			elif iemap.is_played((i, j)):
-				screen.blit(unit_played_backgroud, (i * square + 1, j * square + 1))
-			else:
-				screen.blit(node_background, (i * square + 1, j * square + 1))
+				screen.blit(iemap.unit_played_backgroud, (i * side, j * side))
 
 			if unit is not None:
 				if unit.image is None:
 					scritta = FONT.render(unit.name, 1, BLACK)
-					screen.blit(scritta, (i * square + 1, j * square + 1))
+					screen.blit(scritta, (i * side, j * side))
 				else:
-					if unit.image.get_size()[0] != square - 2 or unit.image.get_size()[1] != square - 2:
-						image = pygame.transform.smoothscale(unit.image, (square - 2, square - 2))
+					if unit.image.get_size() != square:
+						image = pygame.transform.smoothscale(unit.image, square)
 					else:
 						image = unit.image
-					screen.blit(image, (i * square + 1, j * square + 1))
+					screen.blit(image, (i * side, j * side))
 
 	fps = clock.get_fps()
-	fpslabel = FONT.render(str(int(fps)) + ' FPS', True, (255, 255, 255))
+	fpslabel = FONT.render(str(int(fps)) + ' FPS', True, WHITE)
 	rec = fpslabel.get_rect(top=5, right=screen_w - 5)
 	screen.blit(fpslabel, rec)
+
+	cell_x, cell_y = iemap.mouse2cell(pygame.mouse.get_pos())
+	if cell_x is not None and cell_y is not None:
+		cell_label = FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
+		rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
+		screen.blit(cell_label, rec)
 	pygame.display.flip()
 
 def center(rect1, rect2, xoffset=0, yoffset=0):
@@ -140,7 +128,9 @@ def main_menu(screen, clock): # Main Menu
 	screen_rect = screen.get_rect()
 
 	screen.fill(BLACK)
-	FONT = pygame.font.SysFont("URW Bookman L", 48)
+
+	path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
+	FONT = pygame.font.Font(path, 48)
 	elinvention = FONT.render("Elinvention", 1, WHITE)
 	presents = FONT.render("PRESENTS", 1, WHITE)
 	
@@ -152,8 +142,8 @@ def main_menu(screen, clock): # Main Menu
 
 	wait_for_user_input(clock, 6000)
 
-	
-	main_menu_image = pygame.image.load('images/IceEmblemLogo_prototype3.png').convert_alpha()
+	path = os.path.abspath('images/Ice_Emblem_Logo_prototype4.png')
+	main_menu_image = pygame.image.load(path).convert_alpha()
 	main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
 
 	click_to_start = FONT.render("Click to Start", 1, ICE)
@@ -198,11 +188,26 @@ def main():
 	characters[0].give_weapon(w1)
 	characters[1].give_weapon(w2)
 
-	iemap = IEMap((15, 10), screen.get_size())
-	iemap.position_unit(characters[0], (1, 2))
-	iemap.position_unit(characters[1], (9, 9))
+	player1 = IEPlayer("Player 1", [characters[0]], BLUE, True)
+	player2 = IEPlayer("Player 2", [characters[1]], RED)
+
+	test_map = IEMap((15, 10), screen.get_size(), YELLOW_A50, BLUE_A50, RED_A50, GREY_A50)
+
+	test_map.position_unit(characters[0], (1, 2))
+	test_map.position_unit(characters[1], (9, 9))
+	test_map.map[5][5].tile =(32, 672)
+	test_map.map[4][5].tile =(80, 870)
+	test_map.map[4][6].tile =(80, 934)
+	test_map.map[5][6].tile =(32, 545)
+	test_map.map[6][5].tile =(160, 870)
+	test_map.map[8][8].tile =(130, 545)
+	test_map.map[2][8].tile =(192, 545)
+	test_map.map[2][2].tile =(32, 160)
 
 	main_menu(screen, clock)
+
+	path = os.path.abspath('sprites/tileset.png')
+	tileset = pygame.image.load(path).convert()
 
 	done = False
 	while not done:
@@ -211,14 +216,27 @@ def main():
 				done = True
 			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
 				if event.button == 1:
-					iemap.select(event.pos)
+					map_coords = test_map.mouse2cell(event.pos)
+					if map_coords is not None:
+						sel = test_map.select(map_coords)
+						if sel == 1:
+							print("Attack!!!")
+							pygame.mixer.Sound('music/The Last Encounter Short Loop.ogg').play()
+							# battle()
+							# pygame.mixer.fadeout(2000)
+					if player1.my_turn:
+						if player1.is_turn_over():
+							player1.end_turn()
+					elif player2.my_turn:
+						if player2.is_turn_over():
+							player2.end_turn()
 			elif event.type == pygame.VIDEORESIZE: # user resized window
 				# It looks like this is the only way to update pygame's display
 				# However this causes some issues while resizing the window
 				screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-				iemap.screen_resize(event.size) # update map sizes
+				test_map.screen_resize(event.size) # update map sizes
 
-		draw_map(screen, iemap, clock)
+		draw_map(screen, test_map, clock, tileset)
 		clock.tick(10)
 
 	pygame.quit()

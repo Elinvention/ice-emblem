@@ -19,19 +19,23 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-import pygame, time # temporary
+
+from pygame import Surface
 
 
 class IEMapNode(object):
 	"""Node"""
-	def __init__(self, unit=None, walkable=True):
+	def __init__(self, (tile_x, tile_y)=(32, 832), unit=None, walkable=True):
 		self.walkable = walkable
 		self.unit = unit
+		self.tile = (tile_x, tile_y)
 
 
 class IEMap(object):
 	"""The map is composed of nodes."""
-	def __init__(self, (w, h), (screen_w, screen_h)):
+	def __init__(self, (w, h), (screen_w, screen_h),
+			selected_node_color, unit_move_range_color,
+				unit_attack_range_color, unit_played_color):
 		self.w = w
 		self.h = h
 		self.map = [[IEMapNode() for i in range(h)] for j in range(w)]
@@ -40,7 +44,34 @@ class IEMap(object):
 		self.attack_range = []
 		square_x = screen_w / w
 		square_y = screen_h / h
-		self.square = min(square_x, square_y)
+		self.tile_size = min(square_x, square_y)
+		self.square = (self.tile_size, self.tile_size)
+
+		self.selected_node_background = Surface(self.square).convert_alpha()
+		self.selected_node_background.fill(selected_node_color)
+
+		self.unit_move_range_background = Surface(self.square).convert_alpha()
+		self.unit_move_range_background.fill(unit_move_range_color)
+
+		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
+		self.unit_attack_range_backgroud.fill(unit_attack_range_color)
+
+		self.unit_played_backgroud = Surface(self.square).convert_alpha()
+		self.unit_played_backgroud.fill(unit_played_color)
+
+	def set_backgrounds(self, selected_node_color, unit_move_range_color,
+				unit_attack_range_color, unit_played_color):
+		self.selected_node_background = Surface(self.square).convert_alpha()
+		self.selected_node_background.fill(selected_node_color)
+
+		self.unit_move_range_background = Surface(self.square).convert_alpha()
+		self.unit_move_range_background.fill(unit_move_range_color)
+
+		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
+		self.unit_attack_range_backgroud.fill(unit_attack_range_color)
+
+		self.unit_played_backgroud = Surface(self.square).convert_alpha()
+		self.unit_played_backgroud.fill(unit_played_color)
 
 	def position_unit(self, unit, (x, y)):
 		"""Set an unit to the coordinates."""
@@ -54,12 +85,12 @@ class IEMap(object):
 	def screen_resize(self, (screen_w, screen_h)):
 		square_x = screen_w / self.w
 		square_y = screen_h / self.h
-		self.square = min(square_x, square_y)
+		self.tile_size = min(square_x, square_y)
 
 	def mouse2cell(self, (cursor_x, cursor_y)):
 		"""mouse position to map indexes."""
-		x = cursor_x / self.square
-		y = cursor_y / self.square
+		x = cursor_x / self.tile_size
+		y = cursor_y / self.tile_size
 		if x >= self.w or y >= self.h:
 			return (None, None)
 		else:
@@ -107,16 +138,13 @@ class IEMap(object):
 						x_distance >= x_limit_min and
 						y_distance >= y_limit_min):
 						self.attack_range.append((px, py))
+					elif self.map[px][py].unit is not None and x_distance < x_limit_min and y_distance < y_limit_min:
+						self.attack_range.append((px, py))
 				except IndexError:
 					pass
 
-	def select(self, (pointer_x, pointer_y)):
+	def select(self, (x, y)):
 		"""set selected."""
-
-		x, y = self.mouse2cell((pointer_x, pointer_y))
-
-		if x is None or y is None:
-			return
 
 		if self.selection is None:
 			unit = self.map[x][y].unit
@@ -141,14 +169,9 @@ class IEMap(object):
 				self.selection = None
 				self.move_range = []
 				self.attack_range = []
-				#prev_unit.played = True
+				prev_unit.played = True
 			elif prev_unit is not None and not prev_unit.played and curr_unit is not None and self.is_in_attack_range((x, y)):
-				print("Attack!!!")
-				pygame.mixer.Sound('music/The Last Encounter Short Loop.ogg').play(-1)
-				# battle()
-				time.sleep(40)
-				pygame.mixer.fadeout(2000)
-				time.sleep(2)
+				return 1
 			else:
 				self.selection = (x, y)
 				self.move_range = []

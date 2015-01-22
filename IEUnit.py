@@ -25,7 +25,7 @@ import os.path
 import random
 
 
-class IEUnit:
+class IEUnit(object):
 	"""
 	This class is a unit with stats
 	"""
@@ -145,3 +145,31 @@ Unit: "%s"
 				t = at
 				at = dt
 				dt = t
+
+
+class IEPlayer(object):
+	"""This class represents the player status and which units belong to."""
+
+	number_of_players = 0
+	
+	def __init__(self, name, units, color, my_turn=False):
+		self.number_of_players += 1
+		self.name = name
+		self.units = units
+		self.color = color
+		self.my_turn = my_turn
+
+	def is_mine(self, unit):
+		"""Tells wether a unit belongs to this player or not"""
+		return unit in self.units
+
+	def is_turn_over(self):
+		for unit in self.units:
+			if not unit.played:
+				return False
+		return True
+
+	def end_turn(self):
+		for unit in self.units:
+			unit.played = False
+		print("Player %s ends its turn" % self.name)
