@@ -177,7 +177,7 @@ class IEMap(object):
 				self.attack_range = []
 				prev_unit.played = True
 			elif prev_unit is not None and not prev_unit.played and active_player.is_mine(prev_unit) and curr_unit is not None and not active_player.is_mine(curr_unit) and self.is_in_attack_range((x, y)):
-				return 1
+				return (prev_unit, curr_unit)
 			else:
 				self.selection = (x, y)
 				self.move_range = []
@@ -185,6 +185,7 @@ class IEMap(object):
 				if curr_unit is not None and not curr_unit.played:
 					self.list_move_range((x, y), curr_unit.Move)
 					self.list_attack_range((x, y), curr_unit.Move, curr_unit.get_active_weapon().Range)
+		return (0, 0)
 
 	def is_in_move_range(self, (x, y)):
 		return (x, y) in self.move_range
@@ -219,3 +220,11 @@ class IEMap(object):
 			if player.my_turn:
 				return player
 		return None
+
+	def remove_unit(self, unit):
+		x, y = coord = self.where_is(unit)
+		if coord is not None:
+			self.map[x][y].unit = None
+			return True
+		else:
+			return False

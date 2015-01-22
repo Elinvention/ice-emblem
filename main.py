@@ -138,9 +138,9 @@ def main_menu(screen, clock): # Main Menu
 
 	screen.fill(BLACK)
 
-	path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
-	FONT = pygame.font.Font(path, 48)
-	SMALLFONT = pygame.font.Font(path, 24)
+	font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
+	FONT = pygame.font.Font(font_path, 48)
+	SMALLFONT = pygame.font.Font(font_path, 24)
 	
 	elinvention = FONT.render("Elinvention", 1, WHITE)
 	presents = FONT.render("PRESENTS", 1, WHITE)
@@ -211,13 +211,13 @@ def main():
 	characters[0].give_weapon(w1)
 	characters[1].give_weapon(w2)
 
-	player1 = IEPlayer("Player 1", [characters[0]], BLUE, True)
-	player2 = IEPlayer("Player 2", [characters[1]], RED)
+	player1 = IEPlayer("Blue Team", [characters[0]], BLUE, True)
+	player2 = IEPlayer("Red Team", [characters[1]], RED)
 
 	test_map = IEMap((15, 10), screen.get_size(), YELLOW_A50, BLUE_A50, RED_A50, GREY_A50, [player1, player2])
 
-	test_map.position_unit(characters[0], (1, 2))
-	test_map.position_unit(characters[1], (9, 9))
+	test_map.position_unit(characters[0], (5, 5))
+	test_map.position_unit(characters[1], (6, 7))
 	test_map.map[5][5].tile =(32, 672)
 	test_map.map[4][5].tile =(80, 870)
 	test_map.map[4][6].tile =(80, 934)
@@ -233,6 +233,14 @@ def main():
 	path = os.path.abspath('sprites/tileset.png')
 	tileset = pygame.image.load(path).convert()
 
+	overworld_music_ch = pygame.mixer.find_channel()
+	overworld_music = pygame.mixer.Sound(os.path.abspath('music/Ireland\'s Coast - Video Game.ogg'))
+
+	overworld_music_ch.play(overworld_music, -1)
+
+	battle_music_ch = pygame.mixer.find_channel()
+	battle_music = pygame.mixer.Sound(os.path.abspath('music/The Last Encounter Short Loop.ogg'))
+	
 	done = False
 	while not done:
 		for event in pygame.event.get():  # User did something
@@ -242,18 +250,38 @@ def main():
 				if event.button == 1:
 					map_coords = test_map.mouse2cell(event.pos)
 					if map_coords[0] is not None and map_coords[1] is not None:
-						sel = test_map.select(map_coords)
-						if sel == 1:
-							print("Attack!!!")
-							pygame.mixer.Sound('music/The Last Encounter Short Loop.ogg').play()
-							# battle()
-							# pygame.mixer.fadeout(2000)
+						attacking, defending = test_map.select(map_coords)
+						if attacking is not None and defending is not None and type(attacking) is IEUnit and type(defending) is IEUnit:
+							overworld_music_ch.pause()
+							battle_music_ch.play(battle_music)
+							print("##### Fight!!! #####")
+							attacking.battle(defending)
+							if defending.HP == 0:
+								test_map.remove_unit(defending)
+								test_map.whose_unit(defending).units.remove(defending)
+							elif attacking.HP == 0:
+								test_map.remove_unit(attacking)
+								test_map.whose_unit(attacking).units.remove(attacking)
+							print("##### Battle ends #####")
+
+							if len(player1.units) == 0:
+								done = True
+								print(player2.name + " wins")
+								pygame.mixer.stop()
+							elif len(player2.units) == 0:
+								done = True
+								print(player1.name + " wins")
+								pygame.mixer.stop()
+							else:
+								battle_music_ch.stop()
+								attacking.played = True
+								overworld_music_ch.unpause()
 						
-					if player1.my_turn:
+					if player1.my_turn and not done:
 						if player1.is_turn_over():
 							player1.end_turn()
 							player2.begin_turn()
-					elif player2.my_turn:
+					elif player2.my_turn and not done:
 						if player2.is_turn_over():
 							player2.end_turn()
 							player1.begin_turn()
@@ -265,6 +293,25 @@ def main():
 
 		draw_map(screen, test_map, clock, tileset)
 		clock.tick(10)
+
+	if len(player1.units) == 0:
+		wins = player1.name
+		color = player1.color
+	else:
+		wins = player2.name
+		color = player2.color
+	font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
+	FONT = pygame.font.Font(font_path, 48)
+	victory = FONT.render(wins + ' wins!', 1, color)
+	thank_you = FONT.render('Thank you for playing Ice Emblem!', 1, ICE)
+
+	screen.fill(BLACK)
+	screen.blit(victory, center(screen.get_rect(), victory.get_rect(), yoffset=-50))
+	screen.blit(thank_you, center(screen.get_rect(), thank_you.get_rect(), yoffset=50))
+
+	pygame.display.flip()
+
+	wait_for_user_input(clock)
 
 	pygame.quit()
 	return 0

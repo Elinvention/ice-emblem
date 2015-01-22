@@ -23,6 +23,7 @@
 import pygame
 import os.path
 import random
+import time
 
 
 class IEUnit(object):
@@ -119,7 +120,7 @@ Unit: "%s"
 					print("%s misses %s" % (attacking.name, defending.name))
 				else:
 					print("%s inflicts %s %d damages" % (attacking.name, defending.name, dmg))
-					defending.inflictDamage(dmg)
+					defending.inflict_damage(dmg)
 			else:
 				dmg = attacking.Str + ((aw.Might))  # TODO
 				hit = (attacking.Skill * 2) + aw.Hit + (attacking.Luck / 2)
@@ -129,7 +130,7 @@ Unit: "%s"
 					print("%s misses %s" % (attacking.name, defending.name))
 				else:
 					print("%s inflicts %s %d damages" % (attacking.name, defending.name, dmg))
-					defending.inflictDamage(dmg)
+					defending.inflict_damage(dmg)
 					if not aw.use():
 						break
 
@@ -145,6 +146,7 @@ Unit: "%s"
 				t = at
 				at = dt
 				dt = t
+			time.sleep(1)
 
 
 class IEPlayer(object):
