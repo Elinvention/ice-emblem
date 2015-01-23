@@ -146,7 +146,7 @@ Unit: "%s"
 				t = at
 				at = dt
 				dt = t
-			time.sleep(1)
+			time.sleep(2)
 
 
 class IEPlayer(object):

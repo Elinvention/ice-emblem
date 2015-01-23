@@ -75,8 +75,9 @@ def draw_map(screen, iemap, clock, tileset):
 				screen.blit(iemap.unit_played_backgroud, (i * side, j * side))
 
 			if unit is not None:
-				rect = pygame.Rect((i * side, j * side), (side, side))
+				rect = pygame.Rect((i * side, j * side), (side, side)) # color
 				pygame.draw.rect(screen, iemap.whose_unit(unit).color, rect, 1)
+
 				if unit.image is None:
 					scritta = FONT.render(unit.name, 1, BLACK)
 					screen.blit(scritta, (i * side, j * side))
@@ -86,6 +87,11 @@ def draw_map(screen, iemap, clock, tileset):
 					else:
 						image = unit.image
 					screen.blit(image, (i * side, j * side))
+
+				HP_bar_length = int((float(unit.HP) / float(unit.HP_max)) * float(side))
+				HP_bar = pygame.Surface((HP_bar_length, 5))
+				HP_bar.fill(GREEN)
+				screen.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
 
 	fps = clock.get_fps()
 	fpslabel = FONT.render(str(int(fps)) + ' FPS', True, WHITE)
@@ -240,6 +246,8 @@ def main():
 
 	battle_music_ch = pygame.mixer.find_channel()
 	battle_music = pygame.mixer.Sound(os.path.abspath('music/The Last Encounter Short Loop.ogg'))
+
+	winner = None
 	
 	done = False
 	while not done:
@@ -268,10 +276,12 @@ def main():
 								done = True
 								print(player2.name + " wins")
 								pygame.mixer.stop()
+								winner = player2
 							elif len(player2.units) == 0:
 								done = True
 								print(player1.name + " wins")
 								pygame.mixer.stop()
+								winner = player1
 							else:
 								battle_music_ch.stop()
 								attacking.played = True
@@ -294,24 +304,19 @@ def main():
 		draw_map(screen, test_map, clock, tileset)
 		clock.tick(10)
 
-	if len(player1.units) == 0:
-		wins = player1.name
-		color = player1.color
-	else:
-		wins = player2.name
-		color = player2.color
-	font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
-	FONT = pygame.font.Font(font_path, 48)
-	victory = FONT.render(wins + ' wins!', 1, color)
-	thank_you = FONT.render('Thank you for playing Ice Emblem!', 1, ICE)
+	if winner is not None:
+		font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
+		FONT = pygame.font.Font(font_path, 48)
+		victory = FONT.render(winner.name + ' wins!', 1, winner.color)
+		thank_you = FONT.render('Thank you for playing Ice Emblem!', 1, ICE)
 
-	screen.fill(BLACK)
-	screen.blit(victory, center(screen.get_rect(), victory.get_rect(), yoffset=-50))
-	screen.blit(thank_you, center(screen.get_rect(), thank_you.get_rect(), yoffset=50))
+		screen.fill(BLACK)
+		screen.blit(victory, center(screen.get_rect(), victory.get_rect(), yoffset=-50))
+		screen.blit(thank_you, center(screen.get_rect(), thank_you.get_rect(), yoffset=50))
 
-	pygame.display.flip()
+		pygame.display.flip()
 
-	wait_for_user_input(clock)
+		wait_for_user_input(clock)
 
 	pygame.quit()
 	return 0
