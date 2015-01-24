@@ -153,7 +153,11 @@ class IEMap(object):
 				self.attack_range = []
 				if curr_unit is not None and not curr_unit.played:
 					self.list_move_range((x, y), curr_unit.Move)
-					self.list_attack_range((x, y), curr_unit.Move, curr_unit.get_active_weapon().Range)
+					weapon = curr_unit.get_active_weapon()
+					if weapon is not None:
+						self.list_attack_range((x, y), curr_unit.Move, weapon.Range)
+					else:
+						self.list_attack_range((x, y), curr_unit.Move, 1)
 		return (0, 0)
 
 	def is_in_move_range(self, (x, y)):
