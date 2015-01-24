@@ -55,9 +55,9 @@ class IEWeapon(IEItem):
 		if self.Uses <= 0:
 			self.Uses = 0
 			print("%s is broken" % self.name)
-			return False
+			return 0
 		else:
-			return True
+			return self.Uses
 
 	def __str__(self):
 		return """

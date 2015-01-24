@@ -23,7 +23,6 @@
 import pygame
 import os.path
 import random
-import time
 
 
 class IEUnit(object):
@@ -98,18 +97,56 @@ Unit: "%s"
 			self.HP = 0
 			print("%s died" % self.name)
 
-	def battle(self, enemy):
-		"""Simulates a battle: this unit attacks another."""
-		attacking = self
-		defending = enemy
-		at = 1
-		dt = 1
-		if attacking.Spd > defending.Spd:
-			at += 1
-		elif defending.Spd > attacking.Spd:
-			dt += 1
+	def attack_turns(self, enemy):
+		self_turns = enemy_turns = 1
+		if self.Spd > enemy.Spd:
+			self_turns += 1
+		elif enemy.Spd > self.Spd:
+			enemy_turns += 1
+		return (self_turns, enemy_turns)
 
-		for i in range(at + dt):
+	def attack(self, enemy):
+		"""
+		This unit attacks another.
+		0 -> miss
+		1 -> hit
+		2 -> broken weapon
+		"""
+
+		active_weapon = self.get_active_weapon()
+
+		if active_weapon is None or active_weapon.Uses == 0:
+			dmg = self.Str
+			hit = self.Skill * 2 + self.Luck / 2
+			print("%s attacks %s" % (self.name, enemy.name))
+			print("Dmg: %d  Hit: %d" % (dmg, hit))
+			if random.randrange(0, 100) > hit:
+				print("%s misses %s" % (self.name, enemy.name))
+				ret = 0
+			else:
+				print("%s inflicts %s %d damages" % (self.name, enemy.name, dmg))
+				enemy.inflict_damage(dmg)
+				ret = 1
+		else:
+			dmg = self.Str + active_weapon.Might  # TODO
+			hit = (self.Skill * 2) + active_weapon.Hit + (self.Luck / 2)
+			print("%s attacks %s using %s" % (self.name, enemy.name, active_weapon.name))
+			print("Dmg: %d  Hit: %d" % (dmg, hit))
+			if random.randrange(0, 100) > hit:
+				print("%s misses %s" % (self.name, enemy.name))
+				ret = 0
+			else:
+				print("%s inflicts %s %d damages" % (self.name, enemy.name, dmg))
+				enemy.inflict_damage(dmg)
+				if active_weapon.use() == 0:
+					ret = 2
+				else:
+					ret = 1
+
+		self.played = True
+		return ret
+
+		"""for i in range(at + dt):
 			aw = attacking.get_active_weapon()
 			if aw is None or aw.Uses == 0:
 				dmg = attacking.Str
@@ -146,7 +183,7 @@ Unit: "%s"
 				t = at
 				at = dt
 				dt = t
-			time.sleep(2)
+			time.sleep(1)"""
 
 
 class IEPlayer(object):
@@ -154,7 +191,7 @@ class IEPlayer(object):
 
 	number_of_players = 0
 	
-	def __init__(self, name, units, color, my_turn=False):
+	def __init__(self, name, color, my_turn=False, units=[]):
 		self.number_of_players += 1
 		self.name = name
 		self.units = units
@@ -180,3 +217,6 @@ class IEPlayer(object):
 	def begin_turn(self):
 		self.my_turn = True
 		print("Player %s begins its turn" % self.name)
+
+	def is_defeated(self):
+		return True if len(self.units) == 0 else False

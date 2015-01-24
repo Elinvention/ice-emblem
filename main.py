@@ -26,186 +26,46 @@ from datetime import datetime
 import time
 import pygame
 import csv
-import sys
 import os.path
 
 from IEItem import IEItem, IEWeapon
 from IEMap import IEMap
 from IEUnit import IEUnit, IEPlayer
+from IEGame import IEGame
 
 from Colors import *
 
-def timestamp_millis_64():
-    return int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() * 1000) 
-
-def draw_map(screen, iemap, clock, tileset):
-	"""Let's draw everything!"""
-	screen_w, screen_h = screen.get_size()
-	#screen_rect = screen.get_rect()
-
-	square = (iemap.tile_size - 2, iemap.tile_size - 2)
-	side = iemap.tile_size
-
-	map_w = square * iemap.w
-	map_h = square * iemap.h
-
-	screen.fill(BLACK)
-
-	FONT = pygame.font.SysFont("Liberation Sans", 24)
-
-	for i in range(0, iemap.w):
-		# pygame.draw.line(screen, WHITE, (i * side, 0), (i * side, map_h), 1)
-		for j in range(0, iemap.h):
-			# pygame.draw.line(screen, WHITE, (0, j * side), (map_w, j * side), 1)
-
-			node = iemap.map[i][j]
-			unit = node.unit
-
-			node_background = tileset.subsurface(pygame.Rect(iemap.map[i][j].tile, (64, 64)))
-			node_background = pygame.transform.smoothscale(node_background, square)
-			screen.blit(node_background, (i * side, j * side))
-
-			if iemap.is_selected((i, j)):
-				screen.blit(iemap.selected_node_background, (i * side, j * side))
-			elif iemap.is_in_move_range((i, j)):
-				screen.blit(iemap.unit_move_range_background, (i * side, j * side))
-			elif iemap.is_in_attack_range((i, j)):
-				screen.blit(iemap.unit_attack_range_backgroud, (i * side, j * side))
-			elif iemap.is_played((i, j)):
-				screen.blit(iemap.unit_played_backgroud, (i * side, j * side))
-
-			if unit is not None:
-				rect = pygame.Rect((i * side, j * side), (side, side)) # color
-				pygame.draw.rect(screen, iemap.whose_unit(unit).color, rect, 1)
-
-				if unit.image is None:
-					scritta = FONT.render(unit.name, 1, BLACK)
-					screen.blit(scritta, (i * side, j * side))
-				else:
-					if unit.image.get_size() != square:
-						image = pygame.transform.smoothscale(unit.image, square)
-					else:
-						image = unit.image
-					screen.blit(image, (i * side, j * side))
-
-				HP_bar_length = int((float(unit.HP) / float(unit.HP_max)) * float(side))
-				HP_bar = pygame.Surface((HP_bar_length, 5))
-				HP_bar.fill(GREEN)
-				screen.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
-
-	fps = clock.get_fps()
-	fpslabel = FONT.render(str(int(fps)) + ' FPS', True, WHITE)
-	rec = fpslabel.get_rect(top=5, right=screen_w - 5)
-	screen.blit(fpslabel, rec)
-
-	cell_x, cell_y = iemap.mouse2cell(pygame.mouse.get_pos())
-	if cell_x is not None and cell_y is not None:
-		cell_label = FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
-		rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
-		screen.blit(cell_label, rec)
-
-	turn = iemap.whose_turn()
-	turn_label = FONT.render('phase', True, WHITE)
-	rec = turn_label.get_rect(bottom=screen_h - 5, left=200)
-	screen.blit(turn_label, rec)
-	rect = pygame.Rect((195 - side, screen_h - 5 - side), (side, side))
-	pygame.draw.rect(screen, turn.color, rect, 0)
-	pygame.display.flip()
-
-def center(rect1, rect2, xoffset=0, yoffset=0):
-	"""Center rect2 in rect1 with offset."""
-	return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
-
-def wait_for_user_input(clock, timeout=-1):
-	"""
-	This function waits for the user to left-click somewhere and,
-	if the timeout argument is positive, exits after the specified
-	number of milliseconds.
-	"""
-
-	now = start = timestamp_millis_64()
-	
-	while now - start < timeout or timeout < 0:
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:  # If user clicked close
-				pygame.quit()
-				sys.exit()
-			elif event.type == pygame.MOUSEBUTTONDOWN:
-				return event
-		clock.tick(10)
-		now = timestamp_millis_64()
-	return -1
-
-def main_menu(screen, clock): # Main Menu
-	pygame.mixer.Sound('music/Beyond The Clouds (Dungeon Plunder).ogg').play()
-	
-	screen_rect = screen.get_rect()
-	screen_w, screen_h = screen.get_size()
-
-	screen.fill(BLACK)
-
-	font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
-	FONT = pygame.font.Font(font_path, 48)
-	SMALLFONT = pygame.font.Font(font_path, 24)
-	
-	elinvention = FONT.render("Elinvention", 1, WHITE)
-	presents = FONT.render("PRESENTS", 1, WHITE)
-	
-	screen.blit(elinvention, center(screen_rect, elinvention.get_rect()))
-	
-	screen.blit(presents, center(screen_rect, presents.get_rect(), yoffset=FONT.get_linesize()))
-	
-	pygame.display.flip()
-
-	wait_for_user_input(clock, 6000)
-	
-
-	path = os.path.abspath('images/Ice Emblem.png')
-	main_menu_image = pygame.image.load(path).convert_alpha()
-	main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
-
-	click_to_start = FONT.render("Click to Start", 1, ICE)
-	click_license = SMALLFONT.render("License", 1, WHITE)
-	
-	screen.blit(main_menu_image, (0, 0))
-	screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
-	license_w, license_h = click_license.get_size()
-	screen.blit(click_license, (screen_w - license_w, screen_h - license_h))
-	
-	pygame.display.flip()
-
-	click_x, click_y = wait_for_user_input(clock).pos
-	if click_x > screen_w - license_w and click_y > screen_h - license_h:
-		path = os.path.abspath('images/GNU GPL.jpg')
-		gpl_image = pygame.image.load(path).convert()
-		gpl_image = pygame.transform.smoothscale(gpl_image, (screen_rect.w, screen_rect.h))
-		screen.blit(gpl_image, (0, 0))
-		pygame.display.flip()
-		time.sleep(5)
-		wait_for_user_input(clock)
-
-	pygame.mixer.fadeout(2000)
-	time.sleep(2)
-
+ANIMATION_DURATION = 10
 
 def main():
-	pygame.init()
-	# pygame.FULLSCREEN    create a fullscreen display
-	# pygame.DOUBLEBUF     recommended for HWSURFACE or OPENGL
-	# pygame.HWSURFACE     hardware accelerated, only in FULLSCREEN
-	# pygame.OPENGL        create an OpenGL renderable display
-	# pygame.RESIZABLE     display window should be sizeable
-	# pygame.NOFRAME       display window will have no border or controls
-	screen = pygame.display.set_mode((800,600), pygame.RESIZABLE)
-	pygame.display.set_caption("Ice Emblem")
-	clock = pygame.time.Clock()
 
-	characters = []
-	with open('data/characters.csv', 'r') as f:
+	player1 = IEPlayer("Blue Team", BLUE, True)
+	player2 = IEPlayer("Red Team", RED)
+
+	test_map = IEMap((15, 10), (800, 600))
+
+	test_map.nodes[5][5].tile = (32, 672)
+	test_map.nodes[4][5].tile = (80, 870)
+	test_map.nodes[4][6].tile = (80, 934)
+	test_map.nodes[5][6].tile = (32, 545)
+	test_map.nodes[6][5].tile = (160, 870)
+	test_map.nodes[8][8].tile = (130, 545)
+	test_map.nodes[2][8].tile = (192, 545)
+	test_map.nodes[2][2].tile = (32, 160)
+	test_map.nodes[2][2].walkable = False
+
+
+	colors = dict(selected=YELLOW_A50, move_range=BLUE_A50, attack_range=RED_A50, played=GREY_A50)
+	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
+	
+	MAIN_GAME = IEGame([player1, player2], test_map, 'sprites/tileset.png', music, colors)
+
+	units = {}
+	with open('data/characters.txt', 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
 		fields = reader.next()
 		for row in reader:
-			characters.append(IEUnit(row[0], row[1], row[2], row[3],
+			units[row[0]] = (IEUnit(row[0], row[1], row[2], row[3],
 				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
 				row[11], row[12], row[13], row[14], row[15], row[16],
 				row[17]))
@@ -214,40 +74,22 @@ def main():
 	w1 = IEWeapon("Biga feroce", 'E', 5, 10, 75, 3, 2, 20, 100, 20)
 	w2 = IEWeapon("Stuzzicadenti", 'E', 2, 1, 100, 20, 1, 1, 1, 1)
 
-	characters[0].give_weapon(w1)
-	characters[1].give_weapon(w2)
+	units['Boyd'].give_weapon(w2)
+	units['Pirate Tux'].give_weapon(w1)
 
-	player1 = IEPlayer("Blue Team", [characters[0]], BLUE, True)
-	player2 = IEPlayer("Red Team", [characters[1]], RED)
+	player1.units = [units['Boyd'], units['Test1'], units['Test2']]
+	player2.units = [units['Pirate Tux'], units['Test3'], units['Test4']]
 
-	test_map = IEMap((15, 10), screen.get_size(), YELLOW_A50, BLUE_A50, RED_A50, GREY_A50, [player1, player2])
-
-	test_map.position_unit(characters[0], (5, 5))
-	test_map.position_unit(characters[1], (6, 7))
-	test_map.map[5][5].tile =(32, 672)
-	test_map.map[4][5].tile =(80, 870)
-	test_map.map[4][6].tile =(80, 934)
-	test_map.map[5][6].tile =(32, 545)
-	test_map.map[6][5].tile =(160, 870)
-	test_map.map[8][8].tile =(130, 545)
-	test_map.map[2][8].tile =(192, 545)
-	test_map.map[2][2].tile =(32, 160)
-	test_map.map[2][2].walkable = False
-
-	main_menu(screen, clock)
-
-	path = os.path.abspath('sprites/tileset.png')
-	tileset = pygame.image.load(path).convert()
-
-	overworld_music_ch = pygame.mixer.find_channel()
-	overworld_music = pygame.mixer.Sound(os.path.abspath('music/Ireland\'s Coast - Video Game.ogg'))
-
-	overworld_music_ch.play(overworld_music, -1)
-
-	battle_music_ch = pygame.mixer.find_channel()
-	battle_music = pygame.mixer.Sound(os.path.abspath('music/The Last Encounter Short Loop.ogg'))
-
-	winner = None
+	test_map.position_unit(units['Boyd'], (5, 5))
+	test_map.position_unit(units['Pirate Tux'], (6, 7))
+	test_map.position_unit(units['Test1'], (2, 2))
+	test_map.position_unit(units['Test2'], (9, 3))
+	test_map.position_unit(units['Test3'], (2, 7))
+	test_map.position_unit(units['Test4'], (6, 9))
+	
+	MAIN_GAME.main_menu()
+	pygame.mixer.stop()
+	MAIN_GAME.play_overworld_music()
 	
 	done = False
 	while not done:
@@ -256,67 +98,22 @@ def main():
 				done = True
 			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
 				if event.button == 1:
-					map_coords = test_map.mouse2cell(event.pos)
-					if map_coords[0] is not None and map_coords[1] is not None:
-						attacking, defending = test_map.select(map_coords)
-						if attacking is not None and defending is not None and type(attacking) is IEUnit and type(defending) is IEUnit:
-							overworld_music_ch.pause()
-							battle_music_ch.play(battle_music)
-							print("##### Fight!!! #####")
-							attacking.battle(defending)
-							if defending.HP == 0:
-								test_map.remove_unit(defending)
-								test_map.whose_unit(defending).units.remove(defending)
-							elif attacking.HP == 0:
-								test_map.remove_unit(attacking)
-								test_map.whose_unit(attacking).units.remove(attacking)
-							print("##### Battle ends #####")
-
-							if len(player1.units) == 0:
-								done = True
-								print(player2.name + " wins")
-								pygame.mixer.stop()
-								winner = player2
-							elif len(player2.units) == 0:
-								done = True
-								print(player1.name + " wins")
-								pygame.mixer.stop()
-								winner = player1
-							else:
-								battle_music_ch.stop()
-								attacking.played = True
-								overworld_music_ch.unpause()
-						
-					if player1.my_turn and not done:
-						if player1.is_turn_over():
-							player1.end_turn()
-							player2.begin_turn()
-					elif player2.my_turn and not done:
-						if player2.is_turn_over():
-							player2.end_turn()
-							player1.begin_turn()
+					done = MAIN_GAME.handle_click(event)
+					if done:
+						if MAIN_GAME.winner is not None:
+							MAIN_GAME.victory_screen()
+			elif event.type == pygame.MOUSEMOTION:
+				MAIN_GAME.handle_mouse_motion(event)
 			elif event.type == pygame.VIDEORESIZE: # user resized window
 				# It looks like this is the only way to update pygame's display
 				# However this causes some issues while resizing the window
-				screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-				test_map.screen_resize(event.size) # update map sizes
-
-		draw_map(screen, test_map, clock, tileset)
-		clock.tick(10)
-
-	if winner is not None:
-		font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
-		FONT = pygame.font.Font(font_path, 48)
-		victory = FONT.render(winner.name + ' wins!', 1, winner.color)
-		thank_you = FONT.render('Thank you for playing Ice Emblem!', 1, ICE)
-
-		screen.fill(BLACK)
-		screen.blit(victory, center(screen.get_rect(), victory.get_rect(), yoffset=-50))
-		screen.blit(thank_you, center(screen.get_rect(), thank_you.get_rect(), yoffset=50))
-
-		pygame.display.flip()
-
-		wait_for_user_input(clock)
+				MAIN_GAME.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
+				MAIN_GAME.screen_resize(event.size) # update map sizes
+		if not done:
+			MAIN_GAME.draw_map()
+			MAIN_GAME.draw_fps()
+			pygame.display.flip()
+			MAIN_GAME.clock.tick(10)
 
 	pygame.quit()
 	return 0

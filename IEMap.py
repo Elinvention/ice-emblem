@@ -33,12 +33,10 @@ class IEMapNode(object):
 
 class IEMap(object):
 	"""The map is composed of nodes."""
-	def __init__(self, (w, h), (screen_w, screen_h),
-			selected_node_color, unit_move_range_color,
-				unit_attack_range_color, unit_played_color, players):
+	def __init__(self, (w, h), (screen_w, screen_h)):
 		self.w = w
 		self.h = h
-		self.map = [[IEMapNode() for i in range(h)] for j in range(w)]
+		self.nodes = [[IEMapNode() for i in range(h)] for j in range(w)]
 		self.selection = None
 		self.move_range = []
 		self.attack_range = []
@@ -46,51 +44,16 @@ class IEMap(object):
 		square_y = screen_h / h
 		self.tile_size = min(square_x, square_y)
 		self.square = (self.tile_size, self.tile_size)
-		
-		self.selected_node_color = selected_node_color
-		self.selected_node_background = Surface(self.square).convert_alpha()
-		self.selected_node_background.fill(selected_node_color)
-		
-		self.unit_move_range_color = unit_move_range_color
-		self.unit_move_range_background = Surface(self.square).convert_alpha()
-		self.unit_move_range_background.fill(unit_move_range_color)
-
-		self.unit_attack_range_color = unit_attack_range_color
-		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
-		self.unit_attack_range_backgroud.fill(unit_attack_range_color)
-
-		self.unit_played_color = unit_played_color
-		self.unit_played_backgroud = Surface(self.square).convert_alpha()
-		self.unit_played_backgroud.fill(unit_played_color)
-
-		self.players = players
 
 	def position_unit(self, unit, (x, y)):
 		"""Set an unit to the coordinates."""
-		try:
-			self.map[x][y].unit = unit
-		except IndexError:
-			return False
-		else:
-			return True
+		self.nodes[x][y].unit = unit
 
 	def screen_resize(self, (screen_w, screen_h)):
 		square_x = screen_w / self.w
 		square_y = screen_h / self.h
 		self.tile_size = min(square_x, square_y)
 		self.square = (self.tile_size, self.tile_size)
-
-		self.selected_node_background = Surface(self.square).convert_alpha()
-		self.selected_node_background.fill(self.selected_node_color)
-
-		self.unit_move_range_background = Surface(self.square).convert_alpha()
-		self.unit_move_range_background.fill(self.unit_move_range_color)
-
-		self.unit_attack_range_backgroud = Surface(self.square).convert_alpha()
-		self.unit_attack_range_backgroud.fill(self.unit_attack_range_color)
-
-		self.unit_played_backgroud = Surface(self.square).convert_alpha()
-		self.unit_played_backgroud.fill(self.unit_played_color)
 		
 
 	def mouse2cell(self, (cursor_x, cursor_y)):
@@ -105,25 +68,25 @@ class IEMap(object):
 	def where_is(self, unit):
 		for i in range(self.w):
 			for j in range(self.h):
-				if self.map[i][j].unit == unit:
+				if self.nodes[i][j].unit == unit:
 					return (i, j)
 		return None
 
 	def move(self, unit, (x, y)):
 		(old_x, old_y) = self.where_is(unit)
-		self.map[old_x][old_y].unit = None
-		self.map[x][y].unit = unit
+		self.nodes[old_x][old_y].unit = None
+		self.nodes[x][y].unit = unit
 
 	def list_move_range(self, (x, y), Move):
 		for px in range(x - Move, x + Move + 1):
 			for py in range(y - Move, y + Move + 1):
 				try:
-					if self.map[px][py].unit is None:
+					if self.nodes[px][py].unit is None:
 						x_distance = abs(px - x)
 						y_distance = abs(py - y)
 						y_limit = Move - x_distance
 						x_limit = Move - y_distance
-						if self.map[px][py].walkable and x_distance <= x_limit and y_distance <= y_limit:
+						if self.nodes[px][py].walkable and x_distance <= x_limit and y_distance <= y_limit:
 							self.move_range.append((px, py))
 				except IndexError:
 					pass
@@ -143,28 +106,31 @@ class IEMap(object):
 						x_distance >= x_limit_min and
 						y_distance >= y_limit_min):
 						self.attack_range.append((px, py))
-					elif self.map[px][py].unit is not None and x_distance < x_limit_min and y_distance < y_limit_min:
+					elif self.nodes[px][py].unit is not None and x_distance < x_limit_min and y_distance < y_limit_min:
 						self.attack_range.append((px, py))
 				except IndexError:
 					pass
 
-	def select(self, (x, y)):
+	def select(self, (x, y), active_player):
 		"""set selected."""
-		active_player = self.get_active_player()
 		
 		if self.selection is None:
-			unit = self.map[x][y].unit
+			unit = self.nodes[x][y].unit
 			self.selection = (x, y)
 			if unit is None or unit.played:
 				self.move_range = []
 				self.attack_range = []
 			else:
 				self.list_move_range((x, y), unit.Move)
-				self.list_attack_range((x, y), unit.Move, unit.get_active_weapon().Range)
+				weapon = unit.get_active_weapon()
+				if weapon is not None:
+					self.list_attack_range((x, y), unit.Move, weapon.Range)
+				else:
+					self.list_attack_range((x, y), unit.Move, 1)
 		else:
 			sx, sy = self.selection
-			prev_unit = self.map[sx][sy].unit
-			curr_unit = self.map[x][y].unit
+			prev_unit = self.nodes[sx][sy].unit
+			curr_unit = self.nodes[x][y].unit
 			
 			if (x, y) == self.selection:
 				self.selection = None
@@ -177,6 +143,9 @@ class IEMap(object):
 				self.attack_range = []
 				prev_unit.played = True
 			elif prev_unit is not None and not prev_unit.played and active_player.is_mine(prev_unit) and curr_unit is not None and not active_player.is_mine(curr_unit) and self.is_in_attack_range((x, y)):
+				self.selection = None
+				self.move_range = []
+				self.attack_range = []
 				return (prev_unit, curr_unit)
 			else:
 				self.selection = (x, y)
@@ -197,34 +166,15 @@ class IEMap(object):
 		return (self.selection == (x, y))
 
 	def is_played(self, (x, y)):
-		if self.map[x][y].unit is None:
+		if self.nodes[x][y].unit is None:
 			return False
 		else:
-			return self.map[x][y].unit.played
-
-	def get_active_player(self):
-		for player in self.players:
-			if player.my_turn:
-				return player
-		return None
-
-	def whose_unit(self, unit):
-		for player in self.players:
-			for player_unit in player.units:
-				if player_unit == unit:
-					return player
-		return None
-
-	def whose_turn(self):
-		for player in self.players:
-			if player.my_turn:
-				return player
-		return None
+			return self.nodes[x][y].unit.played
 
 	def remove_unit(self, unit):
 		x, y = coord = self.where_is(unit)
 		if coord is not None:
-			self.map[x][y].unit = None
+			self.nodes[x][y].unit = None
 			return True
 		else:
 			return False
