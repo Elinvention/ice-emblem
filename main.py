@@ -55,7 +55,7 @@ def main():
 	test_map.nodes[2][2].walkable = False
 
 
-	colors = dict(selected=YELLOW_A50, move_range=BLUE_A50, attack_range=RED_A50, played=GREY_A50)
+	colors = dict(selected=YELLOW_A50, move_range=BLUE_A50, attack_range=RED_A50, played=GREY_A200)
 	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
 	
 	MAIN_GAME = IEGame([player1, player2], test_map, 'sprites/tileset.png', music, colors)
@@ -74,18 +74,18 @@ def main():
 	w1 = IEWeapon("Biga feroce", 'E', 5, 10, 75, 3, 2, 20, 100, 20)
 	w2 = IEWeapon("Stuzzicadenti", 'E', 2, 1, 100, 20, 1, 1, 1, 1)
 
-	units['Boyd'].give_weapon(w2)
+	units['Boss'].give_weapon(w2)
 	units['Pirate Tux'].give_weapon(w1)
 
-	player1.units = [units['Boyd'], units['Test1'], units['Test2']]
-	player2.units = [units['Pirate Tux'], units['Test3'], units['Test4']]
+	player1.units = [units['Boss'], units['Scheletro'], units['Soldato']]
+	player2.units = [units['Pirate Tux'], units['Ninja'], units['Pirata']]
 
-	test_map.position_unit(units['Boyd'], (5, 5))
+	test_map.position_unit(units['Boss'], (5, 5))
 	test_map.position_unit(units['Pirate Tux'], (6, 7))
-	test_map.position_unit(units['Test1'], (2, 2))
-	test_map.position_unit(units['Test2'], (9, 3))
-	test_map.position_unit(units['Test3'], (2, 7))
-	test_map.position_unit(units['Test4'], (6, 9))
+	test_map.position_unit(units['Soldato'], (3, 3))
+	test_map.position_unit(units['Pirata'], (9, 3))
+	test_map.position_unit(units['Ninja'], (2, 7))
+	test_map.position_unit(units['Scheletro'], (6, 9))
 	
 	MAIN_GAME.main_menu()
 	pygame.mixer.stop()
