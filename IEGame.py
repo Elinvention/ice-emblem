@@ -66,7 +66,7 @@ class IEGame(object):
 		self.tileset = pygame.image.load(os.path.abspath(tileset_path))
 		self.tileset.convert()
 
-		pygame.mixer.set_reserved(2)
+		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
 		self.battle_music_ch = pygame.mixer.Channel(1)
 		
@@ -112,7 +112,7 @@ class IEGame(object):
 					return event
 			self.clock.tick(10)
 			now = timestamp_millis_64()
-		return -1
+		return None
 
 	def main_menu(self):
 		self.main_menu_music.play()
@@ -230,9 +230,11 @@ class IEGame(object):
 					HP_bar = pygame.Surface((HP_bar_length, 5))
 					HP_bar.fill(GREEN)
 					self.screen.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
-
-		cell_x, cell_y = self._map.mouse2cell(pygame.mouse.get_pos())
-		if cell_x is not None and cell_y is not None:
+		try:
+			cell_x, cell_y = self._map.mouse2cell(pygame.mouse.get_pos())
+		except ValueError:
+			pass
+		else:
 			cell_label = self.SMALL_FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
 			rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
 			self.screen.blit(cell_label, rec)
@@ -335,8 +337,11 @@ class IEGame(object):
 
 	def handle_click(self, event):
 		active_player = self.get_active_player()
-		map_coords = self._map.mouse2cell(event.pos)
-		if map_coords[0] is not None:
+		try:
+			map_coords = self._map.mouse2cell(event.pos)
+		except ValueError, e:
+			print(e)
+		else:
 			attacking, defending = self._map.select(map_coords, active_player)
 			if type(attacking) is IEUnit and type(defending) is IEUnit:
 				self.overworld_music_ch.pause()
@@ -345,6 +350,8 @@ class IEGame(object):
 				self.battle_music_ch.stop()
 				self.overworld_music_ch.unpause()
 				return self.winner is not None
+			elif attacking is not None:
+				self.action_menu()
 		if active_player.is_turn_over():
 			self.switch_turn()
 		return False
@@ -372,3 +379,41 @@ class IEGame(object):
 				if self.prev_dist != dist:
 					print(dist)
 				self.prev_dist = dist
+
+	def action_menu(self):
+		print("Action menu")
+		menu_wait = self.SMALL_FONT.render('Wait', 1, WHITE)
+		menu_attack = self.SMALL_FONT.render('Attack', 1, WHITE)
+		
+		menu_wait_w, menu_wait_h = menu_wait.get_size()
+		menu_attack_w, menu_attack_h = menu_attack.get_size()
+
+		# if self.is_enemy_naerby()
+		menu_h = menu_wait_h + menu_attack_h
+		
+		menu_size = (max(menu_wait_w, menu_attack_w), menu_h)
+		
+		menu = pygame.Surface(menu_size)
+		menu.fill(BLACK)
+		menu.blit(menu_wait, (0, 0))
+		menu.blit(menu_attack, (0, menu_wait_h))
+
+		menu_pos = pygame.mouse.get_pos()
+
+		self.screen.blit(menu, menu_pos)
+		pygame.display.flip()
+
+		wait_rect = pygame.Rect(menu_pos, (menu_size[0], menu_wait_h))
+		attack_rect = pygame.Rect((menu_pos[0], menu_pos[1] + menu_wait_h), (menu_size[0], menu_attack_h))
+
+		done = False
+		while not done:
+			event = self.wait_for_user_input()
+
+			if wait_rect.collidepoint(event.pos):
+				print("Wait")
+				done = True
+			elif attack_rect.collidepoint(event.pos):
+				print("Attack")
+				done = True
+		

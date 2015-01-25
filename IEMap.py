@@ -20,9 +20,6 @@
 #  MA 02110-1301, USA.
 
 
-from pygame import Surface
-
-
 class IEMapNode(object):
 	"""Node"""
 	def __init__(self, (tile_x, tile_y)=(32, 832), unit=None, walkable=True):
@@ -61,9 +58,8 @@ class IEMap(object):
 		x = cursor_x / self.tile_size
 		y = cursor_y / self.tile_size
 		if x >= self.w or y >= self.h:
-			return (None, None)
-		else:
-			return (x, y)
+			raise ValueError('%d >= %d or %d >= %d' % (x, self.w, y, self.h))
+		return (x, y)
 
 	def where_is(self, unit):
 		for i in range(self.w):
@@ -142,6 +138,7 @@ class IEMap(object):
 				self.move_range = []
 				self.attack_range = []
 				prev_unit.played = True
+				return (x, y)
 			elif prev_unit is not None and not prev_unit.played and active_player.is_mine(prev_unit) and curr_unit is not None and not active_player.is_mine(curr_unit) and self.is_in_attack_range((x, y)):
 				self.selection = None
 				self.move_range = []
@@ -158,7 +155,7 @@ class IEMap(object):
 						self.list_attack_range((x, y), curr_unit.Move, weapon.Range)
 					else:
 						self.list_attack_range((x, y), curr_unit.Move, 1)
-		return (0, 0)
+		return (None, None)
 
 	def is_in_move_range(self, (x, y)):
 		return (x, y) in self.move_range
