@@ -319,11 +319,19 @@ class IEGame(object):
 		return None
 
 	def switch_turn(self):
+		active_player = None
 		for i, player in enumerate(self.players):
 			if player.my_turn:
 				player.end_turn()
-				self.players[(i + 1) % len(self.players)].begin_turn()
+				active_player_index = (i + 1) % len(self.players)
+				active_player = self.players[active_player_index]
+				active_player.begin_turn()
 				break
+		self.draw_map()
+		phase = self.MAIN_MENU_FONT.render(active_player.name + ' phase', 1, active_player.color)
+		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
+		pygame.display.flip()
+		self.wait_for_user_input(5000)
 
 	def handle_click(self, event):
 		active_player = self.get_active_player()
