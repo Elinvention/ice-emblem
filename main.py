@@ -20,13 +20,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-from datetime import datetime
-#from datetime import timedelta
-
-import time
+#import time
 import pygame
 import csv
-import os.path
+#import os.path
+import argparse
 
 from IEItem import IEItem, IEWeapon
 from IEMap import IEMap
@@ -38,6 +36,10 @@ from Colors import *
 ANIMATION_DURATION = 10
 
 def main():
+
+	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
+	parser.add_argument('-s','--skip', action='store_true', help='Skip main menu', required=False)
+	args = parser.parse_args()
 
 	player1 = IEPlayer("Blue Team", BLUE, True)
 	player2 = IEPlayer("Red Team", RED)
@@ -86,9 +88,10 @@ def main():
 	test_map.position_unit(units['Pirata'], (9, 3))
 	test_map.position_unit(units['Ninja'], (2, 7))
 	test_map.position_unit(units['Scheletro'], (6, 9))
-	
-	MAIN_GAME.main_menu()
-	pygame.mixer.stop()
+
+	if not args.skip:
+		MAIN_GAME.main_menu()
+		pygame.mixer.stop()
 	MAIN_GAME.play_overworld_music()
 	
 	done = False
