@@ -373,8 +373,11 @@ class IEGame(object):
 
 	def handle_mouse_motion(self, event):
 		if self._map.selection is not None and self._map.move_range:
-			coord = self._map.mouse2cell(event.pos)
-			if coord[0] is not None:
+			try:
+				coord = self._map.mouse2cell(event.pos)
+			except ValueError:
+				pass
+			else:
 				dist = distance(coord, self._map.selection)
 				if self.prev_dist != dist:
 					print(dist)

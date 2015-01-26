@@ -12,6 +12,9 @@ Launch the game with
 
 ```python main.py```
 
+You will find more gameplay oriented informations in the [project's wiki](https://gitlab.com/Elinvention/ice-emblem/wikis/home)
+when the game will be more complete.
+
 I found a bug!
 --------------
 
