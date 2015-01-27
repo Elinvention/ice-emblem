@@ -105,6 +105,23 @@ Unit: "%s"
 			enemy_turns += 1
 		return (self_turns, enemy_turns)
 
+	def get_range(self):
+		active_weapon = self.get_active_weapon()
+		return active_weapon.Range if active_weapon is not None else 1
+
+	def number_of_attacks(self, enemy):
+		self_attacks = enemy_attacks = 1
+
+		if self.Spd > enemy.Spd:
+			self_attacks += 1
+		elif enemy.Spd > self.Spd:
+			enemy_attacks += 1
+
+		return (self_attacks, enemy_attacks)
+
+	def life_percent(self):
+		return int(float(self.HP) / float(self.HP_max) * 100.0)
+
 	def attack(self, enemy):
 		"""
 		This unit attacks another.
@@ -146,46 +163,6 @@ Unit: "%s"
 		self.played = True
 		return ret
 
-		"""for i in range(at + dt):
-			aw = attacking.get_active_weapon()
-			if aw is None or aw.Uses == 0:
-				dmg = attacking.Str
-				hit = attacking.Skill * 2 + attacking.Luck / 2
-				print("%s attacks %s x%d" % (attacking.name, defending.name, at))
-				print("Dmg: %d  Hit: %d" % (dmg, hit))
-				if random.randrange(0, 100) > hit:
-					print("%s misses %s" % (attacking.name, defending.name))
-				else:
-					print("%s inflicts %s %d damages" % (attacking.name, defending.name, dmg))
-					defending.inflict_damage(dmg)
-			else:
-				dmg = attacking.Str + ((aw.Might))  # TODO
-				hit = (attacking.Skill * 2) + aw.Hit + (attacking.Luck / 2)
-				print("%s attacks %s using %s x%d" % (attacking.name, defending.name, aw.name, at))
-				print("Dmg: %d  Hit: %d" % (dmg, hit))
-				if random.randrange(0, 100) > hit:
-					print("%s misses %s" % (attacking.name, defending.name))
-				else:
-					print("%s inflicts %s %d damages" % (attacking.name, defending.name, dmg))
-					defending.inflict_damage(dmg)
-					if not aw.use():
-						break
-
-			if defending.HP == 0:
-				break
-
-			at -= 1
-
-			if dt > 0:
-				t = attacking
-				attacking = defending
-				defending = t
-				t = at
-				at = dt
-				dt = t
-			time.sleep(1)"""
-
-
 class IEPlayer(object):
 	"""This class represents the player status and which units belong to."""
 
@@ -216,6 +193,8 @@ class IEPlayer(object):
 
 	def begin_turn(self):
 		self.my_turn = True
+		for unit in self.units:
+			unit.played = False
 		print("Player %s begins its turn" % self.name)
 
 	def is_defeated(self):

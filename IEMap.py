@@ -20,6 +20,10 @@
 #  MA 02110-1301, USA.
 
 
+def distance(p0, p1):
+    return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
+
+
 class IEMapNode(object):
 	"""Node"""
 	GRASS = (32, 672)
@@ -64,10 +68,9 @@ class IEMap(object):
 					return (i, j)
 		return None
 
-	def move(self, unit, (x, y)):
-		(old_x, old_y) = self.where_is(unit)
+	def move(self, (old_x, old_y), (x, y)):
+		self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
 		self.nodes[old_x][old_y].unit = None
-		self.nodes[x][y].unit = unit
 
 	def is_played(self, (x, y)):
 		if self.nodes[x][y].unit is None:
@@ -120,3 +123,34 @@ class IEMap(object):
 				except IndexError:
 					pass
 		return attack_area
+
+	def number_of_nearby_units(self, (x, y), unit_range):
+		counter = 0
+		for i in range(x - unit_range, x + unit_range + 1):
+			for j in range(y - unit_range, y + unit_range + 1):
+				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
+					try:
+						if self.nodes[i][j].unit is not None:
+							counter += 1
+					except IndexError:
+						pass
+		return counter
+
+	def list_nearby_units(self, (x, y), unit_range):
+		_list = []
+		for i in range(x - unit_range, x + unit_range + 1):
+			for j in range(y - unit_range, y + unit_range + 1):
+				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
+					try:
+						if self.nodes[i][j].unit is not None:
+							_list.append((i, j))
+					except IndexError:
+						pass
+		return _list
+
+	def path(self, (ax, ay), (bx, by)):
+		"""
+		We need to implement a basic Dijkstra's algorithm
+		https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
+		to find the shortest path from a to b
+		"""

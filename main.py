@@ -33,8 +33,6 @@ from IEGame import IEGame
 
 from Colors import *
 
-ANIMATION_DURATION = 10
-
 def main():
 
 	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
@@ -82,12 +80,12 @@ def main():
 	player1.units = [units['Boss'], units['Scheletro'], units['Soldato']]
 	player2.units = [units['Pirate Tux'], units['Ninja'], units['Pirata']]
 
-	test_map.position_unit(units['Boss'], (5, 5))
-	test_map.position_unit(units['Pirate Tux'], (6, 7))
-	test_map.position_unit(units['Soldato'], (3, 3))
-	test_map.position_unit(units['Pirata'], (9, 3))
-	test_map.position_unit(units['Ninja'], (2, 7))
-	test_map.position_unit(units['Scheletro'], (6, 9))
+	test_map.position_unit(units['Boss'], (5, 2))
+	test_map.position_unit(units['Pirate Tux'], (6, 3))
+	test_map.position_unit(units['Soldato'], (3, 4))
+	test_map.position_unit(units['Pirata'], (4, 5))
+	test_map.position_unit(units['Ninja'], (5, 6))
+	test_map.position_unit(units['Scheletro'], (5, 7))
 
 	if not args.skip:
 		MAIN_GAME.main_menu()

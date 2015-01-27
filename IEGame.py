@@ -42,6 +42,8 @@ def distance(p0, p1):
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
 class IEGame(object):
+	ANIMATION_DURATION = 10
+	
 	def __init__(self, players, _map, tileset_path, music, colors):
 		pygame.init()
 		# pygame.FULLSCREEN    create a fullscreen display
@@ -86,6 +88,7 @@ class IEGame(object):
 		self.selection = None
 		self.move_range = []
 		self.attack_range = []
+		self.path = []
 
 	def screen_resize(self, (screen_w, screen_h)):
 		self._map.screen_resize((screen_w, screen_h))
@@ -262,13 +265,14 @@ class IEGame(object):
 				return player
 		return None
 
-	def fade_out(self, fade_out_time):
+	def fade_out(self, fade_out_time, percent=0):
 		start = timestamp_millis_64()
 		fade = self.screen.copy()
 		state_time = 0
+		percent = (100 - percent) / 100.0
 
 		while state_time < fade_out_time:
-			alpha = int(255.0 - 255.0 * state_time / fade_out_time)
+			alpha = int(255.0 - 255.0 * state_time / fade_out_time * percent)
 			fade.set_alpha(alpha)
 			self.screen.fill(BLACK)
 			self.screen.blit(fade, (0, 0))
@@ -276,48 +280,87 @@ class IEGame(object):
 			self.clock.tick(60)
 			state_time = timestamp_millis_64() - start
 
-
-
-	def battle_animation(attacking, defending):
-		start = time.time()
-		self.overworld_music_ch.pause()
-		self.battle_music_ch.play(self.battle_music)
-
-		while time.time() - start < ANIMATION_DURATION:
-			self.screen.fill(BLACK)
-
-			pygame.display.flip()
-			self.clock.tick(60)
-
 	def battle(self, attacking, defending):
 		attacking_player = self.whose_unit(attacking)
 		defending_player = self.whose_unit(defending)
 
-		attacking_weapon = attacking.get_active_weapon()
-		attacking_range = attacking_weapon.Range if attacking_weapon is not None else 1
+		at, dt = attacking.number_of_attacks(defending)
 
-		attacking_pos = self._map.where_is(attacking)
-		defending_pos = self._map.where_is(defending)
+		print("\r\n##### Fight!!! #####")
+		print("%s is going to attack %d %s" %
+				(attacking.name, at, "time" if at == 1 else "times"))
+		print("%s is going to attack %d %s" %
+				(defending.name, dt, "time" if dt == 1 else "times"))
 
-		if distance(attacking_pos, defending_pos) <= attacking_range:
-			print("\r\n##### Fight!!! #####")
-			battle_animation(attacking, defending)
-			attacking.attack(defending)
+		self.overworld_music_ch.pause()  # Stop music and play fight music
+		self.battle_music_ch.play(self.battle_music)
 
-			if defending.HP == 0:
-				self._map.remove_unit(defending)
-				defending_player.units.remove(defending)
-			elif attacking.HP == 0:
-				self._map.remove_unit(attacking)
-				attacking_player.units.remove(attacking)
-			print("##### Battle ends #####\r\n")
+		last_attack = start = time.time()
 
-			if defending_player.is_defeated():
-				return attacking_player
-			elif attacking_player.is_defeated():
-				return defending_player
-			else:
-				return None
+		self.fade_out(1000, 10)  # Darker atmosphere
+
+		battle_background = self.screen.copy()
+
+		time_between_attacks = float(self.ANIMATION_DURATION - 4) / float(at + dt)
+
+		att_swap = attacking
+		def_swap = defending
+
+		life_percent_background = pygame.Surface((100, 10))
+		life_percent_background.fill(RED)
+		life_percent_background.convert()
+
+		while time.time() - start < self.ANIMATION_DURATION:
+			if (time.time() - last_attack > time_between_attacks and
+					def_swap.HP > 0 and att_swap.HP > 0 and at + dt > 0):
+
+				att_swap.attack(def_swap)
+
+				last_attack = time.time()
+				at -= 1
+
+				if dt > 0:
+					t = att_swap
+					att_swap = def_swap
+					def_swap = t
+					t = at
+					at = dt
+					dt = t
+
+			att_life_percent = pygame.Surface((attacking.life_percent(), 10))
+			att_life_percent.fill(GREEN)
+			def_life_percent = pygame.Surface((defending.life_percent(), 10))
+			def_life_percent.fill(GREEN)
+
+			self.screen.blit(battle_background, (0, 0))
+			self.screen.blit(attacking.image, (100, 100))
+			self.screen.blit(defending.image, (400, 100))
+			self.screen.blit(life_percent_background, (100, 100 + attacking.image.get_size()[1]))
+			self.screen.blit(life_percent_background, (400, 100 + defending.image.get_size()[1]))
+			self.screen.blit(att_life_percent, (100, 100 + attacking.image.get_size()[1]))
+			self.screen.blit(def_life_percent, (400, 100 + defending.image.get_size()[1]))
+			self.draw_fps()
+			pygame.display.flip()
+			self.clock.tick(60)
+
+		self.battle_music_ch.fadeout(500)
+		time.sleep(0.5)
+		self.overworld_music_ch.unpause()
+
+		if defending.HP == 0:
+			self._map.remove_unit(defending)
+			defending_player.units.remove(defending)
+		elif attacking.HP == 0:
+			self._map.remove_unit(attacking)
+			attacking_player.units.remove(attacking)
+		print("##### Battle ends #####\r\n")
+
+		if defending_player.is_defeated():
+			return attacking_player
+		elif attacking_player.is_defeated():
+			return defending_player
+		else:
+			return None
 
 	def get_active_player(self):
 		for player in self.players:
@@ -356,14 +399,14 @@ class IEGame(object):
 		self.wait_for_user_input()
 
 	def handle_mouse_motion(self, event):
-		if self.selection is not None and self.move_range:
-			try:
-				coord = self._map.mouse2cell(event.pos)
-			except ValueError:
-				pass
-			else:
-				dist = distance(coord, self.selection)
-				
+		pass
+#		if self.selection is not None and self.move_range:
+#			try:
+#				coord = self._map.mouse2cell(event.pos)
+#			except ValueError:
+#				pass
+#			else:
+#				dist = distance(coord, self.selection)
 
 	def action_menu(self):
 		print("Action menu")
@@ -397,10 +440,10 @@ class IEGame(object):
 
 			if wait_rect.collidepoint(event.pos):
 				print("Wait")
-				action = "Wait"
+				action = 0
 			elif attack_rect.collidepoint(event.pos):
 				print("Attack")
-				action = "Attack"
+				action = 1
 		return action
 
 	def is_in_move_range(self, (x, y)):
@@ -419,7 +462,7 @@ class IEGame(object):
 		try:
 			x, y = self._map.mouse2cell(event.pos)
 		except ValueError, e:
-			print(e)
+			return
 
 		if self.selection is None:
 			unit = self._map.nodes[x][y].unit
@@ -447,18 +490,31 @@ class IEGame(object):
 					not prev_unit.played and
 					active_player.is_mine(prev_unit) and
 					self.is_in_move_range((x, y))):
-				self._map.move(prev_unit, (x, y))
-				self.selection = None
+
+				self._map.move((sx, sy), (x, y))
+				n_units_nearby = self._map.number_of_nearby_units((x, y), prev_unit.get_range())
+
+				if n_units_nearby > 0:
+					action = self.action_menu()
+					if action == 0:
+						self.selection = None
+						prev_unit.played = True
+					elif action == 1:
+						self.selection = (x, y)
+						self.attack_range = self._map.list_nearby_units((x, y), prev_unit.get_range())
+						print(self.attack_range)
+				else:
+					self.selection = None
+					prev_unit.played = True
 				self.move_range = []
 				self.attack_range = []
-				prev_unit.played = True
 				
 			elif (prev_unit is not None and  # TODO to be improved: move unit next to the one to be attacked
 					not prev_unit.played and
 					active_player.is_mine(prev_unit) and
 					curr_unit is not None and
 					not active_player.is_mine(curr_unit) and
-					self.is_in_attack_range((x, y))):
+					distance((sx, sy), (x, y)) <= prev_unit.get_range()):
 				self.selection = None
 				self.move_range = []
 				self.attack_range = []
@@ -479,3 +535,4 @@ class IEGame(object):
 		if active_player.is_turn_over():
 			self.switch_turn()
 		return False
+
