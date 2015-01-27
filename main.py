@@ -27,7 +27,7 @@ import csv
 import argparse
 
 from IEItem import IEItem, IEWeapon
-from IEMap import IEMap
+from IEMap import IEMap, IEMapNode
 from IEUnit import IEUnit, IEPlayer
 from IEGame import IEGame
 
@@ -46,7 +46,7 @@ def main():
 
 	test_map = IEMap((15, 10), (800, 600))
 
-	test_map.nodes[5][5].tile = (32, 672)
+	test_map.nodes[5][5].tile = IEMapNode.GRASS
 	test_map.nodes[4][5].tile = (80, 870)
 	test_map.nodes[4][6].tile = (80, 934)
 	test_map.nodes[5][6].tile = (32, 545)

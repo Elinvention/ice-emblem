@@ -82,7 +82,10 @@ class IEGame(object):
 
 		#self.overworld_music_ch.play(overworld_music, -1)
 		self.winner = None
-		self.prev_dist = None
+		
+		self.selection = None
+		self.move_range = []
+		self.attack_range = []
 
 	def screen_resize(self, (screen_w, screen_h)):
 		self._map.screen_resize((screen_w, screen_h))
@@ -194,11 +197,11 @@ class IEGame(object):
 				node_background = pygame.transform.smoothscale(node_background, square)
 				self.screen.blit(node_background, (i * side, j * side))
 
-				if self._map.is_selected((i, j)):
+				if self.is_selected((i, j)):
 					self.screen.blit(self.backgrounds['selected'], (i * side, j * side))
-				elif self._map.is_in_move_range((i, j)):
+				elif self.is_in_move_range((i, j)):
 					self.screen.blit(self.backgrounds['move_range'], (i * side, j * side))
-				elif self._map.is_in_attack_range((i, j)):
+				elif self.is_in_attack_range((i, j)):
 					self.screen.blit(self.backgrounds['attack_range'], (i * side, j * side))
 				elif self._map.is_played((i, j)):
 					self.screen.blit(self.backgrounds['played'], (i * side, j * side))
@@ -277,6 +280,8 @@ class IEGame(object):
 
 	def battle_animation(attacking, defending):
 		start = time.time()
+		self.overworld_music_ch.pause()
+		self.battle_music_ch.play(self.battle_music)
 
 		while time.time() - start < ANIMATION_DURATION:
 			self.screen.fill(BLACK)
@@ -296,7 +301,7 @@ class IEGame(object):
 
 		if distance(attacking_pos, defending_pos) <= attacking_range:
 			print("\r\n##### Fight!!! #####")
-			#battle_animation(attacking, defending)
+			battle_animation(attacking, defending)
 			attacking.attack(defending)
 
 			if defending.HP == 0:
@@ -335,27 +340,6 @@ class IEGame(object):
 		pygame.display.flip()
 		self.wait_for_user_input(5000)
 
-	def handle_click(self, event):
-		active_player = self.get_active_player()
-		try:
-			map_coords = self._map.mouse2cell(event.pos)
-		except ValueError, e:
-			print(e)
-		else:
-			attacking, defending = self._map.select(map_coords, active_player)
-			if type(attacking) is IEUnit and type(defending) is IEUnit:
-				self.overworld_music_ch.pause()
-				self.battle_music_ch.play(self.battle_music)
-				self.winner = self.battle(attacking, defending)
-				self.battle_music_ch.stop()
-				self.overworld_music_ch.unpause()
-				return self.winner is not None
-			elif attacking is not None:
-				self.action_menu()
-		if active_player.is_turn_over():
-			self.switch_turn()
-		return False
-
 	def victory_screen(self):
 		print(self.winner.name + " wins")
 		pygame.mixer.fadeout(1000)
@@ -372,16 +356,14 @@ class IEGame(object):
 		self.wait_for_user_input()
 
 	def handle_mouse_motion(self, event):
-		if self._map.selection is not None and self._map.move_range:
+		if self.selection is not None and self.move_range:
 			try:
 				coord = self._map.mouse2cell(event.pos)
 			except ValueError:
 				pass
 			else:
-				dist = distance(coord, self._map.selection)
-				if self.prev_dist != dist:
-					print(dist)
-				self.prev_dist = dist
+				dist = distance(coord, self.selection)
+				
 
 	def action_menu(self):
 		print("Action menu")
@@ -409,14 +391,91 @@ class IEGame(object):
 		wait_rect = pygame.Rect(menu_pos, (menu_size[0], menu_wait_h))
 		attack_rect = pygame.Rect((menu_pos[0], menu_pos[1] + menu_wait_h), (menu_size[0], menu_attack_h))
 
-		done = False
-		while not done:
+		action = None
+		while action is None:
 			event = self.wait_for_user_input()
 
 			if wait_rect.collidepoint(event.pos):
 				print("Wait")
-				done = True
+				action = "Wait"
 			elif attack_rect.collidepoint(event.pos):
 				print("Attack")
-				done = True
-		
+				action = "Attack"
+		return action
+
+	def is_in_move_range(self, (x, y)):
+		return (x, y) in self.move_range
+
+	def is_in_attack_range(self, (x, y)):
+		return (x, y) in self.attack_range
+
+	def is_selected(self, (x, y)):
+		return (self.selection == (x, y))
+
+
+	def handle_click(self, event):
+		"""Handles clicks."""
+		active_player = self.get_active_player()
+		try:
+			x, y = self._map.mouse2cell(event.pos)
+		except ValueError, e:
+			print(e)
+
+		if self.selection is None:
+			unit = self._map.nodes[x][y].unit
+			self.selection = (x, y)
+			if unit is None or unit.played:
+				self.move_range = []
+				self.attack_range = []
+			else:
+				self.move_range = self._map.list_move_area((x, y), unit.Move)
+				weapon = unit.get_active_weapon()
+				if weapon is not None:
+					self.attack_range = self._map.list_attack_area((x, y), unit.Move, weapon.Range)
+				else:
+					self.attack_range = self._map.list_attack_area((x, y), unit.Move, 1)
+		else:
+			sx, sy = self.selection
+			prev_unit = self._map.nodes[sx][sy].unit
+			curr_unit = self._map.nodes[x][y].unit
+			
+			if (x, y) == self.selection:  # Clicked two times on the same unit
+				self.selection = None
+				self.move_range = []
+				self.attack_range = []
+			elif (prev_unit is not None and  # Move unit somewhere
+					not prev_unit.played and
+					active_player.is_mine(prev_unit) and
+					self.is_in_move_range((x, y))):
+				self._map.move(prev_unit, (x, y))
+				self.selection = None
+				self.move_range = []
+				self.attack_range = []
+				prev_unit.played = True
+				
+			elif (prev_unit is not None and  # TODO to be improved: move unit next to the one to be attacked
+					not prev_unit.played and
+					active_player.is_mine(prev_unit) and
+					curr_unit is not None and
+					not active_player.is_mine(curr_unit) and
+					self.is_in_attack_range((x, y))):
+				self.selection = None
+				self.move_range = []
+				self.attack_range = []
+
+				self.battle(prev_unit, curr_unit)
+				
+			else:
+				self.selection = (x, y)
+				self.move_range = []
+				self.attack_range = []
+				if curr_unit is not None and not curr_unit.played:
+					self.move_range = self._map.list_move_area((x, y), curr_unit.Move)
+					weapon = curr_unit.get_active_weapon()
+					if weapon is not None:
+						self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, weapon.Range)
+					else:
+						self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, 1)
+		if active_player.is_turn_over():
+			self.switch_turn()
+		return False
