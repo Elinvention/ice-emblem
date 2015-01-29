@@ -420,6 +420,8 @@ class IEGame(object):
 #			except ValueError:
 #				return
 #			dist = distance(coord, self.selection)
+#			if dist < self._map.nodes[self.selection[0]].unit.get_range():
+#				print("asd")
 
 	def action_menu(self):
 		print("Action menu")
@@ -534,7 +536,7 @@ class IEGame(object):
 					self.move_range = []
 					self.attack_range = []
 
-					self.battle(prev_unit, curr_unit)
+					self.winner = self.battle(prev_unit, curr_unit)
 					
 				else:
 					self.selection = (x, y)

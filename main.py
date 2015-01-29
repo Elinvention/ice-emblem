@@ -108,10 +108,7 @@ def main():
 			if event.type == pygame.QUIT:  # If user clicked close
 				done = True
 			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
-				done = MAIN_GAME.handle_click(event)
-				if done:
-					if MAIN_GAME.winner is not None:
-						MAIN_GAME.victory_screen()
+				MAIN_GAME.handle_click(event)
 			elif event.type == pygame.MOUSEMOTION:
 				MAIN_GAME.handle_mouse_motion(event)
 			elif event.type == pygame.VIDEORESIZE: # user resized window
@@ -119,7 +116,11 @@ def main():
 				# However this causes some issues while resizing the window
 				MAIN_GAME.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
 				MAIN_GAME.screen_resize(event.size) # update map sizes
-		if not done:
+
+		if MAIN_GAME.winner is not None:
+			MAIN_GAME.victory_screen()
+			done = True
+		else:
 			MAIN_GAME.draw_map()
 			MAIN_GAME.draw_fps()
 			pygame.display.flip()
