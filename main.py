@@ -51,6 +51,10 @@ def main():
 	test_map.nodes[6][5].tile = (160, 870)
 	test_map.nodes[8][8].tile = IEMapNode.CASTLE2
 	test_map.nodes[2][8].tile = IEMapNode.CASTLE3
+	test_map.nodes[2][7].tile = IEMapNode.GRASS
+	test_map.nodes[2][9].tile = IEMapNode.GRASS
+	test_map.nodes[1][8].tile = IEMapNode.GRASS
+	test_map.nodes[3][8].tile = IEMapNode.GRASS
 	test_map.nodes[2][2].tile = IEMapNode.WATER
 	test_map.nodes[2][2].walkable = False
 

@@ -19,7 +19,6 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-import time
 import pygame
 import sys
 import os.path
@@ -27,12 +26,7 @@ import os.path
 from IEItem import IEItem, IEWeapon
 from IEMap import IEMap
 from IEUnit import IEUnit, IEPlayer
-
-from datetime import datetime
 from Colors import *
-
-def timestamp_millis_64():
-	return int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds() * 1000)
 
 def center(rect1, rect2, xoffset=0, yoffset=0):
 	"""Center rect2 in rect1 with offset."""
@@ -42,7 +36,7 @@ def distance(p0, p1):
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
 class IEGame(object):
-	ANIMATION_DURATION = 10
+	ANIMATION_DURATION = 10000
 	
 	def __init__(self, players, _map, tileset_path, music, colors):
 		pygame.init()
@@ -108,7 +102,7 @@ class IEGame(object):
 		number of milliseconds.
 		"""
 
-		now = start = timestamp_millis_64()
+		now = start = pygame.time.get_ticks()
 
 		while now - start < timeout or timeout < 0:
 			for event in pygame.event.get():
@@ -118,7 +112,7 @@ class IEGame(object):
 				elif event.type == pygame.MOUSEBUTTONDOWN:
 					return event
 			self.clock.tick(10)
-			now = timestamp_millis_64()
+			now = pygame.time.get_ticks()
 		return None
 
 	def main_menu(self):
@@ -267,7 +261,7 @@ class IEGame(object):
 		return None
 
 	def fade_out(self, fade_out_time, percent=0):
-		start = timestamp_millis_64()
+		start = pygame.time.get_ticks()
 		fade = self.screen.copy()
 		state_time = 0
 		percent = (100 - percent) / 100.0
@@ -279,7 +273,7 @@ class IEGame(object):
 			self.screen.blit(fade, (0, 0))
 			pygame.display.flip()
 			self.clock.tick(60)
-			state_time = timestamp_millis_64() - start
+			state_time = pygame.time.get_ticks() - start
 
 	def battle(self, attacking, defending):
 		attacking_player = self.whose_unit(attacking)
@@ -296,13 +290,13 @@ class IEGame(object):
 		self.overworld_music_ch.pause()  # Stop music and play fight music
 		self.battle_music_ch.play(self.battle_music)
 
-		last_attack = start = time.time()
+		last_attack = start = pygame.time.get_ticks()
 
 		self.fade_out(1000, 10)  # Darker atmosphere
 
 		battle_background = self.screen.copy()
 
-		time_between_attacks = float(self.ANIMATION_DURATION - 4) / float(at + dt)
+		time_between_attacks = float(self.ANIMATION_DURATION - 4000) / float(at + dt)
 
 		att_swap = attacking
 		def_swap = defending
@@ -322,13 +316,13 @@ class IEGame(object):
 		att_name_pos = (100, 150 + attacking.image.get_size()[1])
 		def_name_pos = (400, 150 + defending.image.get_size()[1])
 
-		while time.time() - start < self.ANIMATION_DURATION:
-			if (time.time() - last_attack > time_between_attacks and
+		while pygame.time.get_ticks() - start < self.ANIMATION_DURATION:
+			if (pygame.time.get_ticks() - last_attack > time_between_attacks and
 					def_swap.HP > 0 and att_swap.HP > 0 and at + dt > 0):
 
 				att_swap.attack(def_swap)
 
-				last_attack = time.time()
+				last_attack = pygame.time.get_ticks()
 				at -= 1
 
 				if dt > 0:
@@ -358,7 +352,7 @@ class IEGame(object):
 			self.clock.tick(20)
 
 		self.battle_music_ch.fadeout(500)
-		time.sleep(0.5)
+		pygame.time.wait(500)
 		self.overworld_music_ch.unpause()
 
 		if defending.HP == 0:
