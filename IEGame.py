@@ -191,9 +191,9 @@ class IEGame(object):
 				unit = node.unit
 				tile = node.tile
 
-				node_background = self.tileset.subsurface(pygame.Rect(tile, (64, 64)))
-				node_background = pygame.transform.smoothscale(node_background, square)
-				self.screen.blit(node_background, (i * side, j * side))
+				node_tile = self.tileset.subsurface(pygame.Rect(tile, (64, 64)))
+				node_tile = pygame.transform.smoothscale(node_tile, square)
+				self.screen.blit(node_tile, (i * side, j * side))
 
 				if self.is_selected((i, j)):
 					self.screen.blit(self.backgrounds['selected'], (i * side, j * side))
@@ -205,8 +205,10 @@ class IEGame(object):
 					self.screen.blit(self.backgrounds['played'], (i * side, j * side))
 
 				if unit is not None:
-					rect = pygame.Rect((i * side, j * side), (side, side)) # color
-					pygame.draw.rect(self.screen, self.whose_unit(unit).color, rect, 1)
+					#rect = pygame.Rect((i * side, j * side), (side, side)) # color
+					#pygame.draw.rect(self.screen, self.whose_unit(unit).color, rect, 1)
+					pos = (i * side + side / 2, j * side + side / 2)
+					pygame.draw.circle(self.screen, self.whose_unit(unit).color, pos, side / 2, 5)
 
 					if unit.image is None:
 						scritta = self.SMALL_FONT.render(unit.name, 1, BLACK)
