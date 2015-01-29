@@ -47,11 +47,11 @@ def main():
 	test_map.nodes[5][5].tile = IEMapNode.GRASS
 	test_map.nodes[4][5].tile = (80, 870)
 	test_map.nodes[4][6].tile = (80, 934)
-	test_map.nodes[5][6].tile = (32, 545)
+	test_map.nodes[5][6].tile = IEMapNode.CASTLE1
 	test_map.nodes[6][5].tile = (160, 870)
-	test_map.nodes[8][8].tile = (130, 545)
-	test_map.nodes[2][8].tile = (192, 545)
-	test_map.nodes[2][2].tile = (32, 160)
+	test_map.nodes[8][8].tile = IEMapNode.CASTLE2
+	test_map.nodes[2][8].tile = IEMapNode.CASTLE3
+	test_map.nodes[2][2].tile = IEMapNode.WATER
 	test_map.nodes[2][2].walkable = False
 
 
@@ -71,21 +71,31 @@ def main():
 				row[17]))
 			print(row[0] + " loaded")
 
-	w1 = IEWeapon("Biga feroce", 'E', 5, 10, 75, 3, 2, 20, 100, 20)
-	w2 = IEWeapon("Stuzzicadenti", 'E', 2, 1, 100, 20, 1, 1, 1, 1)
+	weapons = {}
+	with open('data/weapons.txt', 'r') as f:
+		reader = csv.reader(f, delimiter='\t')
+		fields = reader.next()
+		for row in reader:
+			weapons[row[0]] = (IEWeapon(row[0], row[1], row[2], row[3],
+				row[4], row[5], row[6], row[7], row[8], row[9]))
+			print(row[0] + " loaded")
+	
+	units['Boss'].give_weapon(weapons['Biga Feroce'])
+	units['Pirate Tux'].give_weapon(weapons['Stuzzicadenti'])
+	units['Soldier'].give_weapon(weapons['Bronze Sword'])
+	units['Pirate'].give_weapon(weapons['Bronze Bow'])
+	units['Ninja'].give_weapon(weapons['Knife'])
+	units['Skeleton'].give_weapon(weapons['Nosferatu'])
 
-	units['Boss'].give_weapon(w2)
-	units['Pirate Tux'].give_weapon(w1)
-
-	player1.units = [units['Boss'], units['Scheletro'], units['Soldato']]
-	player2.units = [units['Pirate Tux'], units['Ninja'], units['Pirata']]
+	player1.units = [units['Boss'], units['Skeleton'], units['Soldier']]
+	player2.units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
 	test_map.position_unit(units['Boss'], (5, 2))
 	test_map.position_unit(units['Pirate Tux'], (6, 3))
-	test_map.position_unit(units['Soldato'], (3, 4))
-	test_map.position_unit(units['Pirata'], (4, 5))
+	test_map.position_unit(units['Soldier'], (3, 4))
+	test_map.position_unit(units['Pirate'], (4, 5))
 	test_map.position_unit(units['Ninja'], (5, 6))
-	test_map.position_unit(units['Scheletro'], (5, 7))
+	test_map.position_unit(units['Skeleton'], (5, 7))
 
 	if not args.skip:
 		MAIN_GAME.main_menu()
@@ -98,11 +108,10 @@ def main():
 			if event.type == pygame.QUIT:  # If user clicked close
 				done = True
 			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
-				if event.button == 1:
-					done = MAIN_GAME.handle_click(event)
-					if done:
-						if MAIN_GAME.winner is not None:
-							MAIN_GAME.victory_screen()
+				done = MAIN_GAME.handle_click(event)
+				if done:
+					if MAIN_GAME.winner is not None:
+						MAIN_GAME.victory_screen()
 			elif event.type == pygame.MOUSEMOTION:
 				MAIN_GAME.handle_mouse_motion(event)
 			elif event.type == pygame.VIDEORESIZE: # user resized window

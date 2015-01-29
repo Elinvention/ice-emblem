@@ -36,15 +36,15 @@ class IEWeapon(IEItem):
 		self.name = name
 		self.descr = descr
 		self.Rank	=	Rank
-		self.Might	=	Might
-		self.Weight	=	Weight
-		self.Hit	=	Hit
-		self.Crit	=	Crit
-		self.Range	=	Range
-		self.MUses	=	Uses
-		self.Uses	=	Uses
-		self.Worth	=	Worth
-		self.Exp	=	Exp
+		self.Might	=	int(Might)
+		self.Weight	=	int(Weight)
+		self.Hit	=	int(Hit)
+		self.Crit	=	int(Crit)
+		self.Range	=	int(Range)
+		self.MUses	=	int(Uses)
+		self.Uses	=	int(Uses)
+		self.Worth	=	int(Worth)
+		self.Exp	=	int(Exp)
 		self.active	=	False
 
 	def toggleActive(self):

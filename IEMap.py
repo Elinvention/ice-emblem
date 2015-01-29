@@ -28,6 +28,10 @@ class IEMapNode(object):
 	"""Node"""
 	GRASS = (32, 672)
 	DIRT = (32, 832)
+	CASTLE1 = (32, 545)
+	CASTLE2 = (192, 545)
+	CASTLE3 = (130, 545)
+	WATER = (32, 160)
 	
 	def __init__(self, (tile_x, tile_y)=DIRT, unit=None, walkable=True, Def_bonus=0):
 		self.walkable = walkable
@@ -69,8 +73,9 @@ class IEMap(object):
 		return None
 
 	def move(self, (old_x, old_y), (x, y)):
-		self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
-		self.nodes[old_x][old_y].unit = None
+		if (old_x, old_y) != (x, y):
+			self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
+			self.nodes[old_x][old_y].unit = None
 
 	def is_played(self, (x, y)):
 		if self.nodes[x][y].unit is None:

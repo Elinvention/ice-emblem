@@ -59,6 +59,7 @@ class IEGame(object):
 
 		font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
 		self.MAIN_MENU_FONT = pygame.font.Font(font_path, 48)
+		self.MAIN_FONT = pygame.font.Font(font_path, 36)
 		self.SMALL_FONT = pygame.font.Font(font_path, 24)
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
@@ -141,7 +142,7 @@ class IEGame(object):
 
 		path = os.path.abspath('images/Ice Emblem.png')
 		main_menu_image = pygame.image.load(path).convert_alpha()
-		main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_rect.w, screen_rect.h))
+		main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_w, screen_h))
 
 		click_to_start = self.MAIN_MENU_FONT.render("Click to Start", 1, ICE)
 		click_license = self.SMALL_FONT.render("License", 1, WHITE)
@@ -310,6 +311,17 @@ class IEGame(object):
 		life_percent_background.fill(RED)
 		life_percent_background.convert()
 
+		att_life_pos = (100, 120 + attacking.image.get_size()[1])
+		def_life_pos = (400, 120 + defending.image.get_size()[1])
+
+		att_name = self.MAIN_FONT.render(attacking.name, 1, attacking_player.color)
+		att_name.convert()
+		def_name = self.MAIN_FONT.render(defending.name, 1, defending_player.color)
+		def_name.convert()
+
+		att_name_pos = (100, 150 + attacking.image.get_size()[1])
+		def_name_pos = (400, 150 + defending.image.get_size()[1])
+
 		while time.time() - start < self.ANIMATION_DURATION:
 			if (time.time() - last_attack > time_between_attacks and
 					def_swap.HP > 0 and att_swap.HP > 0 and at + dt > 0):
@@ -335,13 +347,15 @@ class IEGame(object):
 			self.screen.blit(battle_background, (0, 0))
 			self.screen.blit(attacking.image, (100, 100))
 			self.screen.blit(defending.image, (400, 100))
-			self.screen.blit(life_percent_background, (100, 100 + attacking.image.get_size()[1]))
-			self.screen.blit(life_percent_background, (400, 100 + defending.image.get_size()[1]))
-			self.screen.blit(att_life_percent, (100, 100 + attacking.image.get_size()[1]))
-			self.screen.blit(def_life_percent, (400, 100 + defending.image.get_size()[1]))
+			self.screen.blit(att_name, att_name_pos)
+			self.screen.blit(def_name, def_name_pos)
+			self.screen.blit(life_percent_background, att_life_pos)
+			self.screen.blit(life_percent_background, def_life_pos)
+			self.screen.blit(att_life_percent, att_life_pos)
+			self.screen.blit(def_life_percent, def_life_pos)
 			self.draw_fps()
 			pygame.display.flip()
-			self.clock.tick(60)
+			self.clock.tick(20)
 
 		self.battle_music_ch.fadeout(500)
 		time.sleep(0.5)
@@ -404,9 +418,8 @@ class IEGame(object):
 #			try:
 #				coord = self._map.mouse2cell(event.pos)
 #			except ValueError:
-#				pass
-#			else:
-#				dist = distance(coord, self.selection)
+#				return
+#			dist = distance(coord, self.selection)
 
 	def action_menu(self):
 		print("Action menu")
@@ -438,12 +451,16 @@ class IEGame(object):
 		while action is None:
 			event = self.wait_for_user_input()
 
-			if wait_rect.collidepoint(event.pos):
-				print("Wait")
-				action = 0
-			elif attack_rect.collidepoint(event.pos):
-				print("Attack")
-				action = 1
+			if event.button == 3:
+				action = -1
+			elif event.button == 1:
+				if wait_rect.collidepoint(event.pos):
+					print("Wait")
+					action = 0
+				elif attack_rect.collidepoint(event.pos):
+					print("Attack")
+					action = 1
+
 		return action
 
 	def is_in_move_range(self, (x, y)):
@@ -464,75 +481,79 @@ class IEGame(object):
 		except ValueError, e:
 			return
 
-		if self.selection is None:
-			unit = self._map.nodes[x][y].unit
-			self.selection = (x, y)
-			if unit is None or unit.played:
-				self.move_range = []
-				self.attack_range = []
-			else:
-				self.move_range = self._map.list_move_area((x, y), unit.Move)
-				weapon = unit.get_active_weapon()
-				if weapon is not None:
-					self.attack_range = self._map.list_attack_area((x, y), unit.Move, weapon.Range)
+		if event.button == 1:
+			if self.selection is None:
+				unit = self._map.nodes[x][y].unit
+				self.selection = (x, y)
+				if unit is None or unit.played:
+					self.move_range = []
+					self.attack_range = []
 				else:
-					self.attack_range = self._map.list_attack_area((x, y), unit.Move, 1)
-		else:
-			sx, sy = self.selection
-			prev_unit = self._map.nodes[sx][sy].unit
-			curr_unit = self._map.nodes[x][y].unit
-			
-			if (x, y) == self.selection:  # Clicked two times on the same unit
-				self.selection = None
-				self.move_range = []
-				self.attack_range = []
-			elif (prev_unit is not None and  # Move unit somewhere
-					not prev_unit.played and
-					active_player.is_mine(prev_unit) and
-					self.is_in_move_range((x, y))):
+					self.move_range = self._map.list_move_area((x, y), unit.Move)
+					unit_range = unit.get_range()
+					self.attack_range = self._map.list_attack_area((x, y), unit.Move, unit_range)
+			else:
+				sx, sy = self.selection
+				prev_unit = self._map.nodes[sx][sy].unit
+				curr_unit = self._map.nodes[x][y].unit
+				
+				if (prev_unit is not None and  # Move unit somewhere
+						not prev_unit.played and
+						active_player.is_mine(prev_unit) and
+						(self.is_selected((x, y)) or
+						self.is_in_move_range((x, y)))):
 
-				self._map.move((sx, sy), (x, y))
-				n_units_nearby = self._map.number_of_nearby_units((x, y), prev_unit.get_range())
+					self._map.move((sx, sy), (x, y))
+					n_units_nearby = self._map.number_of_nearby_units((x, y), prev_unit.get_range())
 
-				if n_units_nearby > 0:
-					action = self.action_menu()
-					if action == 0:
+					if n_units_nearby > 0:
+						action = self.action_menu()
+						if action == 0:
+							self.selection = None
+							prev_unit.played = True
+						elif action == 1:
+							self.selection = (x, y)
+							self.attack_range = self._map.list_nearby_units((x, y), prev_unit.get_range())
+							assert(self.is_in_attack_range(self.attack_range[0]))
+						elif action == -1:  # Move unit back
+							self._map.move((x, y), (sx, sy))
+							self.selection = None
+					else:
 						self.selection = None
 						prev_unit.played = True
-					elif action == 1:
-						self.selection = (x, y)
-						self.attack_range = self._map.list_nearby_units((x, y), prev_unit.get_range())
-						print(self.attack_range)
-				else:
+					self.move_range = []
+					self.attack_range = []
+					
+				elif (prev_unit is not None and
+						not prev_unit.played and
+						active_player.is_mine(prev_unit) and
+						curr_unit is not None and
+						not active_player.is_mine(curr_unit) and
+						distance((sx, sy), (x, y)) <= prev_unit.get_range()):
 					self.selection = None
-					prev_unit.played = True
-				self.move_range = []
-				self.attack_range = []
-				
-			elif (prev_unit is not None and  # TODO to be improved: move unit next to the one to be attacked
-					not prev_unit.played and
-					active_player.is_mine(prev_unit) and
-					curr_unit is not None and
-					not active_player.is_mine(curr_unit) and
-					distance((sx, sy), (x, y)) <= prev_unit.get_range()):
-				self.selection = None
-				self.move_range = []
-				self.attack_range = []
+					self.move_range = []
+					self.attack_range = []
 
-				self.battle(prev_unit, curr_unit)
-				
-			else:
-				self.selection = (x, y)
-				self.move_range = []
-				self.attack_range = []
-				if curr_unit is not None and not curr_unit.played:
-					self.move_range = self._map.list_move_area((x, y), curr_unit.Move)
-					weapon = curr_unit.get_active_weapon()
-					if weapon is not None:
-						self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, weapon.Range)
-					else:
-						self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, 1)
+					self.battle(prev_unit, curr_unit)
+					
+				else:
+					self.selection = (x, y)
+					self.move_range = []
+					self.attack_range = []
+					if curr_unit is not None and not curr_unit.played:
+						self.move_range = self._map.list_move_area((x, y), curr_unit.Move)
+						weapon = curr_unit.get_active_weapon()
+						if weapon is not None:
+							self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, weapon.Range)
+						else:
+							self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, 1)
+		elif event.button == 3:
+			self.selection = None
+			self.move_range = []
+			self.attack_range = []
+
 		if active_player.is_turn_over():
 			self.switch_turn()
+
 		return False
 
