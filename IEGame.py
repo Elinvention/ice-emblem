@@ -174,19 +174,16 @@ class IEGame(object):
 		screen_w, screen_h = self.screen.get_size()
 		#screen_rect = self.screen.get_rect()
 
-		square = (self._map.tile_size - 2, self._map.tile_size - 2)
+		square = (self._map.tile_size, self._map.tile_size)
 		side = self._map.tile_size
 
-		map_w = square * self._map.w
-		map_h = square * self._map.h
+		map_w = side * self._map.w
+		map_h = side * self._map.h
 
 		self.screen.fill(BLACK)
 
 		for i in range(0, self._map.w):
-			# pygame.draw.line(screen, WHITE, (i * side, 0), (i * side, map_h), 1)
 			for j in range(0, self._map.h):
-				# pygame.draw.line(screen, WHITE, (0, j * side), (map_w, j * side), 1)
-
 				node = self._map.nodes[i][j]
 				unit = node.unit
 				tile = node.tile
@@ -233,6 +230,16 @@ class IEGame(object):
 					HP_bar = pygame.Surface((HP_bar_length, 5))
 					HP_bar.fill(GREEN)
 					self.screen.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
+
+		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
+		horizontal_line.fill((0, 0, 0, 100))
+		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
+		vertical_line.fill((0, 0, 0, 100))
+		for i in range(0, self._map.w):
+			self.screen.blit(vertical_line, (i * side - 1, 0))
+		for j in range(0, self._map.h):
+			self.screen.blit(horizontal_line, (0, j * side - 1))
+
 		try:
 			cell_x, cell_y = self._map.mouse2cell(pygame.mouse.get_pos())
 		except ValueError:

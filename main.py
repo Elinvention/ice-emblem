@@ -20,10 +20,9 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-#import time
+
 import pygame
 import csv
-#import os.path
 import argparse
 
 from IEItem import IEItem, IEWeapon
@@ -42,7 +41,7 @@ def main():
 	player1 = IEPlayer("Blue Team", BLUE, True)
 	player2 = IEPlayer("Red Team", RED)
 
-	test_map = IEMap((15, 10), (800, 600))
+	test_map = IEMap((15, 10), (800, 600))  # Create a 15x10 map on a 800x600 screen
 
 	test_map.nodes[5][5].tile = IEMapNode.GRASS
 	test_map.nodes[4][5].tile = (80, 870)
