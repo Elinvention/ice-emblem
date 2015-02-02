@@ -38,17 +38,8 @@ def distance(p0, p1):
 class IEGame(object):
 	ANIMATION_DURATION = 10000
 	
-	def __init__(self, players, _map, tileset_path, music, colors):
-		pygame.init()
-		# pygame.FULLSCREEN    create a fullscreen display
-		# pygame.DOUBLEBUF     recommended for HWSURFACE or OPENGL
-		# pygame.HWSURFACE     hardware accelerated, only in FULLSCREEN
-		# pygame.OPENGL        create an OpenGL renderable display
-		# pygame.RESIZABLE     display window should be sizeable
-		# pygame.NOFRAME       display window will have no border or controls
-		self.screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-		pygame.display.set_caption("Ice Emblem")
-
+	def __init__(self, screen, units, players, map_path, music, colors):
+		self.screen = screen
 		self.clock = pygame.time.Clock()
 
 		font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
@@ -58,10 +49,8 @@ class IEGame(object):
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
 		self.players = players
-		self._map = _map
-
-		self.tileset = pygame.image.load(os.path.abspath(tileset_path))
-		self.tileset.convert()
+		self.units = units
+		self._map = IEMap(map_path, (800, 600), units, players)
 
 		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
@@ -79,11 +68,46 @@ class IEGame(object):
 
 		#self.overworld_music_ch.play(overworld_music, -1)
 		self.winner = None
-		
+
 		self.selection = None
 		self.move_range = []
 		self.attack_range = []
 		self.path = []
+
+	def blit_map(self):
+		rendered_map = self._map.render(self.screen.get_size())
+		self.screen.blit(rendered_map, (0, 0))
+
+		side = self._map.tile_size
+
+		for i in range(0, self._map.w):
+			for j in range(0, self._map.h):
+				if self.is_selected((i, j)):
+					self.screen.blit(self.backgrounds['selected'], (i * side, j * side))
+				elif self.is_in_move_range((i, j)):
+					self.screen.blit(self.backgrounds['move_range'], (i * side, j * side))
+				elif self.is_in_attack_range((i, j)):
+					self.screen.blit(self.backgrounds['attack_range'], (i * side, j * side))
+				elif self._map.is_played((i, j)):
+					self.screen.blit(self.backgrounds['played'], (i * side, j * side))
+
+	def blit_info(self):
+		screen_w, screen_h = self.screen.get_size()
+		try:
+			cell_x, cell_y = self._map.mouse2cell(pygame.mouse.get_pos())
+		except ValueError:
+			pass
+		else:
+			cell_label = self.SMALL_FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
+			rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
+			self.screen.blit(cell_label, rec)
+
+		#turn = self.whose_turn()
+		#turn_label = self.SMALL_FONT.render('phase', True, WHITE)
+		#rec = turn_label.get_rect(bottom=screen_h - 5, left=200)
+		#self.screen.blit(turn_label, rec)
+		#rect = pygame.Rect((195 - side, screen_h - 5 - side), (side, side))
+		#pygame.draw.rect(self.screen, turn.color, rect, 0)
 
 	def screen_resize(self, (screen_w, screen_h)):
 		self._map.screen_resize((screen_w, screen_h))
@@ -168,93 +192,6 @@ class IEGame(object):
 		fpslabel = self.FPS_FONT.render(str(int(fps)) + ' FPS', True, WHITE)
 		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
 		self.screen.blit(fpslabel, rec)
-
-	def draw_map(self):
-		"""Let's draw the map!"""
-		screen_w, screen_h = self.screen.get_size()
-		#screen_rect = self.screen.get_rect()
-
-		square = (self._map.tile_size, self._map.tile_size)
-		side = self._map.tile_size
-
-		map_w = side * self._map.w
-		map_h = side * self._map.h
-
-		self.screen.fill(BLACK)
-
-		for i in range(0, self._map.w):
-			for j in range(0, self._map.h):
-				node = self._map.nodes[i][j]
-				unit = node.unit
-				tile = node.tile
-
-				node_tile = self.tileset.subsurface(pygame.Rect(tile, (64, 64)))
-				node_tile = pygame.transform.smoothscale(node_tile, square)
-				self.screen.blit(node_tile, (i * side, j * side))
-
-				if self.is_selected((i, j)):
-					self.screen.blit(self.backgrounds['selected'], (i * side, j * side))
-				elif self.is_in_move_range((i, j)):
-					self.screen.blit(self.backgrounds['move_range'], (i * side, j * side))
-				elif self.is_in_attack_range((i, j)):
-					self.screen.blit(self.backgrounds['attack_range'], (i * side, j * side))
-				elif self._map.is_played((i, j)):
-					self.screen.blit(self.backgrounds['played'], (i * side, j * side))
-
-				if unit is not None:
-					#rect = pygame.Rect((i * side, j * side), (side, side)) # color
-					#pygame.draw.rect(self.screen, self.whose_unit(unit).color, rect, 1)
-					pos = (i * side + side / 2, j * side + side / 2)
-					pygame.draw.circle(self.screen, self.whose_unit(unit).color, pos, side / 2, 5)
-
-					if unit.image is None:
-						scritta = self.SMALL_FONT.render(unit.name, 1, BLACK)
-						self.screen.blit(scritta, (i * side, j * side))
-					else:
-						image_w, image_h = unit.image.get_size()
-						if (image_w, image_h) != (side, side - 5):
-							if image_w > image_h:
-								aspect_ratio = float(image_h) / float(image_w)
-								resized_w = side
-								resized_h = int(aspect_ratio * resized_w)
-							else:
-								aspect_ratio = float(image_w) / float(image_h)
-								resized_h = side - 5
-								resized_w = int(aspect_ratio * resized_h)
-							image = pygame.transform.smoothscale(unit.image, (resized_w, resized_h))
-						else:
-							image = unit.image
-						self.screen.blit(image, (i * side + side / 2 - image.get_size()[0] / 2, j * side))
-
-					HP_bar_length = int((float(unit.HP) / float(unit.HP_max)) * float(side))
-					HP_bar = pygame.Surface((HP_bar_length, 5))
-					HP_bar.fill(GREEN)
-					self.screen.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
-
-		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
-		horizontal_line.fill((0, 0, 0, 100))
-		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
-		vertical_line.fill((0, 0, 0, 100))
-		for i in range(0, self._map.w):
-			self.screen.blit(vertical_line, (i * side - 1, 0))
-		for j in range(0, self._map.h):
-			self.screen.blit(horizontal_line, (0, j * side - 1))
-
-		try:
-			cell_x, cell_y = self._map.mouse2cell(pygame.mouse.get_pos())
-		except ValueError:
-			pass
-		else:
-			cell_label = self.SMALL_FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
-			rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
-			self.screen.blit(cell_label, rec)
-
-		turn = self.whose_turn()
-		turn_label = self.SMALL_FONT.render('phase', True, WHITE)
-		rec = turn_label.get_rect(bottom=screen_h - 5, left=200)
-		self.screen.blit(turn_label, rec)
-		rect = pygame.Rect((195 - side, screen_h - 5 - side), (side, side))
-		pygame.draw.rect(self.screen, turn.color, rect, 0)
 
 	def whose_unit(self, unit):
 		for player in self.players:
@@ -394,7 +331,7 @@ class IEGame(object):
 				active_player = self.players[active_player_index]
 				active_player.begin_turn()
 				break
-		self.draw_map()
+		self.blit_map()
 		phase = self.MAIN_MENU_FONT.render(active_player.name + ' phase', 1, active_player.color)
 		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
 		pygame.display.flip()
@@ -480,12 +417,13 @@ class IEGame(object):
 
 	def handle_click(self, event):
 		"""Handles clicks."""
+		print('Previous selection: ' + str(self.selection))
 		active_player = self.get_active_player()
 		try:
 			x, y = self._map.mouse2cell(event.pos)
 		except ValueError, e:
 			return
-
+		print('Current selection: ' + str((x, y)))
 		if event.button == 1:
 			if self.selection is None:
 				unit = self._map.nodes[x][y].unit
@@ -501,6 +439,12 @@ class IEGame(object):
 				sx, sy = self.selection
 				prev_unit = self._map.nodes[sx][sy].unit
 				curr_unit = self._map.nodes[x][y].unit
+
+				if prev_unit is not None:
+					print('Previous unit: ' + prev_unit.name)
+				if curr_unit is not None:
+					print('Current unit:' + curr_unit.name)
+				print('Can move: %s' % str(active_player.is_mine(prev_unit)))
 				
 				if (prev_unit is not None and  # Move unit somewhere
 						not prev_unit.played and
@@ -513,14 +457,14 @@ class IEGame(object):
 
 					if n_units_nearby > 0:
 						action = self.action_menu()
-						if action == 0:
+						if action == 0:  # if user choose Wait
 							self.selection = None
 							prev_unit.played = True
-						elif action == 1:
+						elif action == 1:  # if user choose Attack
 							self.selection = (x, y)
 							self.attack_range = self._map.list_nearby_units((x, y), prev_unit.get_range())
-							assert(self.is_in_attack_range(self.attack_range[0]))
-						elif action == -1:  # Move unit back
+						elif action == -1:  # if user cancel
+							# Move unit back
 							self._map.move((x, y), (sx, sy))
 							self.selection = None
 					else:
@@ -540,7 +484,7 @@ class IEGame(object):
 					self.attack_range = []
 
 					self.winner = self.battle(prev_unit, curr_unit)
-					
+					prev_unit.played = True
 				else:
 					self.selection = (x, y)
 					self.move_range = []

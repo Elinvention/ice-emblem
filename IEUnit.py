@@ -159,8 +159,6 @@ Unit: "%s"
 					ret = 2
 				else:
 					ret = 1
-
-		self.played = True
 		return ret
 
 class IEPlayer(object):

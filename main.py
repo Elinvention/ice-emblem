@@ -26,43 +26,25 @@ import csv
 import argparse
 
 from IEItem import IEItem, IEWeapon
-from IEMap import IEMap, IEMapNode
+from IEMap import IEMap
 from IEUnit import IEUnit, IEPlayer
 from IEGame import IEGame
 
 from Colors import *
 
-def main():
+def main(screen):
 
 	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
 	parser.add_argument('-s','--skip', action='store_true', help='Skip main menu', required=False)
+	parser.add_argument('-m','--map', action='store', help='Which map to load', default='test', required=False)
 	args = parser.parse_args()
 
 	player1 = IEPlayer("Blue Team", BLUE, True)
 	player2 = IEPlayer("Red Team", RED)
 
-	test_map = IEMap((15, 10), (800, 600))  # Create a 15x10 map on a 800x600 screen
-
-	test_map.nodes[5][5].tile = IEMapNode.GRASS
-	test_map.nodes[4][5].tile = (80, 870)
-	test_map.nodes[4][6].tile = (80, 934)
-	test_map.nodes[5][6].tile = IEMapNode.CASTLE1
-	test_map.nodes[6][5].tile = (160, 870)
-	test_map.nodes[8][8].tile = IEMapNode.CASTLE2
-	test_map.nodes[2][8].tile = IEMapNode.CASTLE3
-	test_map.nodes[2][7].tile = IEMapNode.GRASS
-	test_map.nodes[2][9].tile = IEMapNode.GRASS
-	test_map.nodes[1][8].tile = IEMapNode.GRASS
-	test_map.nodes[3][8].tile = IEMapNode.GRASS
-	test_map.nodes[2][2].tile = IEMapNode.WATER
-	test_map.nodes[2][2].walkable = False
-
-
-	colors = dict(selected=YELLOW_A50, move_range=BLUE_A50, attack_range=RED_A50, played=GREY_A200)
+	colors = dict(selected=(255, 200, 0, 100), move_range=(0, 0, 255, 75), attack_range=(255, 0, 0, 75), played=(100, 100, 100, 150))
 	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
 	
-	MAIN_GAME = IEGame([player1, player2], test_map, 'sprites/tileset.png', music, colors)
-
 	units = {}
 	with open('data/characters.txt', 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
@@ -93,13 +75,8 @@ def main():
 	player1.units = [units['Boss'], units['Skeleton'], units['Soldier']]
 	player2.units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
-	test_map.position_unit(units['Boss'], (5, 2))
-	test_map.position_unit(units['Pirate Tux'], (6, 3))
-	test_map.position_unit(units['Soldier'], (3, 4))
-	test_map.position_unit(units['Pirate'], (4, 5))
-	test_map.position_unit(units['Ninja'], (5, 6))
-	test_map.position_unit(units['Skeleton'], (5, 7))
-
+	MAIN_GAME = IEGame(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
+	
 	if not args.skip:
 		MAIN_GAME.main_menu()
 		pygame.mixer.stop()
@@ -124,7 +101,9 @@ def main():
 			MAIN_GAME.victory_screen()
 			done = True
 		else:
-			MAIN_GAME.draw_map()
+			MAIN_GAME.screen.fill(BLACK)
+			MAIN_GAME.blit_map()
+			MAIN_GAME.blit_info()
 			MAIN_GAME.draw_fps()
 			pygame.display.flip()
 			MAIN_GAME.clock.tick(10)
@@ -134,4 +113,7 @@ def main():
 
 
 if __name__ == '__main__':
-	main()
+	pygame.init()
+	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
+	pygame.display.set_caption("Ice Emblem")
+	main(screen)

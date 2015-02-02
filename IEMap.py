@@ -20,34 +20,129 @@
 #  MA 02110-1301, USA.
 
 
+import pytmx
+import pygame
+#import pyscroll
+
 def distance(p0, p1):
-    return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
+	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
 
 class IEMapNode(object):
 	"""Node"""
-	GRASS = (32, 672)
-	DIRT = (32, 832)
-	CASTLE1 = (32, 545)
-	CASTLE2 = (192, 545)
-	CASTLE3 = (130, 545)
-	WATER = (32, 160)
-	
-	def __init__(self, (tile_x, tile_y)=DIRT, unit=None, walkable=True, Def_bonus=0):
-		self.walkable = walkable
+
+	def __init__(self, tile, unit=None, walkable=True, Def_bonus=0):
+		self.tile = tile
 		self.unit = unit
-		self.tile = (tile_x, tile_y)
+		self.walkable = walkable
 		self.Def_bonus = Def_bonus
 
 
 class IEMap(object):
 	"""The map is composed of nodes."""
-	def __init__(self, (w, h), (screen_w, screen_h)):
-		self.w = w
-		self.h = h
-		self.nodes = [[IEMapNode() for i in range(h)] for j in range(w)]
-		self.tile_size = min(screen_w / w, screen_h / h)
+	def __init__(self, map_path, (screen_w, screen_h), units, players):
+		tmx_data = pytmx.load_pygame(map_path)
+		#map_data = pyscroll.data.TiledMapData(tmx_data)
+		#self.map_layer = pyscroll.BufferedRenderer(map_data, (screen_w, screen_h))
+		self.h = tmx_data.height
+		self.w = tmx_data.width
+		self.tile_size = min(screen_w / self.w, screen_h / self.h)
 		self.square = (self.tile_size, self.tile_size)
+		self.players = players
+		self.nodes = [[] for x in range(self.w)]
+		for layer in tmx_data.visible_layers:
+			if isinstance(layer, pytmx.TiledTileLayer):
+				# iterate over the tiles in the layer
+				for x, y, image in layer.tiles():
+					try:  # if there are more layers fuse them togheter
+						tile = self.nodes[x][y].tile.convert_alpha()
+						tile.blit(image, (0,0))
+						self.nodes[x][y].tile = tile
+					except IndexError:
+						#print('IndexError %d:%d' % (x, y))
+						node = IEMapNode(image)
+						self.nodes[x].append(node)
+
+		for layer in tmx_data.visible_layers:
+			if isinstance(layer, pytmx.TiledObjectGroup):
+				for obj in layer:
+					if obj.type == 'unit':
+						x = int(obj.x / tmx_data.tilewidth)
+						y = int(obj.y / tmx_data.tileheight)
+						self.nodes[x][y].unit = units[obj.name]
+
+		self.background_color = tmx_data.background_color
+
+	def whose_unit(self, unit):
+		for player in self.players:
+			for player_unit in player.units:
+				if player_unit == unit:
+					return player
+		return None
+
+	def render(self, (screen_w, screen_h)):
+		"""Renders the map returning a Surface"""
+
+		map_w = self.tile_size * self.w
+		map_h = self.tile_size * self.h
+		side = self.tile_size
+
+		rendering = pygame.Surface((map_w, map_h))
+
+		if self.background_color:
+			rendering.fill(pygame.Color(self.background_color))
+
+		# deref these heavily used references for speed
+		smoothscale = pygame.transform.smoothscale
+
+		for i in range(self.w):
+			for j in range(self.h):
+				tile = self.nodes[i][j].tile
+				tile = smoothscale(tile, self.square)
+				rendering.blit(tile, (i * self.tile_size, j * self.tile_size))
+
+				node = self.nodes[i][j]
+				unit = node.unit
+				if unit is not None:
+					#rect = pygame.Rect((i * side, j * side), (side, side)) # color
+					#pygame.draw.rect(rendering, self.whose_unit(unit).color, rect, 1)
+					pos = (i * side + side / 2, j * side + side / 2)
+					pygame.draw.circle(rendering, self.whose_unit(unit).color, pos, side / 2, 5)
+
+					if unit.image is None:
+						scritta = self.SMALL_FONT.render(unit.name, 1, BLACK)
+						rendering.blit(scritta, (i * side, j * side))
+					else:
+						image_w, image_h = unit.image.get_size()
+						if (image_w, image_h) != (side, side - 5):
+							if image_w > image_h:
+								aspect_ratio = float(image_h) / float(image_w)
+								resized_w = side
+								resized_h = int(aspect_ratio * resized_w)
+							else:
+								aspect_ratio = float(image_w) / float(image_h)
+								resized_h = side - 5
+								resized_w = int(aspect_ratio * resized_h)
+							image = pygame.transform.smoothscale(unit.image, (resized_w, resized_h))
+						else:
+							image = unit.image
+						rendering.blit(image, (i * side + side / 2 - image.get_size()[0] / 2, j * side))
+
+					HP_bar_length = int((float(unit.HP) / float(unit.HP_max)) * float(side))
+					HP_bar = pygame.Surface((HP_bar_length, 5))
+					HP_bar.fill((0, 255, 0))
+					rendering.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
+
+		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
+		horizontal_line.fill((0, 0, 0, 100))
+		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
+		vertical_line.fill((0, 0, 0, 100))
+
+		for i in range(self.w):
+			rendering.blit(vertical_line, (i * self.tile_size - 1, 0))
+		for j in range(self.h):
+			rendering.blit(horizontal_line, (0, j * self.tile_size - 1))
+		return rendering
 
 	def position_unit(self, unit, (x, y)):
 		"""Set an unit to the coordinates."""
@@ -59,8 +154,8 @@ class IEMap(object):
 
 	def mouse2cell(self, (cursor_x, cursor_y)):
 		"""mouse position to map indexes."""
-		x = cursor_x / self.tile_size
-		y = cursor_y / self.tile_size
+		x = int(cursor_x / self.tile_size)
+		y = int(cursor_y / self.tile_size)
 		if x >= self.w or y >= self.h:
 			raise ValueError('%d >= %d or %d >= %d' % (x, self.w, y, self.h))
 		return (x, y)
@@ -74,6 +169,7 @@ class IEMap(object):
 
 	def move(self, (old_x, old_y), (x, y)):
 		if (old_x, old_y) != (x, y):
+			print('Unit %s moved from %d:%d to %d:%d' % (self.nodes[old_x][old_y].unit.name, old_x, old_y, x, y))
 			self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
 			self.nodes[old_x][old_y].unit = None
 
