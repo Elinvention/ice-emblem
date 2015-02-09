@@ -383,7 +383,7 @@ class IEMap(object):
 				return 2
 			else:
 				self.reset_selection()
-				self.curr_sel = (x, y)
+				self.curr_sel = self.prev_sel = (x, y)
 
 				if curr_unit is not None and not curr_unit.played:
 					self.update_move_area((x, y))
