@@ -50,6 +50,7 @@ class IEUnit(object):
 		self.WRank	=	WRank       	# Weapons' Levels.
 		self.Items	=	[]          	# List of items
 		self.played	=	False       	# Wether unit was used or not in a turn
+		self.color = None
 		path = os.path.abspath('sprites/' + self.name + '.png')
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
@@ -62,7 +63,7 @@ class IEUnit(object):
 		return """
 Unit: "%s"
 	HP: %d/%d
-	LV: %d E: %d
+	LV: %d	E: %d
 	Str: %d	Skill: %d
 	Spd: %d	Luck: %d
 	Def: %d	Res: %d
@@ -77,6 +78,47 @@ Unit: "%s"
 			self.Skill, self.Spd, self.Luck, self.Def,
 			self.Res, self.Move, self.Con, self.Aid, self.Trv,
 			self.Affin, self.Cond, self.WRank, self.Items, self.played)
+
+	def render_info(self, font):
+		"""
+		Returns a Surface containing all informations about a unit.
+		The specified font will be used to render the text and will
+		determine the width and haight of the Surface
+		"""
+
+		font_linesize = font.get_linesize()
+
+		# will "parse" this text and render each attribute individually
+		info_text = self.__str__()
+
+		info_list = []
+		max_width = 0
+		counter = 0
+
+		# which attributes to show
+		show = ['HP', 'LV', 'E', 'Str', 'Skill', 'Spd', 'Luck', 'Def']
+
+		# split newlines and tabs except the "indentation" tabs
+		for raw_line in iter(info_text.splitlines()):
+			for line in iter(raw_line.strip().split('\t')):
+				attr = line.split(':')
+				if attr[0] in show:
+					# it's in the list: render it
+					info_list.append(font.render(line, 1, (255, 255, 255)))
+					# max_width and counter to compute surface's size
+					max_width = max(info_list[-1].get_size()[0], max_width)
+					counter += 1
+
+		dim = (int(max_width * 2 + 20), int(counter * font_linesize / 2))
+		surface = pygame.Surface(dim).convert_alpha()
+		surface.fill((0, 0, 0, 0))  # transparent surface
+
+		for i, line in enumerate(info_list):
+			# position each attribute in two colums
+			pos = (i % 2 * (max_width + 20), i / 2 * font_linesize)
+			surface.blit(line, pos)
+
+		return surface
 
 	def get_active_weapon(self):
 		"""Returns the active weapon if it exists, None otherwise."""
@@ -98,6 +140,10 @@ Unit: "%s"
 			print("%s died" % self.name)
 
 	def attack_turns(self, enemy):
+		"""
+		Returns a tuple: how many times this unit can attack the enemy
+		and how many times the enemy can attack this unit in a single battle
+		"""
 		self_turns = enemy_turns = 1
 		if self.Spd > enemy.Spd:
 			self_turns += 1
@@ -105,9 +151,12 @@ Unit: "%s"
 			enemy_turns += 1
 		return (self_turns, enemy_turns)
 
-	def get_range(self):
+	def get_weapon_range(self):
 		active_weapon = self.get_active_weapon()
 		return active_weapon.Range if active_weapon is not None else 1
+
+	def get_attack_distance(self):
+		return self.get_weapon_range() + self.Move
 
 	def number_of_attacks(self, enemy):
 		self_attacks = enemy_attacks = 1
@@ -169,9 +218,20 @@ class IEPlayer(object):
 	def __init__(self, name, color, my_turn=False, units=[]):
 		self.number_of_players += 1
 		self.name = name
+		for unit in units:
+			unit.color = color
 		self.units = units
 		self.color = color
 		self.my_turn = my_turn
+
+	def __del__(self):
+		self.number_of_players -= 1
+
+	def __str__(self):
+		units = "["
+		for unit in self.units:
+			units += unit.name + ', '
+		return '%s: %s]' % (self.name, units)
 
 	def is_mine(self, unit):
 		"""Tells wether a unit belongs to this player or not"""
@@ -197,3 +257,7 @@ class IEPlayer(object):
 
 	def is_defeated(self):
 		return True if len(self.units) == 0 else False
+
+	def remove_unit(self, unit):
+		unit.color = None
+		self.units.remove(unit)

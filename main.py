@@ -39,10 +39,7 @@ def main(screen):
 	parser.add_argument('-m','--map', action='store', help='Which map to load', default='test', required=False)
 	args = parser.parse_args()
 
-	player1 = IEPlayer("Blue Team", BLUE, True)
-	player2 = IEPlayer("Red Team", RED)
-
-	colors = dict(selected=(255, 200, 0, 100), move_range=(0, 0, 255, 75), attack_range=(255, 0, 0, 75), played=(100, 100, 100, 150))
+	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
 	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
 	
 	units = {}
@@ -72,8 +69,12 @@ def main(screen):
 	units['Ninja'].give_weapon(weapons['Knife'])
 	units['Skeleton'].give_weapon(weapons['Nosferatu'])
 
-	player1.units = [units['Boss'], units['Skeleton'], units['Soldier']]
-	player2.units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
+	player1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
+	player2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
+
+	player1 = IEPlayer("Blue Team", BLUE, True, player1_units)
+	player2 = IEPlayer("Red Team", RED, False, player2_units)
+
 
 	MAIN_GAME = IEGame(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
 	
@@ -104,7 +105,7 @@ def main(screen):
 			MAIN_GAME.screen.fill(BLACK)
 			MAIN_GAME.blit_map()
 			MAIN_GAME.blit_info()
-			MAIN_GAME.draw_fps()
+			MAIN_GAME.blit_fps()
 			pygame.display.flip()
 			MAIN_GAME.clock.tick(10)
 

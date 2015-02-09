@@ -36,7 +36,7 @@ def distance(p0, p1):
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
 class IEGame(object):
-	ANIMATION_DURATION = 10000
+	TIME_BETWEEN_ATTACKS = 4000
 	
 	def __init__(self, screen, units, players, map_path, music, colors):
 		self.screen = screen
@@ -49,8 +49,12 @@ class IEGame(object):
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
 		self.players = players
+		for player in players:
+			print str(player) + ' and ',
+		print('are going to fight!')
+		self.active_player = self.get_active_player()
 		self.units = units
-		self._map = IEMap(map_path, (800, 600), units, players)
+		self._map = IEMap(map_path, (800, 600), colors, units)
 
 		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
@@ -60,36 +64,16 @@ class IEGame(object):
 		self.overworld_music = pygame.mixer.Sound(os.path.abspath(music['overworld']))
 		self.battle_music = pygame.mixer.Sound(os.path.abspath(music['battle']))
 
-		self.colors = colors
-		self.backgrounds = {}
-		for background, color in self.colors.iteritems():
-			self.backgrounds[background] = pygame.Surface(self._map.square).convert_alpha()
-			self.backgrounds[background].fill(color)
-
-		#self.overworld_music_ch.play(overworld_music, -1)
 		self.winner = None
-
-		self.selection = None
-		self.move_range = []
-		self.attack_range = []
-		self.path = []
+		self.state = 0
+		self.prev_coord = None
 
 	def blit_map(self):
+		"""
+		This method blits the map on the screen.
+		"""
 		rendered_map = self._map.render(self.screen.get_size())
 		self.screen.blit(rendered_map, (0, 0))
-
-		side = self._map.tile_size
-
-		for i in range(0, self._map.w):
-			for j in range(0, self._map.h):
-				if self.is_selected((i, j)):
-					self.screen.blit(self.backgrounds['selected'], (i * side, j * side))
-				elif self.is_in_move_range((i, j)):
-					self.screen.blit(self.backgrounds['move_range'], (i * side, j * side))
-				elif self.is_in_attack_range((i, j)):
-					self.screen.blit(self.backgrounds['attack_range'], (i * side, j * side))
-				elif self._map.is_played((i, j)):
-					self.screen.blit(self.backgrounds['played'], (i * side, j * side))
 
 	def blit_info(self):
 		screen_w, screen_h = self.screen.get_size()
@@ -111,9 +95,6 @@ class IEGame(object):
 
 	def screen_resize(self, (screen_w, screen_h)):
 		self._map.screen_resize((screen_w, screen_h))
-		for background, color in self.colors.iteritems():
-			self.backgrounds[background] = pygame.Surface(self._map.square).convert_alpha()
-			self.backgrounds[background].fill(color)
 
 	def play_overworld_music(self):
 		"""Start playing overworld music in a loop."""
@@ -186,7 +167,7 @@ class IEGame(object):
 		self.fade_out(2000)
 		pygame.mixer.stop() # Make sure mixer is not busy
 
-	def draw_fps(self):
+	def blit_fps(self):
 		screen_w, screen_h = self.screen.get_size()
 		fps = self.clock.get_fps()
 		fpslabel = self.FPS_FONT.render(str(int(fps)) + ' FPS', True, WHITE)
@@ -221,6 +202,12 @@ class IEGame(object):
 			self.clock.tick(60)
 			state_time = pygame.time.get_ticks() - start
 
+	def check_quit_event(self):
+		for event in pygame.event.get(pygame.QUIT):
+			if event.type == pygame.QUIT:  # If user clicked close
+				pygame.quit()
+				sys.exit()
+
 	def battle(self, attacking, defending):
 		attacking_player = self.whose_unit(attacking)
 		defending_player = self.whose_unit(defending)
@@ -242,7 +229,7 @@ class IEGame(object):
 
 		battle_background = self.screen.copy()
 
-		time_between_attacks = float(self.ANIMATION_DURATION - 4000) / float(at + dt)
+		animation_duration = self.TIME_BETWEEN_ATTACKS * (at + dt + 1)
 
 		att_swap = attacking
 		def_swap = defending
@@ -255,15 +242,17 @@ class IEGame(object):
 		def_life_pos = (400, 120 + defending.image.get_size()[1])
 
 		att_name = self.MAIN_FONT.render(attacking.name, 1, attacking_player.color)
-		att_name.convert()
 		def_name = self.MAIN_FONT.render(defending.name, 1, defending_player.color)
-		def_name.convert()
+		att_name_pos = (100, 30 + att_life_pos[1])
+		def_name_pos = (400, 30 + def_life_pos[1])
 
-		att_name_pos = (100, 150 + attacking.image.get_size()[1])
-		def_name_pos = (400, 150 + defending.image.get_size()[1])
+		att_info = attacking.render_info(self.SMALL_FONT)
+		att_info_pos = (100, att_name_pos[1] + att_name.get_size()[1] + 20)
+		def_info = defending.render_info(self.SMALL_FONT)
+		def_info_pos = (400, def_name_pos[1] + def_name.get_size()[1] + 20)
 
-		while pygame.time.get_ticks() - start < self.ANIMATION_DURATION:
-			if (pygame.time.get_ticks() - last_attack > time_between_attacks and
+		while pygame.time.get_ticks() - start < animation_duration:
+			if (pygame.time.get_ticks() - last_attack > self.TIME_BETWEEN_ATTACKS and
 					def_swap.HP > 0 and att_swap.HP > 0 and at + dt > 0):
 
 				att_swap.attack(def_swap)
@@ -293,13 +282,17 @@ class IEGame(object):
 			self.screen.blit(life_percent_background, def_life_pos)
 			self.screen.blit(att_life_percent, att_life_pos)
 			self.screen.blit(def_life_percent, def_life_pos)
-			self.draw_fps()
+			self.screen.blit(att_info, att_info_pos)
+			self.screen.blit(def_info, def_info_pos)
+			self.blit_fps()
+			self.check_quit_event()
 			pygame.display.flip()
 			self.clock.tick(20)
 
 		self.battle_music_ch.fadeout(500)
 		pygame.time.wait(500)
 		self.overworld_music_ch.unpause()
+		attacking.played = True
 
 		if defending.HP == 0:
 			self._map.remove_unit(defending)
@@ -323,16 +316,16 @@ class IEGame(object):
 		return None
 
 	def switch_turn(self):
-		active_player = None
 		for i, player in enumerate(self.players):
 			if player.my_turn:
 				player.end_turn()
 				active_player_index = (i + 1) % len(self.players)
-				active_player = self.players[active_player_index]
-				active_player.begin_turn()
+				self.active_player = self.players[active_player_index]
+				self.active_player.begin_turn()
 				break
 		self.blit_map()
-		phase = self.MAIN_MENU_FONT.render(active_player.name + ' phase', 1, active_player.color)
+		phase_str = self.active_player.name + ' phase'
+		phase = self.MAIN_MENU_FONT.render(phase_str, 1, self.active_player.color)
 		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
 		pygame.display.flip()
 		self.wait_for_user_input(5000)
@@ -354,16 +347,20 @@ class IEGame(object):
 
 	def handle_mouse_motion(self, event):
 		pass
-#		if self.selection is not None and self.move_range:
-#			try:
-#				coord = self._map.mouse2cell(event.pos)
-#			except ValueError:
-#				return
-#			dist = distance(coord, self.selection)
-#			if dist < self._map.nodes[self.selection[0]].unit.get_range():
-#				print("asd")
+		if self._map.curr_sel is not None and self._map.move_area:
+			try:
+				coord = self._map.mouse2cell(event.pos)
+			except ValueError:
+				return
+			if coord != self.prev_coord:
+				self.prev_coord = coord
+				dist = distance(coord, self._map.curr_sel)
+				print(dist)
+				#if dist < self._map.nodes[self.selection[0]].unit.get_range():
+				#	print("asd")
 
 	def action_menu(self):
+		self.blit_map()
 		print("Action menu")
 		menu_wait = self.SMALL_FONT.render('Wait', 1, WHITE)
 		menu_attack = self.SMALL_FONT.render('Attack', 1, WHITE)
@@ -405,104 +402,26 @@ class IEGame(object):
 
 		return action
 
-	def is_in_move_range(self, (x, y)):
-		return (x, y) in self.move_range
-
-	def is_in_attack_range(self, (x, y)):
-		return (x, y) in self.attack_range
-
-	def is_selected(self, (x, y)):
-		return (self.selection == (x, y))
-
-
 	def handle_click(self, event):
 		"""Handles clicks."""
-		print('Previous selection: ' + str(self.selection))
-		active_player = self.get_active_player()
-		try:
-			x, y = self._map.mouse2cell(event.pos)
-		except ValueError, e:
-			return
-		print('Current selection: ' + str((x, y)))
-		if event.button == 1:
-			if self.selection is None:
-				unit = self._map.nodes[x][y].unit
-				self.selection = (x, y)
-				if unit is None or unit.played:
-					self.move_range = []
-					self.attack_range = []
-				else:
-					self.move_range = self._map.list_move_area((x, y), unit.Move)
-					unit_range = unit.get_range()
-					self.attack_range = self._map.list_attack_area((x, y), unit.Move, unit_range)
-			else:
-				sx, sy = self.selection
-				prev_unit = self._map.nodes[sx][sy].unit
-				curr_unit = self._map.nodes[x][y].unit
+		if self.state == 0:
+			if event.button == 1:
+				action_menu = self._map.handle_click(event.pos, self.active_player)
+				if action_menu:  # Have to display action menu
+					action = self.action_menu()
+					self._map.action(action)
+					if action == 1:
+						self.state = 1
+			elif event.button == 3:
+				self._map.reset_selection()
+		elif self.state == 1:
+			if event.button == 1 and self._map.is_attack_click(event.pos):
+				defending = self._map.get_unit(self._map.mouse2cell(event.pos))
+				attacking = self._map.get_unit(self._map.curr_sel)
+				self.winner = self.battle(attacking, defending)
+				self.state = 0
+				self._map.reset_selection()
 
-				if prev_unit is not None:
-					print('Previous unit: ' + prev_unit.name)
-				if curr_unit is not None:
-					print('Current unit:' + curr_unit.name)
-				print('Can move: %s' % str(active_player.is_mine(prev_unit)))
-				
-				if (prev_unit is not None and  # Move unit somewhere
-						not prev_unit.played and
-						active_player.is_mine(prev_unit) and
-						(self.is_selected((x, y)) or
-						self.is_in_move_range((x, y)))):
-
-					self._map.move((sx, sy), (x, y))
-					n_units_nearby = self._map.number_of_nearby_units((x, y), prev_unit.get_range())
-
-					if n_units_nearby > 0:
-						action = self.action_menu()
-						if action == 0:  # if user choose Wait
-							self.selection = None
-							prev_unit.played = True
-						elif action == 1:  # if user choose Attack
-							self.selection = (x, y)
-							self.attack_range = self._map.list_nearby_units((x, y), prev_unit.get_range())
-						elif action == -1:  # if user cancel
-							# Move unit back
-							self._map.move((x, y), (sx, sy))
-							self.selection = None
-					else:
-						self.selection = None
-						prev_unit.played = True
-					self.move_range = []
-					self.attack_range = []
-					
-				elif (prev_unit is not None and
-						not prev_unit.played and
-						active_player.is_mine(prev_unit) and
-						curr_unit is not None and
-						not active_player.is_mine(curr_unit) and
-						distance((sx, sy), (x, y)) <= prev_unit.get_range()):
-					self.selection = None
-					self.move_range = []
-					self.attack_range = []
-
-					self.winner = self.battle(prev_unit, curr_unit)
-					prev_unit.played = True
-				else:
-					self.selection = (x, y)
-					self.move_range = []
-					self.attack_range = []
-					if curr_unit is not None and not curr_unit.played:
-						self.move_range = self._map.list_move_area((x, y), curr_unit.Move)
-						weapon = curr_unit.get_active_weapon()
-						if weapon is not None:
-							self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, weapon.Range)
-						else:
-							self.attack_range = self._map.list_attack_area((x, y), curr_unit.Move, 1)
-		elif event.button == 3:
-			self.selection = None
-			self.move_range = []
-			self.attack_range = []
-
-		if active_player.is_turn_over():
+		if self.active_player.is_turn_over():
 			self.switch_turn()
-
-		return False
 

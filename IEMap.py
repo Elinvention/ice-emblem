@@ -22,7 +22,7 @@
 
 import pytmx
 import pygame
-#import pyscroll
+
 
 def distance(p0, p1):
 	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
@@ -37,10 +37,18 @@ class IEMapNode(object):
 		self.walkable = walkable
 		self.Def_bonus = Def_bonus
 
+	def is_obstacle(self, color=None):
+		if color is not None:
+			return (not self.walkable or
+				(self.unit is not None and self.unit.color != color))
+		else:
+			return not self.walkable or self.unit is not None
+
 
 class IEMap(object):
 	"""The map is composed of nodes."""
-	def __init__(self, map_path, (screen_w, screen_h), units, players):
+	def __init__(self, map_path, (screen_w, screen_h), highlight_colors,
+				units):
 		tmx_data = pytmx.load_pygame(map_path)
 		#map_data = pyscroll.data.TiledMapData(tmx_data)
 		#self.map_layer = pyscroll.BufferedRenderer(map_data, (screen_w, screen_h))
@@ -48,7 +56,6 @@ class IEMap(object):
 		self.w = tmx_data.width
 		self.tile_size = min(screen_w / self.w, screen_h / self.h)
 		self.square = (self.tile_size, self.tile_size)
-		self.players = players
 		self.nodes = [[] for x in range(self.w)]
 		for layer in tmx_data.visible_layers:
 			if isinstance(layer, pytmx.TiledTileLayer):
@@ -73,12 +80,16 @@ class IEMap(object):
 
 		self.background_color = tmx_data.background_color
 
-	def whose_unit(self, unit):
-		for player in self.players:
-			for player_unit in player.units:
-				if player_unit == unit:
-					return player
-		return None
+		self.prev_sel = None
+		self.curr_sel = None
+		self.move_area = []
+		self.attack_area = []
+
+		self.highlight_colors = highlight_colors
+		self.highlight_surfaces = {}
+		for highlight, color in self.highlight_colors.iteritems():
+			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
+			self.highlight_surfaces[highlight].fill(color)
 
 	def render(self, (screen_w, screen_h)):
 		"""Renders the map returning a Surface"""
@@ -89,8 +100,8 @@ class IEMap(object):
 
 		rendering = pygame.Surface((map_w, map_h))
 
-		if self.background_color:
-			rendering.fill(pygame.Color(self.background_color))
+		#if self.background_color:
+		#	rendering.fill(pygame.Color(self.background_color))
 
 		# deref these heavily used references for speed
 		smoothscale = pygame.transform.smoothscale
@@ -104,10 +115,8 @@ class IEMap(object):
 				node = self.nodes[i][j]
 				unit = node.unit
 				if unit is not None:
-					#rect = pygame.Rect((i * side, j * side), (side, side)) # color
-					#pygame.draw.rect(rendering, self.whose_unit(unit).color, rect, 1)
 					pos = (i * side + side / 2, j * side + side / 2)
-					pygame.draw.circle(rendering, self.whose_unit(unit).color, pos, side / 2, 5)
+					pygame.draw.circle(rendering, unit.color, pos, side / 2, 5)
 
 					if unit.image is None:
 						scritta = self.SMALL_FONT.render(unit.name, 1, BLACK)
@@ -133,6 +142,15 @@ class IEMap(object):
 					HP_bar.fill((0, 255, 0))
 					rendering.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
 
+				if self.is_selected((i, j)):
+					rendering.blit(self.highlight_surfaces['selected'], (i * side, j * side))
+				elif self.is_in_move_range((i, j)):
+					rendering.blit(self.highlight_surfaces['move'], (i * side, j * side))
+				elif self.is_in_attack_range((i, j)):
+					rendering.blit(self.highlight_surfaces['attack'], (i * side, j * side))
+				elif self.is_played((i, j)):
+					rendering.blit(self.highlight_surfaces['played'], (i * side, j * side))
+
 		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
 		horizontal_line.fill((0, 0, 0, 100))
 		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
@@ -151,6 +169,9 @@ class IEMap(object):
 	def screen_resize(self, (screen_w, screen_h)):
 		self.tile_size = min(screen_w / self.w, screen_h / self.h)
 		self.square = (self.tile_size, self.tile_size)
+		for highlight, color in self.highlight_colors.iteritems():
+			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
+			self.highlight_surfaces[highlight].fill(color)
 
 	def mouse2cell(self, (cursor_x, cursor_y)):
 		"""mouse position to map indexes."""
@@ -187,67 +208,86 @@ class IEMap(object):
 		else:
 			return False
 
-	def list_move_area(self, (x, y), Move):
-		move_area = []
-		for px in range(x - Move, x + Move + 1):
-			for py in range(y - Move, y + Move + 1):
-				try:
-					if self.nodes[px][py].unit is None:
-						x_distance = abs(px - x)
-						y_distance = abs(py - y)
-						y_limit = Move - x_distance
-						x_limit = Move - y_distance
-						if self.nodes[px][py].walkable and x_distance <= x_limit and y_distance <= y_limit:
-							move_area.append((px, py))
-				except IndexError:
-					pass
-		return move_area
+	def update_move_area(self, (x, y)):
+		"""
+		Recursive algorithm to find all areas the selected unit can move to.
+		
+		"""
+		unit = self.get_unit(x, y)
+		Move = unit.Move
+		weapon_range = unit.get_weapon_range()
 
-	def list_attack_area(self, (x, y), Move, weapon_range=1):
-		attack_area = []
-		for px in range(x - Move - weapon_range, x + Move + weapon_range + 1):
-			for py in range(y - Move - weapon_range, y + Move + weapon_range + 1):
-				x_distance = abs(px - x)
-				y_distance = abs(py - y)
-				y_limit_max = Move + weapon_range - x_distance
-				x_limit_max = Move + weapon_range - y_distance
-				y_limit_min = Move + 1 - x_distance
-				x_limit_min = Move + 1 - y_distance
-				try:
-					if (x_distance <= x_limit_max and
-						y_distance <= y_limit_max and
-						x_distance >= x_limit_min and
-						y_distance >= y_limit_min):
-						attack_area.append((px, py))
-					elif self.nodes[px][py].unit is not None and x_distance < x_limit_min and y_distance < y_limit_min:
-						attack_area.append((px, py))
-				except IndexError:
-					pass
-		return attack_area
+		def find((px, py), already_visited=[], counter=0):
+			next_checks = [(px, py)]
+			if px > x:
+				next_checks.extend([(px + 1, py), (px, py + 1), (px, py - 1)])
+			elif py > y:
+				next_checks.extend([(px + 1, py), (px, py + 1), (px - 1, py)])
+			elif px < x:
+				next_checks.extend([(px, py + 1), (px - 1, py), (px, py - 1)])
+			elif py < y:
+				next_checks.extend([(px + 1, py), (px - 1, py), (px, py - 1)])
 
-	def number_of_nearby_units(self, (x, y), unit_range):
-		counter = 0
+			ret = []
+			for next_check in next_checks:
+				try:
+					node = self.get_node(next_check)
+				except IndexError:
+					#print("%s outside map!" % str(next_check))
+					continue
+				if next_check not in already_visited:
+					#print("Checking %s" % str(next_check))
+					if counter > Move:
+						break
+					elif distance((x, y), next_check) > Move:
+						#print("%s too far from %s" % (str(next_check), (x, y)))
+						already_visited.append(next_check)
+					elif node.is_obstacle(unit.color):
+						#print("%s obstacle" % str(next_check))
+						already_visited.append(next_check)
+					else:
+						#print("%s added!" % str(next_check))
+						already_visited.append(next_check)
+						ret.append(next_check)
+						ret.extend(find(next_check, already_visited, counter + 1))
+			return ret
+
+		self.move_area = find((x + 1, y)) + find((x, y + 1)) + find((x - 1, y)) + find((x, y - 1))
+
+	def get_node(self, a, b=None):
+		x, y = a
+		return self.nodes[x][y]
+
+	def update_attack_area(self, (x, y)):
+		"""
+		Returns a list of map coordinates that the unit can reach to attack
+		"""
+		weapon_range = self.get_unit(x, y).get_weapon_range()
+
+		for (x, y) in self.move_area:
+			for i in range(x - weapon_range, x + weapon_range + 1):
+				for j in range(y - weapon_range, y + weapon_range + 1):
+					if (i, j) not in self.move_area:
+						if distance((x, y), (i, j)) <= weapon_range:
+							self.attack_area.append((i, j))
+
+	def nearby_units(self, (x, y), colors=[]):
+		unit = self.nodes[x][y].unit
+		unit_range = self.nodes[x][y].unit.get_weapon_range()
+		nearby_list = []
+
 		for i in range(x - unit_range, x + unit_range + 1):
 			for j in range(y - unit_range, y + unit_range + 1):
 				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
 					try:
-						if self.nodes[i][j].unit is not None:
-							counter += 1
+						nodes_unit = self.get_unit(i, j)
+						if nodes_unit is not None:
+							if (not colors) or (nodes_unit.color not in colors):
+								nearby_list.append((i, j))
 					except IndexError:
 						pass
-		return counter
 
-	def list_nearby_units(self, (x, y), unit_range):
-		_list = []
-		for i in range(x - unit_range, x + unit_range + 1):
-			for j in range(y - unit_range, y + unit_range + 1):
-				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
-					try:
-						if self.nodes[i][j].unit is not None:
-							_list.append((i, j))
-					except IndexError:
-						pass
-		return _list
+		return nearby_list
 
 	def path(self, (ax, ay), (bx, by)):
 		"""
@@ -255,3 +295,124 @@ class IEMap(object):
 		https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
 		to find the shortest path from a to b
 		"""
+
+	def is_in_move_range(self, (x, y)):
+		return (x, y) in self.move_area
+
+	def is_in_attack_range(self, (x, y)):
+		return (x, y) in self.attack_area
+
+	def is_selected(self, (x, y)):
+		return (self.curr_sel == (x, y))
+
+	def reset_selection(self):
+		self.curr_sel = None
+		self.prev_sel = None
+		self.move_area = []
+		self.attack_area = []
+		print("Reset selection")
+
+	def can_selection_move(self, active_player):
+		nx, ny = self.curr_sel
+		sx, sy = self.prev_sel
+		prev_unit = self.nodes[sx][sy].unit
+		curr_unit = self.nodes[nx][ny].unit
+
+		return (prev_unit is not None and not prev_unit.played and
+			active_player.is_mine(prev_unit) and
+			self.is_in_move_range(self.curr_sel))
+
+	def sel_distance(self):
+		return distance(self.curr_sel, self.prev_sel)
+
+	def can_selection_attack(self, active_player):
+		nx, ny = self.curr_sel
+		sx, sy = self.prev_sel
+		prev_unit = self.nodes[sx][sy].unit
+		curr_unit = self.nodes[nx][ny].unit
+
+		return (prev_unit is not None and not prev_unit.played and
+			active_player.is_mine(prev_unit) and
+			curr_unit is not None and
+			not active_player.is_mine(curr_unit) and
+			self.sel_distance() <= prev_unit.get_weapon_range())
+
+	def get_unit(self, a, b=None):
+		try:
+			x, y = a
+		except TypeError:
+			return self.nodes[a][b].unit
+		else:
+			return self.nodes[x][y].unit
+
+	def handle_click(self, mouse_pos, active_player):
+		try:
+			x, y = self.mouse2cell(mouse_pos)
+		except ValueError, e:
+			return
+
+		self.curr_sel = (x, y)
+
+		if self.prev_sel is None:
+			unit = self.nodes[x][y].unit
+			if unit is None or unit.played:
+				self.move_area = []
+				self.attack_area = []
+			else:
+				self.update_move_area((x, y))
+				self.update_attack_area((x, y))
+			self.prev_sel = self.curr_sel
+		else:
+			px, py = self.prev_sel
+			prev_unit = self.nodes[px][py].unit
+			curr_unit = self.nodes[x][y].unit
+
+			if (self.can_selection_move(active_player)):
+
+				self.move(self.prev_sel, self.curr_sel)
+				n_units_nearby = len(self.nearby_units(self.curr_sel))
+
+				if n_units_nearby > 0:
+					return 1
+				else:
+					prev_unit.played = True
+					self.reset_selection()
+
+			elif self.can_selection_attack(active_player):
+				self.reset_selection()
+				return 2
+			else:
+				self.reset_selection()
+				self.curr_sel = (x, y)
+
+				if curr_unit is not None and not curr_unit.played:
+					self.update_move_area((x, y))
+					self.update_attack_area((x, y))
+		return 0
+
+	def action(self, action):
+		nx, ny = self.curr_sel
+		px, py = self.prev_sel
+		curr_unit = self.nodes[nx][ny].unit
+		prev_unit = self.nodes[px][py].unit
+
+		if action == 0:  # if user choose Wait
+			self.reset_selection()
+			curr_unit.played = True
+
+		elif action == 1:  # if user choose Attack
+			self.move_area = []
+			self.attack_area = self.nearby_units(self.curr_sel, [curr_unit.color])
+
+		elif action == -1:  # if user cancel
+			# Move unit back
+			self.move(self.curr_sel, self.prev_sel)
+			self.reset_selection()
+
+	def is_attack_click(self, mouse_pos):
+		try:
+			x, y = self.mouse2cell(mouse_pos)
+		except ValueError, e:
+			return False
+
+		return (x, y) in self.attack_area

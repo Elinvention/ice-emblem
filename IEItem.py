@@ -33,8 +33,7 @@ class IEItem(object):
 class IEWeapon(IEItem):
 	"""Swords, Lances, Axes, Bows, Tomes, Staffs"""
 	def __init__(self, name, Rank, Might, Weight, Hit, Crit, Range, Uses, Worth, Exp, descr=""):
-		self.name = name
-		self.descr = descr
+		IEItem.__init__(self, name, descr)
 		self.Rank	=	Rank
 		self.Might	=	int(Might)
 		self.Weight	=	int(Weight)
