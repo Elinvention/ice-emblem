@@ -114,7 +114,7 @@ class IEMap(object):
 
 				node = self.nodes[i][j]
 				unit = node.unit
-				if unit is not None:
+				if unit is not None and unit.color is not None:
 					pos = (i * side + side / 2, j * side + side / 2)
 					pygame.draw.circle(rendering, unit.color, pos, side / 2, 5)
 
@@ -252,7 +252,11 @@ class IEMap(object):
 						ret.extend(find(next_check, already_visited, counter + 1))
 			return ret
 
-		self.move_area = find((x + 1, y)) + find((x, y + 1)) + find((x - 1, y)) + find((x, y - 1))
+		a1 = find((x + 1, y))
+		a2 = find((x, y + 1))
+		a3 = find((x - 1, y))
+		a4 = find((x, y - 1))
+		self.move_area = [(x, y)] + a1 + a2 + a3 + a4
 
 	def get_node(self, a, b=None):
 		x, y = a
@@ -263,6 +267,7 @@ class IEMap(object):
 		Returns a list of map coordinates that the unit can reach to attack
 		"""
 		weapon_range = self.get_unit(x, y).get_weapon_range()
+		self.attack_area = []
 
 		for (x, y) in self.move_area:
 			for i in range(x - weapon_range, x + weapon_range + 1):
@@ -310,7 +315,6 @@ class IEMap(object):
 		self.prev_sel = None
 		self.move_area = []
 		self.attack_area = []
-		print("Reset selection")
 
 	def can_selection_move(self, active_player):
 		nx, ny = self.curr_sel
@@ -354,7 +358,7 @@ class IEMap(object):
 		self.curr_sel = (x, y)
 
 		if self.prev_sel is None:
-			unit = self.nodes[x][y].unit
+			unit = self.get_unit(x, y)
 			if unit is None or unit.played:
 				self.move_area = []
 				self.attack_area = []
@@ -363,11 +367,19 @@ class IEMap(object):
 				self.update_attack_area((x, y))
 			self.prev_sel = self.curr_sel
 		else:
-			px, py = self.prev_sel
-			prev_unit = self.nodes[px][py].unit
-			curr_unit = self.nodes[x][y].unit
+			prev_unit = self.get_unit(self.prev_sel)
+			curr_unit = self.get_unit(self.curr_sel)
 
-			if (self.can_selection_move(active_player)):
+			if prev_unit is not None and curr_unit is not None:
+				if prev_unit == curr_unit:
+					#n_units_nearby = len(self.nearby_units(self.curr_sel))
+					#if n_units_nearby > 0:
+					return 1
+				else:
+					self.prev_sel = self.curr_sel
+					self.update_move_area(self.curr_sel)
+					self.update_attack_area(self.curr_sel)
+			elif self.can_selection_move(active_player):
 
 				self.move(self.prev_sel, self.curr_sel)
 				n_units_nearby = len(self.nearby_units(self.curr_sel))

@@ -75,7 +75,6 @@ def main(screen):
 	player1 = IEPlayer("Blue Team", BLUE, True, player1_units)
 	player2 = IEPlayer("Red Team", RED, False, player2_units)
 
-
 	MAIN_GAME = IEGame(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
 	
 	if not args.skip:

@@ -139,18 +139,6 @@ Unit: "%s"
 			self.HP = 0
 			print("%s died" % self.name)
 
-	def attack_turns(self, enemy):
-		"""
-		Returns a tuple: how many times this unit can attack the enemy
-		and how many times the enemy can attack this unit in a single battle
-		"""
-		self_turns = enemy_turns = 1
-		if self.Spd > enemy.Spd:
-			self_turns += 1
-		elif enemy.Spd > self.Spd:
-			enemy_turns += 1
-		return (self_turns, enemy_turns)
-
 	def get_weapon_range(self):
 		active_weapon = self.get_active_weapon()
 		return active_weapon.Range if active_weapon is not None else 1
@@ -158,13 +146,24 @@ Unit: "%s"
 	def get_attack_distance(self):
 		return self.get_weapon_range() + self.Move
 
-	def number_of_attacks(self, enemy):
+	def number_of_attacks(self, enemy, distance):
+		"""
+		Returns a tuple: how many times this unit can attack the enemy
+		and how many times the enemy can attack this unit in a single battle
+		"""
 		self_attacks = enemy_attacks = 1
 
 		if self.Spd > enemy.Spd:
 			self_attacks += 1
 		elif enemy.Spd > self.Spd:
 			enemy_attacks += 1
+
+		self_range = self.get_weapon_range()
+		enemy_range = enemy.get_weapon_range()
+		if self_range < distance:
+			self_attacks = 0
+		if enemy_range < distance:
+			enemy_attacks = 0
 
 		return (self_attacks, enemy_attacks)
 
