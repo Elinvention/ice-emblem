@@ -146,7 +146,6 @@ Unit: "%s"
 	def get_attack_distance(self):
 		return self.get_weapon_range() + self.move
 
-
 	def number_of_attacks(self, enemy, distance):
 		"""
 		Returns a tuple: how many times this unit can attack the enemy
