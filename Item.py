@@ -26,15 +26,17 @@ class Item(object):
 	def __init__(self, name, Worth, descr=""):
 		self.name	=	name
 		self.descr	=	descr
-		self.Worth	=	int(Worth)	# Price
+		self.Worth	=	int(Worth)  # Price
 
 	def __str__(self):
-		return "Item:\r\n\tName: \"%s\"\r\n\tDescription: \"%s\"" % (self.name, self.descr)
+		return "Item:\r\n\tName: \"%s\"\r\n\tDescription: \"%s\"" % \
+			(self.name, self.descr)
 
 
 class Weapon(Item):
 	"""Swords, Lances, Axes, Bows, Tomes, Staffs"""
-	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
+	def __init__(self, name, rank, might, weight, hit, crit, range,
+				uses, worth, exp, effective, descr=""):
 		Item.__init__(self, name, worth, descr)
 		self.rank   	=	rank    	# rank necessary to use it
 		self.might  	=	int(might)	# damage
@@ -74,9 +76,13 @@ Weapon "%s":
 	Worth: %d
 	Exp: %d
 	active: %d
-""" % (self.name, self.descr, self.rank, self.might, self.weight, self.hit, self.crit, self.range, self.uses, self.muses, self.worth, self.exp, self.active)
+""" % (self.name, self.descr, self.rank, self.might, self.weight,
+		self.hit, self.crit, self.range, self.uses, self.muses,
+		self.worth, self.exp, self.active)
 
-	def get_might(self, enemy_weapon, weak):
+	def get_might(self, enemy, weak):
+		enemy_weapon = enemy.get_active_weapon()
+
 		if not enemy_weapon.active:
 			raise ValueError("Enemy weapon is not active")
 
@@ -163,7 +169,7 @@ class Staff(Item):
 		self.exp	=	int(exp)	# exp increases unit's weapon rank
 		self.active	=	False
 
-"""Test Armour to verify"""
+
 class Armour(Item):
 	def __init__(self, name, rank, defence, weight, uses, worth, exp, effective, descr=""):
 		Item.__init__(self, name, worth, descr)
@@ -199,4 +205,5 @@ Armour "%s":
 	Worth: %d
 	Exp: %d
 	active: %d
-""" % (self.name, self.descr, self.rank, self.defence, self.weight, self.uses, self.muses, self.worth, self.exp, self.active)
+""" % (self.name, self.descr, self.rank, self.defence, self.weight,
+		self.uses, self.muses, self.worth, self.exp, self.active)

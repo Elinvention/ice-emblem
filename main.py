@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-#  Ice Emblem.py
+#  main.py
 #
 #  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
 #
