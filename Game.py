@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  IEGame.py, Ice Emblem's main game class.
+#  Game.py, Ice Emblem's main game class.
 #
 #  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
 #
@@ -23,9 +23,9 @@ import pygame
 import sys
 import os.path
 
-from IEItem import IEItem, IEWeapon
-from IEMap import IEMap
-from IEUnit import IEUnit, IEPlayer
+from Item import Item, Weapon
+from Map import Map
+from Unit import Unit, Player
 from Colors import *
 
 def center(rect1, rect2, xoffset=0, yoffset=0):
@@ -35,9 +35,9 @@ def center(rect1, rect2, xoffset=0, yoffset=0):
 def distance(p0, p1):
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
-class IEGame(object):
+class Game(object):
 	TIME_BETWEEN_ATTACKS = 4000
-	
+
 	def __init__(self, screen, units, players, map_path, music, colors):
 		self.screen = screen
 		self.clock = pygame.time.Clock()
@@ -54,12 +54,12 @@ class IEGame(object):
 		print('are going to fight!')
 		self.active_player = self.get_active_player()
 		self.units = units
-		self._map = IEMap(map_path, (800, 600), colors, units)
+		self._map = Map(map_path, (800, 600), colors, units)
 
 		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
 		self.battle_music_ch = pygame.mixer.Channel(1)
-		
+
 		self.main_menu_music = pygame.mixer.Sound(os.path.abspath(music['menu']))
 		self.overworld_music = pygame.mixer.Sound(os.path.abspath(music['overworld']))
 		self.battle_music = pygame.mixer.Sound(os.path.abspath(music['battle']))
@@ -253,13 +253,13 @@ class IEGame(object):
 
 		while pygame.time.get_ticks() - start < animation_duration:
 
-			if (at != 0 or dt != 0) and (def_swap.HP == 0 or att_swap.HP == 0):
+			if (at != 0 or dt != 0) and (def_swap.hp == 0 or att_swap.hp == 0):
 				at = dt = 0
 				animation_duration = pygame.time.get_ticks() - start + self.TIME_BETWEEN_ATTACKS
 				print("Animation ends in %d" % animation_duration - start)
 
 			if (pygame.time.get_ticks() - last_attack > self.TIME_BETWEEN_ATTACKS and
-					def_swap.HP > 0 and att_swap.HP > 0 and at + dt > 0):
+					def_swap.hp > 0 and att_swap.hp > 0 and at + dt > 0):
 
 				att_swap.attack(def_swap)
 
@@ -300,10 +300,10 @@ class IEGame(object):
 		self.overworld_music_ch.unpause()
 		attacking.played = True
 
-		if defending.HP == 0:
+		if defending.hp == 0:
 			self._map.remove_unit(defending)
 			defending_player.units.remove(defending)
-		elif attacking.HP == 0:
+		elif attacking.hp == 0:
 			self._map.remove_unit(attacking)
 			attacking_player.units.remove(attacking)
 		print("##### Battle ends #####\r\n")
@@ -375,15 +375,15 @@ class IEGame(object):
 		print("Action menu")
 		menu_wait = self.SMALL_FONT.render('Wait', 1, WHITE)
 		menu_attack = self.SMALL_FONT.render('Attack', 1, WHITE)
-		
+
 		menu_wait_w, menu_wait_h = menu_wait.get_size()
 		menu_attack_w, menu_attack_h = menu_attack.get_size()
 
 		# if self.is_enemy_naerby()
 		menu_h = menu_wait_h + menu_attack_h
-		
+
 		menu_size = (max(menu_wait_w, menu_attack_w), menu_h)
-		
+
 		menu = pygame.Surface(menu_size)
 		menu.fill(BLACK)
 		menu.blit(menu_wait, (0, 0))

@@ -25,10 +25,10 @@ import pygame
 import csv
 import argparse
 
-from IEItem import IEItem, IEWeapon
-from IEMap import IEMap
-from IEUnit import IEUnit, IEPlayer
-from IEGame import IEGame
+from Item import Item, Weapon
+from Map import Map
+from Unit import Unit, Player
+from Game import Game
 
 from Colors import *
 
@@ -41,13 +41,13 @@ def main(screen):
 
 	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
 	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
-	
+
 	units = {}
 	with open('data/characters.txt', 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
 		fields = reader.next()
 		for row in reader:
-			units[row[0]] = (IEUnit(row[0], row[1], row[2], row[3],
+			units[row[0]] = (Unit(row[0], row[1], row[2], row[3],
 				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
 				row[11], row[12], row[13], row[14], row[15], row[16],
 				row[17]))
@@ -58,10 +58,10 @@ def main(screen):
 		reader = csv.reader(f, delimiter='\t')
 		fields = reader.next()
 		for row in reader:
-			weapons[row[0]] = (IEWeapon(row[0], row[1], row[2], row[3],
-				row[4], row[5], row[6], row[7], row[8], row[9]))
+			weapons[row[0]] = (Weapon(row[0], row[1], row[2], row[3],
+				row[4], row[5], row[6], row[7], row[8], row[9], None))
 			print(row[0] + " loaded")
-	
+
 	units['Boss'].give_weapon(weapons['Biga Feroce'])
 	units['Pirate Tux'].give_weapon(weapons['Stuzzicadenti'])
 	units['Soldier'].give_weapon(weapons['Bronze Sword'])
@@ -72,16 +72,16 @@ def main(screen):
 	player1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
 	player2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
-	player1 = IEPlayer("Blue Team", BLUE, True, player1_units)
-	player2 = IEPlayer("Red Team", RED, False, player2_units)
+	player1 = Player("Blue Team", BLUE, True, player1_units)
+	player2 = Player("Red Team", RED, False, player2_units)
 
-	MAIN_GAME = IEGame(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
-	
+	MAIN_GAME = Game(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
+
 	if not args.skip:
 		MAIN_GAME.main_menu()
 		pygame.mixer.stop()
 	MAIN_GAME.play_overworld_music()
-	
+
 	done = False
 	while not done:
 		for event in pygame.event.get():  # User did something

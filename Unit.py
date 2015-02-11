@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  IEUnit.py, Ice Emblem's unit class.
+#  Unit.py, Ice Emblem's unit class.
 #
 #  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
 #
@@ -25,31 +25,31 @@ import os.path
 import random
 
 
-class IEUnit(object):
+class Unit(object):
 	"""
 	This class is a unit with stats
 	"""
-	def __init__(self, name, HP_max, HP, LV, E, Str, Skill, Spd, Luck, Def, Res, Move, Con, Aid, Trv, Affin, Cond, WRank):
+	def __init__(self, name, hp_max, hp, lv, e, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
 		self.name	=	str(name)   	# name of the character
-		self.HP_max	=	int(HP_max) 	# Maximum HP
-		self.HP 	=	int(HP)     	# Current HP
-		self.LV 	=	int(LV)     	# Level
-		self.E  	=	int(E)      	# Experience
-		self.Str	=	int(Str)    	# Strength determines the damage inflicted to the enemy
-		self.Skill	=	int(Skill)  	# Skill chance of hitting the enemy
-		self.Spd	=	int(Spd)    	# Speed chance to avoid enemy's attack
-		self.Luck	=	int(Luck)   	# Luck influences many things
-		self.Def	=	int(Def)    	# Defence reduces phisical damages
-		self.Res	=	int(Res)    	# Resistence reduces magical damages
-		self.Move	=	int(Move)   	# Movement determines how far the unit can move in a turn
-		self.Con	=	int(Con)    	# Constitution, or phisical size. Affects rescues.
-		self.Aid	=	int(Aid)    	# Max rescuing constitution. Units with lower Con can be rescued.
-		self.Trv	=	Trv         	# Traveler. The unit with whom this unit is traveling.
-		self.Affin	=	Affin       	# Elemental Affinity. Determines compatibility with other units.
-		self.Cond	=	Cond        	# Health conditions.
-		self.WRank	=	WRank       	# Weapons' Levels.
-		self.Items	=	[]          	# List of items
-		self.played	=	False       	# Wether unit was used or not in a turn
+		self.hp_max	=	int(hp_max) 	# maximum hp
+		self.hp 	=	int(hp)     	# current hp
+		self.lv 	=	int(lv)     	# level
+		self.e  	=	int(e)      	# experience
+		self.strength = int(strength)	# strength determines the damage inflicted to the enemy
+		self.skill	=	int(skill)  	# skill chance of hitting the enemy
+		self.spd	=	int(spd)    	# speed chance to avoid enemy's attack
+		self.luck	=	int(luck)   	# luck influences many things
+		self.defence=	int(defence)	# defence reduces phisical damages
+		self.res	=	int(res)    	# resistence reduces magical damages
+		self.move	=	int(move)   	# movement determines how far the unit can move in a turn
+		self.con	=	int(con)    	# constitution, or phisical size. affects rescues.
+		self.aid	=	int(aid)    	# max rescuing constitution. units with lower con can be rescued.
+		self.trv	=	trv         	# traveler. the unit with whom this unit is traveling.
+		self.affin	=	affin       	# elemental affinity. determines compatibility with other units.
+		self.cond	=	cond        	# health conditions.
+		self.wrank	=	wrank       	# weapons' levels.
+		self.items	=	[]          	# list of items
+		self.played	=	False       	# wether unit was used or not in a turn
 		self.color = None
 		path = os.path.abspath('sprites/' + self.name + '.png')
 		try:
@@ -74,10 +74,10 @@ Unit: "%s"
 	Items: %s
 	Played: %s
 """ % (self.name,
-			self.HP, self.HP_max, self.LV, self.E, self.Str,
-			self.Skill, self.Spd, self.Luck, self.Def,
-			self.Res, self.Move, self.Con, self.Aid, self.Trv,
-			self.Affin, self.Cond, self.WRank, self.Items, self.played)
+			self.hp, self.hp_max, self.lv, self.e, self.strength,
+			self.skill, self.spd, self.luck, self.defence,
+			self.res, self.move, self.con, self.aid, self.trv,
+			self.affin, self.cond, self.wrank, self.items, self.played)
 
 	def render_info(self, font):
 		"""
@@ -122,7 +122,7 @@ Unit: "%s"
 
 	def get_active_weapon(self):
 		"""Returns the active weapon if it exists, None otherwise."""
-		for item in self.Items:
+		for item in self.items:
 			if item.active:
 				return item
 		return None
@@ -130,21 +130,22 @@ Unit: "%s"
 	def give_weapon(self, weapon, active=True):
 		"""Gives a weapon to the unit. The weapon becomes active by default."""
 		weapon.active = active
-		self.Items.append(weapon)
+		self.items.append(weapon)
 
 	def inflict_damage(self, dmg):
 		"""Inflicts damages to the unit."""
-		self.HP -= dmg
-		if self.HP <= 0:
-			self.HP = 0
+		self.hp -= dmg
+		if self.hp <= 0:
+			self.hp = 0
 			print("%s died" % self.name)
 
 	def get_weapon_range(self):
 		active_weapon = self.get_active_weapon()
-		return active_weapon.Range if active_weapon is not None else 1
+		return active_weapon.range if active_weapon is not None else 1
 
 	def get_attack_distance(self):
-		return self.get_weapon_range() + self.Move
+		return self.get_weapon_range() + self.move
+
 
 	def number_of_attacks(self, enemy, distance):
 		"""
@@ -153,9 +154,9 @@ Unit: "%s"
 		"""
 		self_attacks = enemy_attacks = 1
 
-		if self.Spd > enemy.Spd:
+		if self.spd > enemy.spd:
 			self_attacks += 1
-		elif enemy.Spd > self.Spd:
+		elif enemy.spd > self.spd:
 			enemy_attacks += 1
 
 		self_range = self.get_weapon_range()
@@ -168,7 +169,7 @@ Unit: "%s"
 		return (self_attacks, enemy_attacks)
 
 	def life_percent(self):
-		return int(float(self.HP) / float(self.HP_max) * 100.0)
+		return int(float(self.hp) / float(self.hp_max) * 100.0)
 
 	def attack(self, enemy):
 		"""
@@ -180,9 +181,11 @@ Unit: "%s"
 
 		active_weapon = self.get_active_weapon()
 
-		if active_weapon is None or active_weapon.Uses == 0:
-			dmg = self.Str
-			hit = self.Skill * 2 + self.Luck / 2
+		if active_weapon is None or active_weapon.uses == 0:
+			dmg = self.strength - enemy.defence
+			if dmg < 0:
+				dmg = 0
+			hit = self.skill * 2 + self.luck / 2
 			print("%s attacks %s" % (self.name, enemy.name))
 			print("Dmg: %d  Hit: %d" % (dmg, hit))
 			if random.randrange(0, 100) > hit:
@@ -193,8 +196,10 @@ Unit: "%s"
 				enemy.inflict_damage(dmg)
 				ret = 1
 		else:
-			dmg = self.Str + active_weapon.Might  # TODO
-			hit = (self.Skill * 2) + active_weapon.Hit + (self.Luck / 2)
+			dmg = (self.strength + active_weapon.might) - enemy.defence # TODO
+			if dmg < 0:
+				dmg = 0
+			hit = (self.skill * 2) + active_weapon.hit + (self.luck / 2)
 			print("%s attacks %s using %s" % (self.name, enemy.name, active_weapon.name))
 			print("Dmg: %d  Hit: %d" % (dmg, hit))
 			if random.randrange(0, 100) > hit:
@@ -209,11 +214,12 @@ Unit: "%s"
 					ret = 1
 		return ret
 
-class IEPlayer(object):
+
+class Player(object):
 	"""This class represents the player status and which units belong to."""
 
 	number_of_players = 0
-	
+
 	def __init__(self, name, color, my_turn=False, units=[]):
 		self.number_of_players += 1
 		self.name = name

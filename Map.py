@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  IEMap.py, Ice Emblem's map class.
+#  Map.py, Ice Emblem's map class.
 #
 #  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
 #
@@ -28,7 +28,7 @@ def distance(p0, p1):
 	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
 
-class IEMapNode(object):
+class MapNode(object):
 	"""Node"""
 
 	def __init__(self, tile, unit=None, walkable=True, Def_bonus=0):
@@ -45,7 +45,7 @@ class IEMapNode(object):
 			return not self.walkable or self.unit is not None
 
 
-class IEMap(object):
+class Map(object):
 	"""The map is composed of nodes."""
 	def __init__(self, map_path, (screen_w, screen_h), highlight_colors,
 				units):
@@ -67,7 +67,7 @@ class IEMap(object):
 						self.nodes[x][y].tile = tile
 					except IndexError:
 						#print('IndexError %d:%d' % (x, y))
-						node = IEMapNode(image)
+						node = MapNode(image)
 						self.nodes[x].append(node)
 
 		for layer in tmx_data.visible_layers:
@@ -137,10 +137,10 @@ class IEMap(object):
 							image = unit.image
 						rendering.blit(image, (i * side + side / 2 - image.get_size()[0] / 2, j * side))
 
-					HP_bar_length = int((float(unit.HP) / float(unit.HP_max)) * float(side))
-					HP_bar = pygame.Surface((HP_bar_length, 5))
-					HP_bar.fill((0, 255, 0))
-					rendering.blit(HP_bar, (i * side, j * side + side - 5)) # HP bar
+					hp_bar_length = int((float(unit.hp) / float(unit.hp_max)) * float(side))
+					hp_bar = pygame.Surface((hp_bar_length, 5))
+					hp_bar.fill((0, 255, 0))
+					rendering.blit(hp_bar, (i * side, j * side + side - 5)) # hp bar
 
 				if self.is_selected((i, j)):
 					rendering.blit(self.highlight_surfaces['selected'], (i * side, j * side))
@@ -211,10 +211,10 @@ class IEMap(object):
 	def update_move_area(self, (x, y)):
 		"""
 		Recursive algorithm to find all areas the selected unit can move to.
-		
+
 		"""
 		unit = self.get_unit(x, y)
-		Move = unit.Move
+		move = unit.move
 		weapon_range = unit.get_weapon_range()
 
 		def find((px, py), already_visited=[], counter=0):
@@ -237,9 +237,9 @@ class IEMap(object):
 					continue
 				if next_check not in already_visited:
 					#print("Checking %s" % str(next_check))
-					if counter > Move:
+					if counter > move:
 						break
-					elif distance((x, y), next_check) > Move:
+					elif distance((x, y), next_check) > move:
 						#print("%s too far from %s" % (str(next_check), (x, y)))
 						already_visited.append(next_check)
 					elif node.is_obstacle(unit.color):
