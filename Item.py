@@ -2,7 +2,8 @@
 #
 #  Item.py, Ice Emblem's item class.
 #
-#  Copyright 2015 Elia Argentieri & Luca Arhentieri <elia.argentieri@openmailbox.org>
+#  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
+#  Copyright 2015 Luca Argentieri <luca99.argentieri@gmail.com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
