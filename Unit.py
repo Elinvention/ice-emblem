@@ -54,7 +54,7 @@ class Unit(object):
 		path = os.path.abspath('sprites/' + self.name + '.png')
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
-		except pygame.error, e:
+		except pygame.error as e:
 			print("Couldn't load " + path)
 			print(e)
 			self.image = None
@@ -109,13 +109,13 @@ Unit: "%s"
 					max_width = max(info_list[-1].get_size()[0], max_width)
 					counter += 1
 
-		dim = (int(max_width * 2 + 20), int(counter * font_linesize / 2))
+		dim = (max_width * 2 + 20, counter * font_linesize // 2)
 		surface = pygame.Surface(dim).convert_alpha()
 		surface.fill((0, 0, 0, 0))  # transparent surface
 
 		for i, line in enumerate(info_list):
 			# position each attribute in two colums
-			pos = (i % 2 * (max_width + 20), i / 2 * font_linesize)
+			pos = (i % 2 * (max_width + 20), i // 2 * font_linesize)
 			surface.blit(line, pos)
 
 		return surface

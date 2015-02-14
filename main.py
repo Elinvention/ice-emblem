@@ -45,7 +45,7 @@ def main(screen):
 	units = {}
 	with open('data/characters.txt', 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
-		fields = reader.next()
+		reader.__next__()
 		for row in reader:
 			units[row[0]] = (Unit(row[0], row[1], row[2], row[3],
 				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
@@ -56,7 +56,7 @@ def main(screen):
 	weapons = {}
 	with open('data/weapons.txt', 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
-		fields = reader.next()
+		fields = reader.__next__()
 		for row in reader:
 			weapons[row[0]] = (Weapon(row[0], row[1], row[2], row[3],
 				row[4], row[5], row[6], row[7], row[8], row[9], None))

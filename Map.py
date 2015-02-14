@@ -20,7 +20,7 @@
 #  MA 02110-1301, USA.
 
 
-import pytmx
+import tmx
 import pygame
 
 
@@ -47,38 +47,37 @@ class MapNode(object):
 
 class Map(object):
 	"""The map is composed of nodes."""
-	def __init__(self, map_path, (screen_w, screen_h), highlight_colors,
-				units):
-		tmx_data = pytmx.load_pygame(map_path)
-		#map_data = pyscroll.data.TiledMapData(tmx_data)
-		#self.map_layer = pyscroll.BufferedRenderer(map_data, (screen_w, screen_h))
+	def __init__(self, map_path, screen_size, highlight_colors, units):
+		(screen_w, screen_h) = screen_size
+		tmx_data = tmx.load(map_path, screen_size)
 		self.h = tmx_data.height
 		self.w = tmx_data.width
-		self.tile_size = min(screen_w / self.w, screen_h / self.h)
+		self.tile_size = min(screen_w // self.w, screen_h // self.h)
 		self.square = (self.tile_size, self.tile_size)
-		self.nodes = [[] for x in range(self.w)]
-		for layer in tmx_data.visible_layers:
-			if isinstance(layer, pytmx.TiledTileLayer):
+		self.nodes = [[] for _ in range(self.w)]
+
+		for layer in tmx_data.layers:
+			if layer.visible and isinstance(layer, tmx.Layer):
 				# iterate over the tiles in the layer
-				for x, y, image in layer.tiles():
-					try:  # if there are more layers fuse them togheter
-						tile = self.nodes[x][y].tile.convert_alpha()
-						tile.blit(image, (0,0))
-						self.nodes[x][y].tile = tile
-					except IndexError:
-						#print('IndexError %d:%d' % (x, y))
-						node = MapNode(image)
-						self.nodes[x].append(node)
+				for cell in layer:
+					if cell is not None:
+						x, y = (cell.x, cell.y)
+						image = cell.tile.surface
+						try:  # if there are more layers fuse them togheter
+							tile = self.nodes[x][y].tile.convert_alpha()
+							tile.blit(image, (0,0))
+							self.nodes[x][y].tile = tile
+						except IndexError:
+							node = MapNode(image)
+							self.nodes[x].append(node)
 
-		for layer in tmx_data.visible_layers:
-			if isinstance(layer, pytmx.TiledObjectGroup):
-				for obj in layer:
+		for layer in tmx_data.layers:
+			if layer.visible and isinstance(layer, tmx.ObjectLayer):
+				for obj in layer.objects:
 					if obj.type == 'unit':
-						x = int(obj.x / tmx_data.tilewidth)
-						y = int(obj.y / tmx_data.tileheight)
-						self.nodes[x][y].unit = units[obj.name]
-
-		self.background_color = tmx_data.background_color
+						x = obj.px // tmx_data.tile_width
+						y = obj.py // tmx_data.tile_height
+						self[x, y].unit = units[obj.name]
 
 		self.prev_sel = None
 		self.curr_sel = None
@@ -87,12 +86,18 @@ class Map(object):
 
 		self.highlight_colors = highlight_colors
 		self.highlight_surfaces = {}
-		for highlight, color in self.highlight_colors.iteritems():
+		for highlight, color in self.highlight_colors.items():
 			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
 			self.highlight_surfaces[highlight].fill(color)
 
-	def render(self, (screen_w, screen_h)):
+	def __getitem__(self, pos):
+		(x, y) = pos
+		return self.nodes[x][y]
+
+	def render(self, screen_size):
 		"""Renders the map returning a Surface"""
+
+		(screen_w, screen_h) = screen_size
 
 		map_w = self.tile_size * self.w
 		map_h = self.tile_size * self.h
@@ -100,23 +105,23 @@ class Map(object):
 
 		rendering = pygame.Surface((map_w, map_h))
 
-		#if self.background_color:
-		#	rendering.fill(pygame.Color(self.background_color))
-
 		# deref these heavily used references for speed
 		smoothscale = pygame.transform.smoothscale
+		blit = rendering.blit
 
 		for i in range(self.w):
 			for j in range(self.h):
-				tile = self.nodes[i][j].tile
-				tile = smoothscale(tile, self.square)
+				try:
+					node = self.get_node(i, j)
+				except:
+					continue
+				tile = smoothscale(node.tile, self.square)
 				rendering.blit(tile, (i * self.tile_size, j * self.tile_size))
-
-				node = self.nodes[i][j]
 				unit = node.unit
+				
 				if unit is not None and unit.color is not None:
-					pos = (i * side + side / 2, j * side + side / 2)
-					pygame.draw.circle(rendering, unit.color, pos, side / 2, 5)
+					pos = (i * side + side // 2, j * side + side // 2)
+					pygame.draw.circle(rendering, unit.color, pos, side // 2, 5)
 
 					if unit.image is None:
 						scritta = self.SMALL_FONT.render(unit.name, 1, BLACK)
@@ -125,31 +130,32 @@ class Map(object):
 						image_w, image_h = unit.image.get_size()
 						if (image_w, image_h) != (side, side - 5):
 							if image_w > image_h:
-								aspect_ratio = float(image_h) / float(image_w)
+								aspect_ratio = float(image_h / image_w)
 								resized_w = side
 								resized_h = int(aspect_ratio * resized_w)
 							else:
-								aspect_ratio = float(image_w) / float(image_h)
+								aspect_ratio = float(image_w / image_h)
 								resized_h = side - 5
 								resized_w = int(aspect_ratio * resized_h)
-							image = pygame.transform.smoothscale(unit.image, (resized_w, resized_h))
+							image = smoothscale(unit.image, (resized_w, resized_h))
 						else:
 							image = unit.image
-						rendering.blit(image, (i * side + side / 2 - image.get_size()[0] / 2, j * side))
 
-					hp_bar_length = int((float(unit.hp) / float(unit.hp_max)) * float(side))
+						blit(image, (i * side + side // 2 - image.get_size()[0] // 2, j * side))
+
+					hp_bar_length = int(unit.hp / unit.hp_max * side)
 					hp_bar = pygame.Surface((hp_bar_length, 5))
 					hp_bar.fill((0, 255, 0))
-					rendering.blit(hp_bar, (i * side, j * side + side - 5)) # hp bar
+					blit(hp_bar, (i * side, j * side + side - 5)) # hp bar
 
 				if self.is_selected((i, j)):
-					rendering.blit(self.highlight_surfaces['selected'], (i * side, j * side))
+					blit(self.highlight_surfaces['selected'], (i * side, j * side))
 				elif self.is_in_move_range((i, j)):
-					rendering.blit(self.highlight_surfaces['move'], (i * side, j * side))
+					blit(self.highlight_surfaces['move'], (i * side, j * side))
 				elif self.is_in_attack_range((i, j)):
-					rendering.blit(self.highlight_surfaces['attack'], (i * side, j * side))
-				elif self.is_played((i, j)):
-					rendering.blit(self.highlight_surfaces['played'], (i * side, j * side))
+					blit(self.highlight_surfaces['attack'], (i * side, j * side))
+				elif unit is not None and unit.played:
+					blit(self.highlight_surfaces['played'], (i * side, j * side))
 
 		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
 		horizontal_line.fill((0, 0, 0, 100))
@@ -157,28 +163,35 @@ class Map(object):
 		vertical_line.fill((0, 0, 0, 100))
 
 		for i in range(self.w):
-			rendering.blit(vertical_line, (i * self.tile_size - 1, 0))
+			blit(vertical_line, (i * self.tile_size - 1, 0))
 		for j in range(self.h):
-			rendering.blit(horizontal_line, (0, j * self.tile_size - 1))
+			blit(horizontal_line, (0, j * self.tile_size - 1))
 		return rendering
 
-	def position_unit(self, unit, (x, y)):
+	def position_unit(self, unit, coord):
 		"""Set an unit to the coordinates."""
+		(x, y) = coord
 		self.nodes[x][y].unit = unit
 
-	def screen_resize(self, (screen_w, screen_h)):
-		self.tile_size = min(screen_w / self.w, screen_h / self.h)
+	def screen_resize(self, screen_size):
+		(screen_w, screen_h) = screen_size
+		self.tile_size = min(screen_w // self.w, screen_h // self.h)
 		self.square = (self.tile_size, self.tile_size)
 		for highlight, color in self.highlight_colors.iteritems():
 			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
 			self.highlight_surfaces[highlight].fill(color)
 
-	def mouse2cell(self, (cursor_x, cursor_y)):
+	def mouse2cell(self, cursor_coord):
 		"""mouse position to map indexes."""
-		x = int(cursor_x / self.tile_size)
-		y = int(cursor_y / self.tile_size)
+
+		(cursor_x, cursor_y) = cursor_coord
+
+		x = int(cursor_x // self.tile_size)
+		y = int(cursor_y // self.tile_size)
+
 		if x >= self.w or y >= self.h:
 			raise ValueError('%d >= %d or %d >= %d' % (x, self.w, y, self.h))
+
 		return (x, y)
 
 	def where_is(self, unit):
@@ -188,17 +201,19 @@ class Map(object):
 					return (i, j)
 		return None
 
-	def move(self, (old_x, old_y), (x, y)):
-		if (old_x, old_y) != (x, y):
-			print('Unit %s moved from %d:%d to %d:%d' % (self.nodes[old_x][old_y].unit.name, old_x, old_y, x, y))
+	def move(self, old_coord, new_coord):
+		(old_x, old_y) = old_coord
+		(x, y) = new_coord
+
+		if old_coord != new_coord:
+			print('Unit %s moved from %d:%d to %d:%d' %
+				(self.nodes[old_x][old_y].unit.name, old_x, old_y, x, y))
 			self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
 			self.nodes[old_x][old_y].unit = None
 
-	def is_played(self, (x, y)):
-		if self.nodes[x][y].unit is None:
-			return None
-		else:
-			return self.nodes[x][y].unit.played
+	def is_played(self, coord):
+		(x, y) = coord
+		return self.nodes[x][y].unit.played
 
 	def remove_unit(self, unit):
 		x, y = coord = self.where_is(unit)
@@ -208,17 +223,18 @@ class Map(object):
 		else:
 			return False
 
-	def update_move_area(self, (x, y)):
+	def update_move_area(self, coord):
 		"""
 		Recursive algorithm to find all areas the selected unit can move to.
-
 		"""
-		unit = self.get_unit(x, y)
+		(x, y) = coord
+		unit = self.get_unit(coord)
 		move = unit.move
 		weapon_range = unit.get_weapon_range()
 
-		def find((px, py), already_visited=[], counter=0):
-			next_checks = [(px, py)]
+		def find(coord, already_visited=[], counter=0):
+			(px, py) = coord
+			next_checks = [coord]
 			if px > x:
 				next_checks.extend([(px + 1, py), (px, py + 1), (px, py - 1)])
 			elif py > y:
@@ -245,6 +261,7 @@ class Map(object):
 					elif node.is_obstacle(unit.color):
 						#print("%s obstacle" % str(next_check))
 						already_visited.append(next_check)
+						break
 					else:
 						#print("%s added!" % str(next_check))
 						already_visited.append(next_check)
@@ -259,13 +276,17 @@ class Map(object):
 		self.move_area = [(x, y)] + a1 + a2 + a3 + a4
 
 	def get_node(self, a, b=None):
-		x, y = a
-		return self.nodes[x][y]
+		if b is None:
+			x, y = a
+			return self[x, y]
+		else:
+			return self[a, b]
 
-	def update_attack_area(self, (x, y)):
+	def update_attack_area(self, coord):
 		"""
 		Returns a list of map coordinates that the unit can reach to attack
 		"""
+		(x, y) = coord
 		weapon_range = self.get_unit(x, y).get_weapon_range()
 		self.attack_area = []
 
@@ -276,7 +297,8 @@ class Map(object):
 						if distance((x, y), (i, j)) <= weapon_range:
 							self.attack_area.append((i, j))
 
-	def nearby_units(self, (x, y), colors=[]):
+	def nearby_units(self, coord, colors=[]):
+		(x, y) = coord
 		unit = self.nodes[x][y].unit
 		unit_range = self.nodes[x][y].unit.get_weapon_range()
 		nearby_list = []
@@ -294,21 +316,14 @@ class Map(object):
 
 		return nearby_list
 
-	def path(self, (ax, ay), (bx, by)):
-		"""
-		We need to implement a basic Dijkstra's algorithm
-		https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
-		to find the shortest path from a to b
-		"""
+	def is_in_move_range(self, coord):
+		return coord in self.move_area
 
-	def is_in_move_range(self, (x, y)):
-		return (x, y) in self.move_area
+	def is_in_attack_range(self, coord):
+		return coord in self.attack_area
 
-	def is_in_attack_range(self, (x, y)):
-		return (x, y) in self.attack_area
-
-	def is_selected(self, (x, y)):
-		return (self.curr_sel == (x, y))
+	def is_selected(self, coord):
+		return self.curr_sel == coord
 
 	def reset_selection(self):
 		self.curr_sel = None
@@ -342,17 +357,16 @@ class Map(object):
 			self.sel_distance() <= prev_unit.get_weapon_range())
 
 	def get_unit(self, a, b=None):
-		try:
+		if b is None:
 			x, y = a
-		except TypeError:
-			return self.nodes[a][b].unit
+			return self[x, y].unit
 		else:
-			return self.nodes[x][y].unit
+			return self[a, b].unit
 
 	def handle_click(self, mouse_pos, active_player):
 		try:
 			x, y = self.mouse2cell(mouse_pos)
-		except ValueError, e:
+		except ValueError:
 			return
 
 		self.curr_sel = (x, y)
@@ -371,9 +385,7 @@ class Map(object):
 			curr_unit = self.get_unit(self.curr_sel)
 
 			if prev_unit is not None and curr_unit is not None:
-				if prev_unit == curr_unit:
-					#n_units_nearby = len(self.nearby_units(self.curr_sel))
-					#if n_units_nearby > 0:
+				if prev_unit == curr_unit and active_player.is_mine(prev_unit):
 					return 1
 				else:
 					self.prev_sel = self.curr_sel
@@ -424,7 +436,7 @@ class Map(object):
 	def is_attack_click(self, mouse_pos):
 		try:
 			x, y = self.mouse2cell(mouse_pos)
-		except ValueError, e:
+		except ValueError:
 			return False
 
 		return (x, y) in self.attack_area
