@@ -185,7 +185,7 @@ Unit: "%s"
 			if dmg < 0:
 				dmg = 0
 			hit = self.skill * 2 + self.luck / 2
-			print("%s attacks %s" % (self.name, enemy.name))
+			print("%s attacks %s with his bare hands" % (self.name, enemy.name))
 			print("Dmg: %d  Hit: %d" % (dmg, hit))
 			if random.randrange(0, 100) > hit:
 				print("%s misses %s" % (self.name, enemy.name))
@@ -199,7 +199,7 @@ Unit: "%s"
 			if dmg < 0:
 				dmg = 0
 			hit = (self.skill * 2) + active_weapon.hit + (self.luck / 2)
-			print("%s attacks %s using %s" % (self.name, enemy.name, active_weapon.name))
+			print("%s attacks %s with %s" % (self.name, enemy.name, active_weapon.name))
 			print("Dmg: %d  Hit: %d" % (dmg, hit))
 			if random.randrange(0, 100) > hit:
 				print("%s misses %s" % (self.name, enemy.name))

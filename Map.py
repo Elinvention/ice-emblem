@@ -177,7 +177,7 @@ class Map(object):
 		(screen_w, screen_h) = screen_size
 		self.tile_size = min(screen_w // self.w, screen_h // self.h)
 		self.square = (self.tile_size, self.tile_size)
-		for highlight, color in self.highlight_colors.iteritems():
+		for highlight, color in self.highlight_colors.items():
 			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
 			self.highlight_surfaces[highlight].fill(color)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  main.py
@@ -76,6 +76,10 @@ def main(screen):
 	player2 = Player("Red Team", RED, False, player2_units)
 
 	MAIN_GAME = Game(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
+
+	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
+	# event will be generated every 50 ms
+	pygame.key.set_repeat(200, 50)
 
 	if not args.skip:
 		MAIN_GAME.main_menu()

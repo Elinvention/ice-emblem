@@ -36,7 +36,7 @@ def distance(p0, p1):
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
 class Game(object):
-	TIME_BETWEEN_ATTACKS = 4000
+	TIME_BETWEEN_ATTACKS = 2000
 
 	def __init__(self, screen, units, players, map_path, music, colors):
 		self.screen = screen
@@ -49,9 +49,6 @@ class Game(object):
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
 		self.players = players
-		for player in players:
-			print str(player) + ' and ',
-		print('are going to fight!')
 		self.active_player = self.get_active_player()
 		self.units = units
 		self._map = Map(map_path, (800, 600), colors, units)
@@ -83,18 +80,21 @@ class Game(object):
 			pass
 		else:
 			cell_label = self.SMALL_FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
-			rec = cell_label.get_rect(bottom=screen_h - 5, left=5)
+			rec = cell_label.get_rect(bottom=screen_h - 5, right=screen_w - 5)
 			self.screen.blit(cell_label, rec)
 
-		#turn = self.whose_turn()
-		#turn_label = self.SMALL_FONT.render('phase', True, WHITE)
-		#rec = turn_label.get_rect(bottom=screen_h - 5, left=200)
-		#self.screen.blit(turn_label, rec)
-		#rect = pygame.Rect((195 - side, screen_h - 5 - side), (side, side))
-		#pygame.draw.rect(self.screen, turn.color, rect, 0)
+		turn = self.whose_turn()
+		turn_label = self.SMALL_FONT.render('phase', True, WHITE)
+		turn_square = pygame.Surface((16, 16))
+		turn_square.fill(turn.color)
+		turn_surface = pygame.Surface((turn_label.get_width() + 20, self.SMALL_FONT.get_linesize()))
+		turn_surface.blit(turn_square, (0, (turn_label.get_height() // 2) - 8))
+		turn_surface.blit(turn_label, (20, 0))
+		pos = turn_surface.get_rect(bottom=screen_h - 40, right=screen_w - 5)
+		self.screen.blit(turn_surface, pos)
 
-	def screen_resize(self, (screen_w, screen_h)):
-		self._map.screen_resize((screen_w, screen_h))
+	def screen_resize(self, screen_size):
+		self._map.screen_resize(screen_size)
 
 	def play_overworld_music(self):
 		"""Start playing overworld music in a loop."""
@@ -246,9 +246,7 @@ class Game(object):
 		att_name_pos = (100, 30 + att_life_pos[1])
 		def_name_pos = (400, 30 + def_life_pos[1])
 
-		att_info = attacking.render_info(self.SMALL_FONT)
 		att_info_pos = (100, att_name_pos[1] + att_name.get_size()[1] + 20)
-		def_info = defending.render_info(self.SMALL_FONT)
 		def_info_pos = (400, def_name_pos[1] + def_name.get_size()[1] + 20)
 
 		while pygame.time.get_ticks() - start < animation_duration:
@@ -256,7 +254,6 @@ class Game(object):
 			if (at != 0 or dt != 0) and (def_swap.hp == 0 or att_swap.hp == 0):
 				at = dt = 0
 				animation_duration = pygame.time.get_ticks() - start + self.TIME_BETWEEN_ATTACKS
-				print("Animation ends in %d" % animation_duration - start)
 
 			if (pygame.time.get_ticks() - last_attack > self.TIME_BETWEEN_ATTACKS and
 					def_swap.hp > 0 and att_swap.hp > 0 and at + dt > 0):
@@ -278,6 +275,8 @@ class Game(object):
 			att_life_percent.fill(GREEN)
 			def_life_percent = pygame.Surface((defending.life_percent(), 10))
 			def_life_percent.fill(GREEN)
+			att_info = attacking.render_info(self.SMALL_FONT)
+			def_info = defending.render_info(self.SMALL_FONT)
 
 			self.screen.blit(battle_background, (0, 0))
 			self.screen.blit(attacking.image, (100, 100))
@@ -306,14 +305,13 @@ class Game(object):
 		elif attacking.hp == 0:
 			self._map.remove_unit(attacking)
 			attacking_player.units.remove(attacking)
-		print("##### Battle ends #####\r\n")
 
 		if defending_player.is_defeated():
-			return attacking_player
+			self.winner = attacking_player
 		elif attacking_player.is_defeated():
-			return defending_player
-		else:
-			return None
+			self.winner = defending_player
+
+		print("##### Battle ends #####\r\n")
 
 	def get_active_player(self):
 		for player in self.players:
@@ -330,6 +328,7 @@ class Game(object):
 				self.active_player.begin_turn()
 				break
 		self.blit_map()
+		self.blit_info()
 		phase_str = self.active_player.name + ' phase'
 		phase = self.MAIN_MENU_FONT.render(phase_str, 1, self.active_player.color)
 		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
@@ -338,7 +337,9 @@ class Game(object):
 
 	def victory_screen(self):
 		print(self.winner.name + " wins")
-		pygame.mixer.fadeout(1000)
+		pygame.mixer.stop()
+		pygame.mixer.music.load(os.path.abspath('music/Victory Track.ogg'))
+		pygame.mixer.music.play()
 		self.fade_out(1000)
 
 		victory = self.MAIN_MENU_FONT.render(self.winner.name + ' wins!', 1, self.winner.color)
@@ -347,9 +348,6 @@ class Game(object):
 		self.screen.fill(BLACK)
 		self.screen.blit(victory, center(self.screen.get_rect(), victory.get_rect(), yoffset=-50))
 		self.screen.blit(thank_you, center(self.screen.get_rect(), thank_you.get_rect(), yoffset=50))
-
-		victory = pygame.mixer.music.load(os.path.abspath('music/Victory Track.ogg'))
-		pygame.mixer.music.play()
 
 		pygame.display.flip()
 
@@ -433,7 +431,7 @@ class Game(object):
 					return
 				defending = self._map.get_unit(new_sel)
 				attacking = self._map.get_unit(self._map.curr_sel)
-				self.winner = self.battle(attacking, defending, distance(new_sel, self._map.curr_sel))
+				self.battle(attacking, defending, distance(new_sel, self._map.curr_sel))
 				self.state = 0
 				self._map.reset_selection()
 			elif event.button == 3:
@@ -441,6 +439,6 @@ class Game(object):
 				self._map.move(self._map.curr_sel, self._map.prev_sel)
 				self._map.reset_selection()
 
-		if self.active_player.is_turn_over():
+		if self.winner is None and self.active_player.is_turn_over():
 			self.switch_turn()
 
