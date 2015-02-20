@@ -69,7 +69,7 @@ class Game(object):
 		"""
 		This method blits the map on the screen.
 		"""
-		rendered_map = self._map.render(self.screen.get_size())
+		rendered_map = self._map.render(self.screen.get_size(), self.SMALL_FONT)
 		self.screen.blit(rendered_map, (0, 0))
 
 	def blit_info(self):
@@ -223,7 +223,7 @@ class Game(object):
 		self.overworld_music_ch.pause()  # Stop music and loop fight music
 		self.battle_music_ch.play(self.battle_music, -1)
 
-		last_attack = start = pygame.time.get_ticks()
+		latest_attack = start = pygame.time.get_ticks()
 
 		self.fade_out(1000, 10)  # Darker atmosphere
 
@@ -238,38 +238,92 @@ class Game(object):
 		life_percent_background.fill(RED)
 		life_percent_background.convert()
 
-		att_life_pos = (100, 120 + attacking.image.get_size()[1])
-		def_life_pos = (400, 120 + defending.image.get_size()[1])
+		att_life_pos = (100, 120 + attacking.image.get_height())
+		def_life_pos = (400, 120 + defending.image.get_height())
 
 		att_name = self.MAIN_FONT.render(attacking.name, 1, attacking_player.color)
 		def_name = self.MAIN_FONT.render(defending.name, 1, defending_player.color)
 		att_name_pos = (100, 30 + att_life_pos[1])
 		def_name_pos = (400, 30 + def_life_pos[1])
 
-		att_info_pos = (100, att_name_pos[1] + att_name.get_size()[1] + 20)
-		def_info_pos = (400, def_name_pos[1] + def_name.get_size()[1] + 20)
+		att_info_pos = (100, att_name_pos[1] + att_name.get_height() + 20)
+		def_info_pos = (400, def_name_pos[1] + def_name.get_height() + 20)
 
-		while pygame.time.get_ticks() - start < animation_duration:
+		att_image_pos = ATT_IMAGE_POS = (100, 100)
+		def_image_pos = DEF_IMAGE_POS = (400, 100)
 
-			if (at != 0 or dt != 0) and (def_swap.hp == 0 or att_swap.hp == 0):
-				at = dt = 0
-				animation_duration = pygame.time.get_ticks() - start + self.TIME_BETWEEN_ATTACKS
+		animate_attack = True
+		animate_miss = False
+		latest_tick = 0
 
-			if (pygame.time.get_ticks() - last_attack > self.TIME_BETWEEN_ATTACKS and
-					def_swap.hp > 0 and att_swap.hp > 0 and at + dt > 0):
+		time_since_anim_start = pygame.time.get_ticks() - start
+		time_since_latest_attack = pygame.time.get_ticks() - latest_attack
 
-				att_swap.attack(def_swap)
+		missed_text = self.SMALL_FONT.render("MISSED", 1, YELLOW).convert_alpha()
+		void_text = self.SMALL_FONT.render("VOID ATTACK", 1, BLUE).convert_alpha()
+		ATT_TEXT_POS = (200, 100)
+		DEF_TEXT_POS = (300, 100)
 
-				last_attack = pygame.time.get_ticks()
-				at -= 1
+		while time_since_anim_start < animation_duration:
+			def_text = att_text = None
+			if at > 0 or dt > 0:
+				if def_swap.hp == 0 or att_swap.hp == 0:
+					at = dt = 0
+					animation_duration = time_since_anim_start + self.TIME_BETWEEN_ATTACKS
 
-				if dt > 0:
-					t = att_swap
-					att_swap = def_swap
-					def_swap = t
-					t = at
-					at = dt
-					dt = t
+				elif time_since_latest_attack > self.TIME_BETWEEN_ATTACKS:
+					if animate_attack:
+						speed = int(100 / 250 * latest_tick)
+						if att_swap == attacking:
+							att_image_pos = (att_image_pos[0] + speed, 100)
+							print(attacking.name + str(att_image_pos))
+							if att_image_pos[0] >= 200:
+								att_image_pos = ATT_IMAGE_POS
+								animate_attack = False
+						else:
+							def_image_pos = (def_image_pos[0] - speed, 100)
+							print(defending.name + str(def_image_pos))
+							if def_image_pos[0] <= 300:
+								def_image_pos = DEF_IMAGE_POS
+								animate_attack = False
+					elif animate_miss:
+						speed = int(50 / 250 * latest_tick)
+						if att_swap == defending:
+							def_text = missed_text
+							att_image_pos = (att_image_pos[0], att_image_pos[1] - speed)
+							print(attacking.name + str(att_image_pos))
+							if att_image_pos[1] <= 50:
+								att_image_pos = ATT_IMAGE_POS
+								animate_miss = False
+						else:
+							att_text = missed_text
+							def_image_pos = (def_image_pos[0], def_image_pos[1] - speed)
+							print(defending.name + str(def_image_pos))
+							if def_image_pos[1] <= 50:
+								def_image_pos = DEF_IMAGE_POS
+								animate_miss = False
+						if not animate_miss:
+							latest_attack = pygame.time.get_ticks()
+							at -= 1
+
+							if dt > 0:
+								att_swap, def_swap = def_swap, att_swap
+								at, dt = dt, at
+							animate_attack = True
+					else:
+						outcome = att_swap.attack(def_swap)
+
+						if outcome == 0:  # Missed
+							animate_miss = True
+						elif outcome == 1:
+							latest_attack = pygame.time.get_ticks()
+							at -= 1
+
+							if dt > 0:
+								att_swap, def_swap = def_swap, att_swap
+								at, dt = dt, at
+
+							animate_attack = True
 
 			att_life_percent = pygame.Surface((attacking.life_percent(), 10))
 			att_life_percent.fill(GREEN)
@@ -279,8 +333,12 @@ class Game(object):
 			def_info = defending.render_info(self.SMALL_FONT)
 
 			self.screen.blit(battle_background, (0, 0))
-			self.screen.blit(attacking.image, (100, 100))
-			self.screen.blit(defending.image, (400, 100))
+			if att_text is not None:
+				self.screen.blit(att_text, DEF_TEXT_POS)
+			if def_text is not None:
+				self.screen.blit(def_text, ATT_TEXT_POS)
+			self.screen.blit(attacking.image, att_image_pos)
+			self.screen.blit(defending.image, def_image_pos)
 			self.screen.blit(att_name, att_name_pos)
 			self.screen.blit(def_name, def_name_pos)
 			self.screen.blit(life_percent_background, att_life_pos)
@@ -292,7 +350,11 @@ class Game(object):
 			self.blit_fps()
 			self.check_quit_event()
 			pygame.display.flip()
-			self.clock.tick(20)
+
+			latest_tick = self.clock.tick(60)
+
+			time_since_anim_start = pygame.time.get_ticks() - start
+			time_since_latest_attack = pygame.time.get_ticks() - latest_attack
 
 		self.battle_music_ch.fadeout(500)
 		pygame.time.wait(500)
@@ -356,17 +418,17 @@ class Game(object):
 
 	def handle_mouse_motion(self, event):
 		return
-		if self._map.curr_sel is not None and self._map.move_area:
-			try:
-				coord = self._map.mouse2cell(event.pos)
-			except ValueError:
-				return
-			if coord != self.prev_coord:
-				self.prev_coord = coord
-				dist = distance(coord, self._map.curr_sel)
-				print(dist)
-				#if dist < self._map.nodes[self.selection[0]].unit.get_range():
-				#	print("asd")
+		#if self._map.curr_sel is not None and self._map.move_area:
+			#try:
+				#coord = self._map.mouse2cell(event.pos)
+			#except ValueError:
+				#return
+			#if coord != self.prev_coord:
+				#self.prev_coord = coord
+				#dist = distance(coord, self._map.curr_sel)
+				#print(dist)
+				##if dist < self._map.nodes[self.selection[0]].unit.get_range():
+				##	print("asd")
 
 	def action_menu(self):
 		self.blit_map()

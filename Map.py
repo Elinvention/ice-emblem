@@ -94,7 +94,7 @@ class Map(object):
 		(x, y) = pos
 		return self.nodes[x][y]
 
-	def render(self, screen_size):
+	def render(self, screen_size, font):
 		"""Renders the map returning a Surface"""
 
 		(screen_w, screen_h) = screen_size
@@ -118,13 +118,13 @@ class Map(object):
 				tile = smoothscale(node.tile, self.square)
 				rendering.blit(tile, (i * self.tile_size, j * self.tile_size))
 				unit = node.unit
-				
+
 				if unit is not None and unit.color is not None:
 					pos = (i * side + side // 2, j * side + side // 2)
 					pygame.draw.circle(rendering, unit.color, pos, side // 2, 5)
 
 					if unit.image is None:
-						scritta = self.SMALL_FONT.render(unit.name, 1, BLACK)
+						scritta = font.render(unit.name, 1, BLACK)
 						rendering.blit(scritta, (i * side, j * side))
 					else:
 						image_w, image_h = unit.image.get_size()
