@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-down" width="10" height="10" tilewidth="32" tileheight="32">
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="15" height="10" tilewidth="32" tileheight="32">
  <tileset firstgid="1" name="Terrain" tilewidth="32" tileheight="32">
   <image source="terrain.png" width="1024" height="1024"/>
   <terraintypes>
@@ -432,14 +432,19 @@
   <tile id="708" terrain="17,17,,"/>
   <tile id="709" terrain="17,,,"/>
  </tileset>
- <layer name="Map" width="10" height="10">
+ <layer name="Map" width="15" height="10">
   <data encoding="base64" compression="zlib">
-   eJxTZWRgUKUyTgLiZCBWwoOR1YPUJkJpVSR2GhBnMGC3IxGJVoKqg2FkdUpo7ilkQFWLy3yQOhhGV4+MCxnwqy2HYnxmIKsDAPQiHC4=
+   eJxTZWRgUCUC1zJgYmL04dObBMTJQKyEB8PUmzNitxekPxFKqyKx03DYnYHD3YlItBKUnYFFLwivQDNDCc0vML3IuJABUwxXeMHsQNZbiGbGcizmYcOFWPQjm12OhIkxD9nucjz6AZHGMmo=
   </data>
  </layer>
- <layer name="decorations" width="10" height="10">
+ <layer name="decorations 2" width="15" height="10">
   <data encoding="base64" compression="zlib">
-   eJxjYBgY4AHEnkSq1SBCfSAQBxGp3hCHemSMrj4IiR8GxOFQjA6KkNhlSOyJaHgSDnUAknQKfg==
+   eJxjYBgF2ID7QDtgiAMAWxgASA==
+  </data>
+ </layer>
+ <layer name="decorations" width="15" height="10">
+  <data encoding="base64" compression="zlib">
+   eJxjYCAMaohQQ0ivGCMDgzgQSzCSrtcMqscCSnsAsScBvXOAWA6Iw4B6woE4AsleDSLMgOlHBoFAHESEGelQ/XORMAgY4jADGWsS8Jchkn4QCAPicCQcQUB/ERK7DE3OHE3/RDQ8CY9eEKhAYgMASFoT3w==
   </data>
  </layer>
  <objectgroup name="Sprites">

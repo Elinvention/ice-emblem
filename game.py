@@ -23,10 +23,10 @@ import pygame
 import sys
 import os.path
 
-from Item import Item, Weapon
-from Map import Map
-from Unit import Unit, Player
-from Colors import *
+from item import Item, Weapon
+from map import Map
+from unit import Unit, Player
+from colors import *
 
 def center(rect1, rect2, xoffset=0, yoffset=0):
 	"""Center rect2 in rect1 with offset."""

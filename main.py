@@ -25,18 +25,18 @@ import pygame
 import csv
 import argparse
 
-from Item import Item, Weapon
-from Map import Map
-from Unit import Unit, Player
-from Game import Game
+from item import Item, Weapon
+from map import Map
+from unit import Unit, Player
+from game import Game
 
-from Colors import *
+from colors import *
 
 def main(screen):
 
 	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
 	parser.add_argument('-s','--skip', action='store_true', help='Skip main menu', required=False)
-	parser.add_argument('-m','--map', action='store', help='Which map to load', default='test', required=False)
+	parser.add_argument('-m','--map', action='store', help='Which map to load', default='default', required=False)
 	args = parser.parse_args()
 
 	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
