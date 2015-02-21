@@ -32,6 +32,7 @@ from game import Game
 
 from colors import *
 
+
 def main(screen):
 
 	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
@@ -96,10 +97,7 @@ def main(screen):
 			elif event.type == pygame.MOUSEMOTION:
 				MAIN_GAME.handle_mouse_motion(event)
 			elif event.type == pygame.VIDEORESIZE: # user resized window
-				# It looks like this is the only way to update pygame's display
-				# However this causes some issues while resizing the window
-				MAIN_GAME.screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-				MAIN_GAME.screen_resize(event.size) # update map sizes
+				MAIN_GAME.screen_resize(event.size) # update window's size
 
 		if MAIN_GAME.winner is not None:
 			MAIN_GAME.victory_screen()

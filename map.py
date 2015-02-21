@@ -307,9 +307,9 @@ class Map(object):
 			for j in range(y - unit_range, y + unit_range + 1):
 				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
 					try:
-						nodes_unit = self.get_unit(i, j)
-						if nodes_unit is not None:
-							if (not colors) or (nodes_unit.color not in colors):
+						node_unit = self.get_unit(i, j)
+						if node_unit is not None:
+							if (not colors) or (node_unit.color not in colors):
 								nearby_list.append((i, j))
 					except IndexError:
 						pass
@@ -367,7 +367,7 @@ class Map(object):
 		try:
 			x, y = self.mouse2cell(mouse_pos)
 		except ValueError:
-			return
+			return []
 
 		self.curr_sel = (x, y)
 
@@ -385,8 +385,12 @@ class Map(object):
 			curr_unit = self.get_unit(self.curr_sel)
 
 			if prev_unit is not None and curr_unit is not None:
-				if prev_unit == curr_unit and active_player.is_mine(prev_unit):
-					return 1
+				if prev_unit == curr_unit and not prev_unit.played and active_player.is_mine(prev_unit):
+					enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
+					if enemies_nearby > 0:
+						return [("Attack", self.attack_callback), ("Wait", self.wait_callback)]
+					else:
+						return[("Wait", self.wait_callback)]
 				else:
 					self.prev_sel = self.curr_sel
 					self.update_move_area(self.curr_sel)
@@ -394,17 +398,13 @@ class Map(object):
 			elif self.can_selection_move(active_player):
 
 				self.move(self.prev_sel, self.curr_sel)
-				n_units_nearby = len(self.nearby_units(self.curr_sel))
+				enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
 
-				if n_units_nearby > 0:
-					return 1
+				if enemies_nearby > 0:
+					return [("Attack", self.attack_callback), ("Wait", self.wait_callback)]
 				else:
-					prev_unit.played = True
-					self.reset_selection()
+					return[("Wait", self.wait_callback)]
 
-			elif self.can_selection_attack(active_player):
-				self.reset_selection()
-				return 2
 			else:
 				self.reset_selection()
 				self.curr_sel = self.prev_sel = (x, y)
@@ -412,26 +412,21 @@ class Map(object):
 				if curr_unit is not None and not curr_unit.played:
 					self.update_move_area((x, y))
 					self.update_attack_area((x, y))
-		return 0
+		return []
 
-	def action(self, action):
-		nx, ny = self.curr_sel
-		px, py = self.prev_sel
-		curr_unit = self.nodes[nx][ny].unit
-		prev_unit = self.nodes[px][py].unit
+	def wait_callback(self):
+		unit = self.get_unit(self.curr_sel)
+		self.reset_selection()
+		unit.played = True
 
-		if action == 0:  # if user choose Wait
-			self.reset_selection()
-			curr_unit.played = True
+	def attack_callback(self):
+		unit = self.get_unit(self.curr_sel)
+		self.move_area = []
+		self.attack_area = self.nearby_units(self.curr_sel, [unit.color])
 
-		elif action == 1:  # if user choose Attack
-			self.move_area = []
-			self.attack_area = self.nearby_units(self.curr_sel, [curr_unit.color])
-
-		elif action == -1:  # if user cancel
-			# Move unit back
-			self.move(self.curr_sel, self.prev_sel)
-			self.reset_selection()
+	def rollback_callback(self):
+		self.move(self.curr_sel, self.prev_sel)
+		self.reset_selection()
 
 	def is_attack_click(self, mouse_pos):
 		try:

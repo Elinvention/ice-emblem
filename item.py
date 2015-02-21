@@ -37,7 +37,7 @@ class Weapon(Item):
 	"""Swords, Lances, Axes, Bows, Tomes, Staffs"""
 	def __init__(self, name, rank, might, weight, hit, crit, range,
 				uses, worth, exp, effective, descr=""):
-		Item.__init__(self, name, worth, descr)
+		super().__init__(name, worth, descr)
 		self.rank   	=	rank    	# rank necessary to use it
 		self.might  	=	int(might)	# damage
 		self.weight 	=	int(weight)	# weight affects on speed
@@ -100,7 +100,7 @@ Weapon "%s":
 
 class Sword(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Weapon.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy_weapon):
 		return Weapon.get_might(enemy_weapon, Axe)
@@ -108,7 +108,7 @@ class Sword(Weapon):
 
 class Lance(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Item.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy_weapon):
 		return Weapon.get_might(enemy_weapon, Sword)
@@ -116,7 +116,7 @@ class Lance(Weapon):
 
 class Axe(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Item.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy_weapon):
 		return Weapon.get_might(enemy_weapon, Lance)
@@ -124,7 +124,7 @@ class Axe(Weapon):
 
 class Bow(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Item.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy):
 		might = self.might
@@ -137,7 +137,7 @@ class Bow(Weapon):
 
 class LightTome(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Item.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy_weapon):
 		return Weapon.get_might(enemy_weapon, DarkTome)
@@ -145,7 +145,7 @@ class LightTome(Weapon):
 
 class DarkTome(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Item.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy_weapon):
 		return Weapon.get_might(enemy_weapon, AnimaTome)
@@ -153,7 +153,7 @@ class DarkTome(Weapon):
 
 class AnimaTome(Weapon):
 	def __init__(self, name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr=""):
-		Item.__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
+		super().__init__(name, rank, might, weight, hit, crit, range, uses, worth, exp, effective, descr="")
 
 	def get_might(self, enemy_weapon):
 		return Weapon.get_might(enemy_weapon, LightTome)
@@ -161,7 +161,7 @@ class AnimaTome(Weapon):
 
 class Staff(Item):
 	def __init__(self, name, rank, range, uses, worth, exp, descr=""):
-		Item.__init__(name, rank, range, uses, worth, exp, descr="")
+		super().__init__(name, rank, range, uses, worth, exp, descr="")
 		self.rank	=	rank    	# rank necessary to use it
 		self.range	=	int(range)	# attack distance
 		self.muses	=	int(uses)	# max number of uses
@@ -172,7 +172,7 @@ class Staff(Item):
 
 class Armour(Item):
 	def __init__(self, name, rank, defence, weight, uses, worth, exp, effective, descr=""):
-		Item.__init__(self, name, worth, descr)
+		super().__init__(name, worth, descr)
 		self.rank   	=	rank    	# rank necessary to use it
 		self.defence	=	int(defence)# damage
 		self.weight 	=	int(weight)	# weight affects on speed

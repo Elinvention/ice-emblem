@@ -285,7 +285,7 @@ class Layer(object):
 		data_tag = tag.find('data')
 		if data_tag is None:
 			raise ValueError('layer %s does not contain <data>' % layer.name)
-		print (str(tag.attrib))
+
 		data = data_tag.text.strip()
 		data = data.encode() # Convert to bytes
 		# Decode from base 64 and decompress via zlib

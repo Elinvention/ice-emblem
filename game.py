@@ -26,6 +26,7 @@ import os.path
 from item import Item, Weapon
 from map import Map
 from unit import Unit, Player
+from menu import Menu
 from colors import *
 
 def center(rect1, rect2, xoffset=0, yoffset=0):
@@ -37,6 +38,8 @@ def distance(p0, p1):
 
 class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000
+	MAP_STATE = 0
+	CHOOSE_ENEMY_STATE = 1
 
 	def __init__(self, screen, units, players, map_path, music, colors):
 		self.screen = screen
@@ -67,7 +70,7 @@ class Game(object):
 
 	def blit_map(self):
 		"""
-		This method blits the map on the screen.
+		This method renders and blits the map on the screen.
 		"""
 		rendered_map = self._map.render(self.screen.get_size(), self.SMALL_FONT)
 		self.screen.blit(rendered_map, (0, 0))
@@ -94,6 +97,17 @@ class Game(object):
 		self.screen.blit(turn_surface, pos)
 
 	def screen_resize(self, screen_size):
+		"""
+		This method takes care to resize and scale everithing to match
+		the new window's size. The minum window size is 800x600.
+		On Debian testing there is an issue that makes the window kind of
+		"rebel" while trying to resize it.
+		"""
+		if screen_size[0] < 800:
+			screen_size = (800, screen_size[1])
+		if screen_size[1] < 600:
+			screen_size = (screen_size[0], 600)
+		self.screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
 		self._map.screen_resize(screen_size)
 
 	def play_overworld_music(self):
@@ -430,62 +444,55 @@ class Game(object):
 				##if dist < self._map.nodes[self.selection[0]].unit.get_range():
 				##	print("asd")
 
-	def action_menu(self):
+	def action_menu(self, actions, rollback, pos):
 		self.blit_map()
-		print("Action menu")
-		menu_wait = self.SMALL_FONT.render('Wait', 1, WHITE)
-		menu_attack = self.SMALL_FONT.render('Attack', 1, WHITE)
 
-		menu_wait_w, menu_wait_h = menu_wait.get_size()
-		menu_attack_w, menu_attack_h = menu_attack.get_size()
+		menu = Menu(actions, self.SMALL_FONT, (5, 10), pos)
 
-		# if self.is_enemy_naerby()
-		menu_h = menu_wait_h + menu_attack_h
-
-		menu_size = (max(menu_wait_w, menu_attack_w), menu_h)
-
-		menu = pygame.Surface(menu_size)
-		menu.fill(BLACK)
-		menu.blit(menu_wait, (0, 0))
-		menu.blit(menu_attack, (0, menu_wait_h))
-
-		menu_pos = pygame.mouse.get_pos()
-
-		self.screen.blit(menu, menu_pos)
+		self.screen.blit(menu.render(), menu.pos)
 		pygame.display.flip()
-
-		wait_rect = pygame.Rect(menu_pos, (menu_size[0], menu_wait_h))
-		attack_rect = pygame.Rect((menu_pos[0], menu_pos[1] + menu_wait_h), (menu_size[0], menu_attack_h))
 
 		action = None
 		while action is None:
 			event = self.wait_for_user_input()
-
-			if event.button == 3:
-				action = -1
-			elif event.button == 1:
-				if wait_rect.collidepoint(event.pos):
-					print("Wait")
-					action = 0
-				elif attack_rect.collidepoint(event.pos):
-					print("Attack")
-					action = 1
+			if event.type == pygame.MOUSEBUTTONDOWN:
+				if event.button == 3:
+					action = -1
+					rollback()
+				elif event.button == 1:
+					action = menu.handle_click(event)
+			elif event.type == pygame.KEYDOWN:
+				action = menu.handle_keydown(event)
 
 		return action
 
 	def handle_click(self, event):
-		"""Handles clicks."""
-		if self.state == 0:
+		"""
+		Handles clicks.
+		"""
+
+		if self.state == self.MAP_STATE:  # normal state
+
 			if event.button == 1:
-				action_menu = self._map.handle_click(event.pos, self.active_player)
-				if action_menu:  # Have to display action menu
-					action = self.action_menu()
-					self._map.action(action)
-					if action == 1:
-						self.state = 1
+				menu_entries = self._map.handle_click(event.pos, self.active_player)
+				if len(menu_entries) > 0:  # Have to display action menu
+					# rollback will be called if the user aborts the
+					# action menu by right clicking
+					rollback = self._map.rollback_callback
+					pos = pygame.mouse.get_pos()
+					action = self.action_menu(menu_entries, rollback, pos)
+
+					if action == 0 and menu_entries[0][0] is "Attack":
+						# user choose to attack.
+						# Now he has to choose the enemy to attack
+						# so the next click must be an enemy unit
+						self.state = self.CHOOSE_ENEMY_STATE
+
 			elif event.button == 3:
 				self._map.reset_selection()
-		elif self.state == 1:
+
+		elif self.state == self.CHOOSE_ENEMY_STATE:
+			# user must click on an enemy unit
 			if event.button == 1 and self._map.is_attack_click(event.pos):
 				try:
 					new_sel = self._map.mouse2cell(event.pos)
@@ -493,11 +500,13 @@ class Game(object):
 					return
 				defending = self._map.get_unit(new_sel)
 				attacking = self._map.get_unit(self._map.curr_sel)
+				# enemy chosen by the user... let the battle begin!
 				self.battle(attacking, defending, distance(new_sel, self._map.curr_sel))
-				self.state = 0
+				self.state = self.MAP_STATE  # return to map state
 				self._map.reset_selection()
 			elif event.button == 3:
-				self.state = 0
+				# abort
+				self.state = self.MAP_STATE
 				self._map.move(self._map.curr_sel, self._map.prev_sel)
 				self._map.reset_selection()
 
