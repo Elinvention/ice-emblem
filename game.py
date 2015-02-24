@@ -290,13 +290,13 @@ class Game(object):
 						speed = int(100 / 250 * latest_tick)
 						if att_swap == attacking:
 							att_image_pos = (att_image_pos[0] + speed, 100)
-							print(attacking.name + str(att_image_pos))
+							#print(attacking.name + str(att_image_pos))
 							if att_image_pos[0] >= 200:
 								att_image_pos = ATT_IMAGE_POS
 								animate_attack = False
 						else:
 							def_image_pos = (def_image_pos[0] - speed, 100)
-							print(defending.name + str(def_image_pos))
+							#print(defending.name + str(def_image_pos))
 							if def_image_pos[0] <= 300:
 								def_image_pos = DEF_IMAGE_POS
 								animate_attack = False
@@ -305,14 +305,14 @@ class Game(object):
 						if att_swap == defending:
 							def_text = missed_text
 							att_image_pos = (att_image_pos[0], att_image_pos[1] - speed)
-							print(attacking.name + str(att_image_pos))
+							#print(attacking.name + str(att_image_pos))
 							if att_image_pos[1] <= 50:
 								att_image_pos = ATT_IMAGE_POS
 								animate_miss = False
 						else:
 							att_text = missed_text
 							def_image_pos = (def_image_pos[0], def_image_pos[1] - speed)
-							print(defending.name + str(def_image_pos))
+							#print(defending.name + str(def_image_pos))
 							if def_image_pos[1] <= 50:
 								def_image_pos = DEF_IMAGE_POS
 								animate_miss = False
@@ -430,30 +430,28 @@ class Game(object):
 		pygame.event.clear()
 		self.wait_for_user_input()
 
+	def get_mouse_coord(self):
+		pos = pygame.mouse.get_pos()
+		try:
+			return self._map.mouse2cell(pos)
+		except ValueError:
+			return None
+
 	def handle_mouse_motion(self, event):
-		return
-		#if self._map.curr_sel is not None and self._map.move_area:
-			#try:
-				#coord = self._map.mouse2cell(event.pos)
-			#except ValueError:
-				#return
-			#if coord != self.prev_coord:
-				#self.prev_coord = coord
-				#dist = distance(coord, self._map.curr_sel)
-				#print(dist)
-				##if dist < self._map.nodes[self.selection[0]].unit.get_range():
-				##	print("asd")
+		coord = self.get_mouse_coord()
+		if coord is not None and coord != self.prev_coord:
+			self.prev_coord = coord
+			self._map.update_arrow(coord)
 
 	def action_menu(self, actions, rollback, pos):
 		self.blit_map()
 
 		menu = Menu(actions, self.SMALL_FONT, (5, 10), pos)
 
-		self.screen.blit(menu.render(), menu.pos)
-		pygame.display.flip()
-
 		action = None
 		while action is None:
+			self.screen.blit(menu.render(), menu.pos)
+			pygame.display.flip()
 			event = self.wait_for_user_input()
 			if event.type == pygame.MOUSEBUTTONDOWN:
 				if event.button == 3:

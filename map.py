@@ -31,18 +31,28 @@ def distance(p0, p1):
 class MapNode(object):
 	"""Node"""
 
-	def __init__(self, tile, unit=None, walkable=True, Def_bonus=0):
+	def __init__(self, coord, tile, unit=None, weight=1, bonus_defence=0):
+		self.x, self.y = coord
 		self.tile = tile
 		self.unit = unit
-		self.walkable = walkable
-		self.Def_bonus = Def_bonus
+		self.weight = 1
+		self.bonus_defence = bonus_defence
+
+	def __str__(self):
+		return ("<MapNode (%d:%d) %s %d %d>" %
+				(self.x, self.y,
+				self.unit.name if self.unit is not None else 'None',
+				self.weight, self.bonus_defence))
 
 	def is_obstacle(self, color=None):
 		if color is not None:
-			return (not self.walkable or
+			return (self.weight == float('inf') or
 				(self.unit is not None and self.unit.color != color))
 		else:
-			return not self.walkable or self.unit is not None
+			return self.weight == float('inf') or self.unit is not None
+
+	def get_unit_color(self):
+		return self.unit.color if self.unit is not None else None
 
 
 class Map(object):
@@ -54,6 +64,10 @@ class Map(object):
 		self.w = tmx_data.width
 		self.tile_size = min(screen_w // self.w, screen_h // self.h)
 		self.square = (self.tile_size, self.tile_size)
+
+		# this part is a hacky way to reuse this class to render the map
+		# instead of built in tmx.py method. Probabily something con be
+		# done to reduce code duplication and memory
 		self.nodes = [[] for _ in range(self.w)]
 
 		for layer in tmx_data.layers:
@@ -68,7 +82,7 @@ class Map(object):
 							tile.blit(image, (0,0))
 							self.nodes[x][y].tile = tile
 						except IndexError:
-							node = MapNode(image)
+							node = MapNode((x, y), image)
 							self.nodes[x].append(node)
 
 		for layer in tmx_data.layers:
@@ -83,6 +97,9 @@ class Map(object):
 		self.curr_sel = None
 		self.move_area = []
 		self.attack_area = []
+		self.arrow = []
+		self.arrow_image = pygame.Surface((20, 20)).convert()
+		self.arrow_image.fill((255, 0, 0))  # TODO: should be an image not a filled square
 
 		self.highlight_colors = highlight_colors
 		self.highlight_surfaces = {}
@@ -93,6 +110,104 @@ class Map(object):
 	def __getitem__(self, pos):
 		(x, y) = pos
 		return self.nodes[x][y]
+
+	def dijkstra(self, source):
+		"""
+		Implementation of Dijkstra's Algorithm.
+		See https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for
+		reference.
+		This method computes the distance of every node of the map from
+		a given source node.
+		You can then feed the shortest_path method with this method's
+		return value to find the shortest path from any node to the
+		source node.
+		"""
+		dist = [[None for _ in range(self.h)] for _ in range(self.w)]
+		prev = [[None for _ in range(self.h)] for _ in range(self.w)]
+		sx, sy = source
+		dist[sx][sy] = 0     # Distance from source to source
+		prev[sx][sy] = None  # Previous node in optimal path initialization
+
+		Q = []
+		for i in range(self.w):  # Initialization
+			for j in range(self.h):
+				if (i, j) != source:  # Where v has not yet been removed from Q (unvisited nodes)
+					dist[i][j] = float('inf')  # Unknown distance function from source to v
+					prev[i][j] = None  # Previous node in optimal path from source
+				Q.append((i, j))  # All nodes initially in Q (unvisited nodes)
+
+		source_node = self.get_node(source)
+		while Q:
+			u0, u1 = Q[0]
+			min_dist = dist[u0][u1]
+			u = (u0, u1)
+
+			for el in Q:
+				i, j = el
+				if dist[i][j] < min_dist:
+					min_dist = dist[i][j]
+					u0, u1 = u = el  #  Source node in first case
+
+			Q.remove(u)  
+
+			# where v has not yet been removed from Q.
+			for v in self.neighbors(u):
+				v0, v1 = v
+				node = self.get_node(v)
+
+				source_unit_color = source_node.get_unit_color()
+
+				if node.is_obstacle(source_unit_color):
+					dist[v0][v1] = float('inf')
+					prev[v0][v1] = None
+				else:
+					alt = dist[u0][u1] + node.weight
+
+					# A shorter path to v has been found
+					if alt < dist[v0][v1]:  
+						dist[v0][v1] = alt
+						prev[v0][v1] = u
+
+		return dist, prev
+
+	def check_coord(self, coord):
+		x, y = coord
+		if 0 <= x < self.w and 0 <= y < self.h:
+			return True
+		else:
+			return False
+
+	def neighbors(self, coord):
+		"""
+		Returns a list containing all existing neighbors of a node.
+		coord must be a valid coordinate i.e. self.check_coord(coord).
+		"""
+		x, y = coord
+
+		if not self.check_coord(coord):
+			raise ValueError("Invalid coordinates")
+
+		n = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+		ret = [tuple(y for y in x) for x in n if self.check_coord(x)]
+
+		return ret
+
+	def shortest_path(self, prev, target):
+		"""
+		This method wants the second list returned by the dijkstra
+		method and a target node. The shortest path between target and
+		source previously specified when calling the dijkstra method
+		will be returned as a list.
+		"""
+		S = []
+		u0, u1 = u = target
+
+		# Construct the shortest path with a stack S
+		while prev[u0][u1] is not None:
+			S.insert(0, u)  # Push the vertex onto the stack
+			u0, u1 = u = prev[u0][u1]  # Traverse from target to source
+
+		return S
 
 	def render(self, screen_size, font):
 		"""Renders the map returning a Surface"""
@@ -107,25 +222,23 @@ class Map(object):
 
 		# deref these heavily used references for speed
 		smoothscale = pygame.transform.smoothscale
+		circle = pygame.draw.circle
 		blit = rendering.blit
 
 		for i in range(self.w):
 			for j in range(self.h):
-				try:
-					node = self.get_node(i, j)
-				except:
-					continue
+				node = self.get_node(i, j)
 				tile = smoothscale(node.tile, self.square)
-				rendering.blit(tile, (i * self.tile_size, j * self.tile_size))
+				blit(tile, (i * self.tile_size, j * self.tile_size))
 				unit = node.unit
 
 				if unit is not None and unit.color is not None:
 					pos = (i * side + side // 2, j * side + side // 2)
-					pygame.draw.circle(rendering, unit.color, pos, side // 2, 5)
+					circle(rendering, unit.color, pos, side // 2, 5)
 
 					if unit.image is None:
-						scritta = font.render(unit.name, 1, BLACK)
-						rendering.blit(scritta, (i * side, j * side))
+						text = font.render(unit.name, 1, BLACK)
+						blit(text, (i * side, j * side))
 					else:
 						image_w, image_h = unit.image.get_size()
 						if (image_w, image_h) != (side, side - 5):
@@ -146,7 +259,7 @@ class Map(object):
 					hp_bar_length = int(unit.hp / unit.hp_max * side)
 					hp_bar = pygame.Surface((hp_bar_length, 5))
 					hp_bar.fill((0, 255, 0))
-					blit(hp_bar, (i * side, j * side + side - 5)) # hp bar
+					blit(hp_bar, (i * side, j * side + side - 5))  # hp bar
 
 				if self.is_selected((i, j)):
 					blit(self.highlight_surfaces['selected'], (i * side, j * side))
@@ -156,6 +269,11 @@ class Map(object):
 					blit(self.highlight_surfaces['attack'], (i * side, j * side))
 				elif unit is not None and unit.played:
 					blit(self.highlight_surfaces['played'], (i * side, j * side))
+
+				# arrow
+				if (i, j) in self.arrow:
+					pos = (i * side + side // 2 - self.arrow_image.get_width() // 2, j * side + side // 2 - self.arrow_image.get_height() // 2)
+					blit(self.arrow_image, pos)
 
 		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
 		horizontal_line.fill((0, 0, 0, 100))
@@ -174,11 +292,16 @@ class Map(object):
 		self.nodes[x][y].unit = unit
 
 	def screen_resize(self, screen_size):
+		"""
+		On screen resize this method has to be called to resize every
+		tile.
+		"""
 		(screen_w, screen_h) = screen_size
 		self.tile_size = min(screen_w // self.w, screen_h // self.h)
 		self.square = (self.tile_size, self.tile_size)
 		for highlight, color in self.highlight_colors.items():
-			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
+			h = pygame.Surface(self.square).convert_alpha()
+			self.highlight_surfaces[highlight] = h
 			self.highlight_surfaces[highlight].fill(color)
 
 	def mouse2cell(self, cursor_coord):
@@ -195,6 +318,9 @@ class Map(object):
 		return (x, y)
 
 	def where_is(self, unit):
+		"""
+		This method finds a unit and returns its position.
+		"""
 		for i in range(self.w):
 			for j in range(self.h):
 				if self.nodes[i][j].unit == unit:
@@ -202,78 +328,47 @@ class Map(object):
 		return None
 
 	def move(self, old_coord, new_coord):
+		"""
+		This method moves a unit from a node to another one. If the two
+		coordinates are the same no action is performed.
+		"""
 		(old_x, old_y) = old_coord
 		(x, y) = new_coord
 
 		if old_coord != new_coord:
 			print('Unit %s moved from %d:%d to %d:%d' %
-				(self.nodes[old_x][old_y].unit.name, old_x, old_y, x, y))
+				(self.get_unit(old_x, old_y).name, old_x, old_y, x, y))
 			self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
 			self.nodes[old_x][old_y].unit = None
 
-	def is_played(self, coord):
-		(x, y) = coord
-		return self.nodes[x][y].unit.played
-
 	def remove_unit(self, unit):
+		"""
+		Remove a unit from the map. Raises a ValueError if the unit
+		couldn't be found.
+		"""
 		x, y = coord = self.where_is(unit)
 		if coord is not None:
 			self.nodes[x][y].unit = None
-			return True
 		else:
-			return False
+			raise ValueError("Can't find unit " + str(unit))
 
 	def update_move_area(self, coord):
 		"""
-		Recursive algorithm to find all areas the selected unit can move to.
+		Updates the area which will be highlighted on the map to show
+		which nodes can be reached by the selected unit.
 		"""
 		(x, y) = coord
 		unit = self.get_unit(coord)
 		move = unit.move
 		weapon_range = unit.get_weapon_range()
+		self.move_area = []
 
-		def find(coord, already_visited=[], counter=0):
-			(px, py) = coord
-			next_checks = [coord]
-			if px > x:
-				next_checks.extend([(px + 1, py), (px, py + 1), (px, py - 1)])
-			elif py > y:
-				next_checks.extend([(px + 1, py), (px, py + 1), (px - 1, py)])
-			elif px < x:
-				next_checks.extend([(px, py + 1), (px - 1, py), (px, py - 1)])
-			elif py < y:
-				next_checks.extend([(px + 1, py), (px - 1, py), (px, py - 1)])
+		dist, prev = self.dijkstra(coord)
 
-			ret = []
-			for next_check in next_checks:
-				try:
-					node = self.get_node(next_check)
-				except IndexError:
-					#print("%s outside map!" % str(next_check))
-					continue
-				if next_check not in already_visited:
-					#print("Checking %s" % str(next_check))
-					if counter > move:
-						break
-					elif distance((x, y), next_check) > move:
-						#print("%s too far from %s" % (str(next_check), (x, y)))
-						already_visited.append(next_check)
-					elif node.is_obstacle(unit.color):
-						#print("%s obstacle" % str(next_check))
-						already_visited.append(next_check)
-						break
-					else:
-						#print("%s added!" % str(next_check))
-						already_visited.append(next_check)
-						ret.append(next_check)
-						ret.extend(find(next_check, already_visited, counter + 1))
-			return ret
-
-		a1 = find((x + 1, y))
-		a2 = find((x, y + 1))
-		a3 = find((x - 1, y))
-		a4 = find((x, y - 1))
-		self.move_area = [(x, y)] + a1 + a2 + a3 + a4
+		for i in range(self.w):
+			for j in range(self.h):
+				if dist[i][j] <= move:
+					self.move_area.append((i, j))
 
 	def get_node(self, a, b=None):
 		if b is None:
@@ -284,7 +379,8 @@ class Map(object):
 
 	def update_attack_area(self, coord):
 		"""
-		Returns a list of map coordinates that the unit can reach to attack
+		Updates the area which will be highlighted on the map to show
+		how far the selected unit can attack.
 		"""
 		(x, y) = coord
 		weapon_range = self.get_unit(x, y).get_weapon_range()
@@ -297,7 +393,20 @@ class Map(object):
 						if distance((x, y), (i, j)) <= weapon_range:
 							self.attack_area.append((i, j))
 
+	def update_arrow(self, target):
+		if self.curr_sel is not None and self.move_area:
+			dist, prev = self.dijkstra(self.curr_sel)
+			self.arrow = self.shortest_path(prev, target)
+		else:
+			self.arrow = []
+
 	def nearby_units(self, coord, colors=[]):
+		"""
+		Returns a list of coordinates that can be reached by the
+		attacking unit to attack. If colors is empty the list will also
+		contain same team units. Otherwise only units with a different
+		color will be included.
+		"""
 		(x, y) = coord
 		unit = self.nodes[x][y].unit
 		unit_range = self.nodes[x][y].unit.get_weapon_range()
@@ -330,6 +439,7 @@ class Map(object):
 		self.prev_sel = None
 		self.move_area = []
 		self.attack_area = []
+		self.arrow = []
 
 	def can_selection_move(self, active_player):
 		nx, ny = self.curr_sel
