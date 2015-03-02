@@ -24,6 +24,8 @@
 import pygame
 import csv
 import argparse
+import traceback
+import sys
 
 from item import Item, Weapon
 from map import Map
@@ -85,6 +87,7 @@ def main(screen):
 	if not args.skip:
 		MAIN_GAME.main_menu()
 		pygame.mixer.stop()
+
 	MAIN_GAME.play_overworld_music()
 
 	done = False
@@ -92,12 +95,8 @@ def main(screen):
 		for event in pygame.event.get():  # User did something
 			if event.type == pygame.QUIT:  # If user clicked close
 				done = True
-			elif event.type == pygame.MOUSEBUTTONDOWN: # user click on map
-				MAIN_GAME.handle_click(event)
-			elif event.type == pygame.MOUSEMOTION:
-				MAIN_GAME.handle_mouse_motion(event)
-			elif event.type == pygame.VIDEORESIZE: # user resized window
-				MAIN_GAME.screen_resize(event.size) # update window's size
+			else:
+				MAIN_GAME.handle_event(event)
 
 		if MAIN_GAME.winner is not None:
 			MAIN_GAME.victory_screen()
@@ -110,12 +109,40 @@ def main(screen):
 			pygame.display.flip()
 			MAIN_GAME.clock.tick(10)
 
-	pygame.quit()
-	return 0
-
 
 if __name__ == '__main__':
-	pygame.init()
-	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-	pygame.display.set_caption("Ice Emblem")
-	main(screen)
+	try:
+		pygame.init()
+		screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
+		pygame.display.set_caption("Ice Emblem")
+		main(screen)
+
+	except (KeyboardInterrupt, SystemExit):
+		# game was interrupted by the user
+		print("Interrupted by user, exiting.")
+
+		# we're not playing anymore, go away
+		pygame.quit()
+		sys.exit(0)
+
+	except:
+		# other error
+		print("\nOops, something went wrong. Dumping brain contents: ")
+		print("~" * 80)
+		traceback.print_exc(file=sys.stdout)
+		print("\n" + "~" * 80)
+		print("\nPlease mail this stack trace to elia.argentieri@openmailbox.org")
+		print("along with a short description of what you did when this crash happened, ")
+		print("so that the error can be fixed. Thank you! -- the Ice Emblem team\n")
+
+		# we're not playing anymore, go away
+		pygame.quit()
+		sys.exit(0)
+
+	# we got here, so everything was normal
+	print()
+	print("~" * 80)
+	print("Game terminated normally.")
+
+	pygame.quit()
+	sys.exit(0)

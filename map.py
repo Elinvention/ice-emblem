@@ -22,6 +22,9 @@
 
 import tmx
 import pygame
+import os.path
+
+from arrow import Arrow
 
 
 def distance(p0, p1):
@@ -93,13 +96,15 @@ class Map(object):
 						y = obj.py // tmx_data.tile_height
 						self[x, y].unit = units[obj.name]
 
+		self.cursor = (0, 0)
+		self.cursor_image = pygame.image.load(os.path.join('images', 'cursor.png'))
+
 		self.prev_sel = None
 		self.curr_sel = None
 		self.move_area = []
 		self.attack_area = []
 		self.arrow = []
-		self.arrow_image = pygame.Surface((20, 20)).convert()
-		self.arrow_image.fill((255, 0, 0))  # TODO: should be an image not a filled square
+		self.arrow_image = Arrow(os.path.join('images', 'arrow.png'), self.square)
 
 		self.highlight_colors = highlight_colors
 		self.highlight_surfaces = {}
@@ -272,8 +277,14 @@ class Map(object):
 
 				# arrow
 				if (i, j) in self.arrow:
-					pos = (i * side + side // 2 - self.arrow_image.get_width() // 2, j * side + side // 2 - self.arrow_image.get_height() // 2)
-					blit(self.arrow_image, pos)
+					index = self.arrow.index((i, j))
+					first = self.arrow[index - 1] if index - 1 >= 0 else self.curr_sel
+					second = self.arrow[index]
+					third = self.arrow[index + 1] if (index + 1) < len(self.arrow) else None
+					triple = (first, second, third)
+					img = self.arrow_image.get_arrow_part(triple)
+					pos = (i * side, j * side)
+					blit(img, pos)
 
 		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
 		horizontal_line.fill((0, 0, 0, 100))
@@ -284,6 +295,9 @@ class Map(object):
 			blit(vertical_line, (i * self.tile_size - 1, 0))
 		for j in range(self.h):
 			blit(horizontal_line, (0, j * self.tile_size - 1))
+
+		cursor_image = smoothscale(self.cursor_image, self.square)
+		blit(cursor_image, (self.cursor[0] * side, self.cursor[1] * side))
 		return rendering
 
 	def position_unit(self, unit, coord):
@@ -473,13 +487,38 @@ class Map(object):
 		else:
 			return self[a, b].unit
 
-	def handle_click(self, mouse_pos, active_player):
-		try:
-			x, y = self.mouse2cell(mouse_pos)
-		except ValueError:
+	def handle_click(self, event, active_player):
+		if event.button == 1:
+			try:
+				coord = self.mouse2cell(event.pos)
+			except ValueError:
+				return []
+			return self.select(coord, active_player)
+		elif event.button == 3:
+			self.reset_selection()
 			return []
 
-		self.curr_sel = (x, y)
+	def handle_keyboard(self, event, active_player):
+		cx, cy = self.cursor
+		if event.key == pygame.K_UP:
+			self.cursor = (cx, (cy - 1) % self.h)
+		elif event.key == pygame.K_DOWN:
+			self.cursor = (cx, (cy + 1) % self.h)
+		elif event.key == pygame.K_LEFT:
+			self.cursor = ((cx - 1) % self.w, cy)
+		elif event.key == pygame.K_RIGHT:
+			self.cursor = ((cx + 1) % self.w, cy)
+
+		if self.move_area:
+			self.update_arrow(self.cursor)
+
+		if event.key == pygame.K_SPACE:
+			return self.select(self.cursor, active_player)
+
+	def select(self, coord, active_player):
+		x, y = coord
+		self.curr_sel = coord
+		self.arrow = []
 
 		if self.prev_sel is None:
 			unit = self.get_unit(x, y)
@@ -545,3 +584,6 @@ class Map(object):
 			return False
 
 		return (x, y) in self.attack_area
+
+	def is_enemy_cursor(self):
+		return self.cursor in self.attack_area

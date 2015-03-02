@@ -61,12 +61,13 @@ class Menu(object):
 		self.index %= self.n_entries
 
 		for i, entry in enumerate(self.menu_entries):
+			entry_text, entry_callback = entry
 			if self.index != self.prev_index:
 				if i == self.index:
-					render = self.font.render(entry, True, self.TEXT_COLOR, self.SELECTION_COLOR).convert_alpha()
+					render = self.font.render(entry_text, True, self.TEXT_COLOR, self.SELECTION_COLOR).convert_alpha()
 					self.rendered_entries[i] = render
 				elif i == self.prev_index:
-					render = self.font.render(entry, True, self.TEXT_COLOR).convert_alpha()
+					render = self.font.render(entry_text, True, self.TEXT_COLOR).convert_alpha()
 					self.rendered_entries[i] = render
 
 	def handle_click(self, event):

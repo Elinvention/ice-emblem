@@ -20,6 +20,7 @@
 #  MA 02110-1301, USA.
 
 import pygame
+from pygame.locals import *
 import sys
 import os.path
 
@@ -40,6 +41,7 @@ class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000
 	MAP_STATE = 0
 	CHOOSE_ENEMY_STATE = 1
+	INPUT_EVENTS = [MOUSEBUTTONDOWN, QUIT, KEYDOWN]
 
 	def __init__(self, screen, units, players, map_path, music, colors):
 		self.screen = screen
@@ -54,7 +56,7 @@ class Game(object):
 		self.players = players
 		self.active_player = self.get_active_player()
 		self.units = units
-		self._map = Map(map_path, (800, 600), colors, units)
+		self.map = Map(map_path, (800, 600), colors, units)
 
 		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
@@ -72,13 +74,13 @@ class Game(object):
 		"""
 		This method renders and blits the map on the screen.
 		"""
-		rendered_map = self._map.render(self.screen.get_size(), self.SMALL_FONT)
+		rendered_map = self.map.render(self.screen.get_size(), self.SMALL_FONT)
 		self.screen.blit(rendered_map, (0, 0))
 
 	def blit_info(self):
 		screen_w, screen_h = self.screen.get_size()
 		try:
-			cell_x, cell_y = self._map.mouse2cell(pygame.mouse.get_pos())
+			cell_x, cell_y = self.map.mouse2cell(pygame.mouse.get_pos())
 		except ValueError:
 			pass
 		else:
@@ -108,31 +110,35 @@ class Game(object):
 		if screen_size[1] < 600:
 			screen_size = (screen_size[0], 600)
 		self.screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
-		self._map.screen_resize(screen_size)
+		self.map.screen_resize(screen_size)
 
 	def play_overworld_music(self):
 		"""Start playing overworld music in a loop."""
 		self.overworld_music_ch.play(self.overworld_music, -1)
 
-	def wait_for_user_input(self, timeout=-1):
+	def wait_for_user_input(self, timeout=-1, event_types=None, fps=10):
 		"""
 		This function waits for the user to left-click somewhere and,
 		if the timeout argument is positive, exits after the specified
 		number of milliseconds.
 		"""
+		if event_types is None:
+			event_types = self.INPUT_EVENTS
 
 		now = start = pygame.time.get_ticks()
+		event = pygame.event.poll()
 
-		while now - start < timeout or timeout < 0:
-			for event in pygame.event.get():
-				if event.type == pygame.QUIT:  # If user clicked close
-					pygame.quit()
-					sys.exit()
-				elif event.type == pygame.MOUSEBUTTONDOWN:
-					return event
-			self.clock.tick(10)
-			now = pygame.time.get_ticks()
-		return None
+		while event.type not in event_types and (now - start < timeout or timeout < 0):
+			event = pygame.event.poll()
+			if event.type == pygame.NOEVENT:
+				self.clock.tick(fps)
+				now = pygame.time.get_ticks()
+			elif event.type == pygame.QUIT:  # If user clicked close
+				pygame.quit()
+				sys.exit(0)
+
+		print(event)
+		return event
 
 	def main_menu(self):
 		self.main_menu_music.play()
@@ -228,7 +234,7 @@ class Game(object):
 
 		at, dt = attacking.number_of_attacks(defending, dist)
 
-		print("\r\n##### Fight!!! #####")
+		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
 		print("%s is going to attack %d %s" %
 				(attacking.name, at, "time" if at == 1 else "times"))
 		print("%s is going to attack %d %s" %
@@ -376,18 +382,20 @@ class Game(object):
 		attacking.played = True
 
 		if defending.hp == 0:
-			self._map.remove_unit(defending)
-			defending_player.units.remove(defending)
+			self.kill(defending)
 		elif attacking.hp == 0:
-			self._map.remove_unit(attacking)
-			attacking_player.units.remove(attacking)
+			self.kill(attacking)
 
 		if defending_player.is_defeated():
 			self.winner = attacking_player
 		elif attacking_player.is_defeated():
 			self.winner = defending_player
 
-		print("##### Battle ends #####\r\n")
+		print("#" * 12 + " Battle ends " + "#" * 12 + "\r\n")
+
+	def kill(self, unit):
+		self.map.remove_unit(unit)
+		self.whose_unit(unit).units.remove(unit)
 
 	def get_active_player(self):
 		for player in self.players:
@@ -433,7 +441,7 @@ class Game(object):
 	def get_mouse_coord(self):
 		pos = pygame.mouse.get_pos()
 		try:
-			return self._map.mouse2cell(pos)
+			return self.map.mouse2cell(pos)
 		except ValueError:
 			return None
 
@@ -441,7 +449,8 @@ class Game(object):
 		coord = self.get_mouse_coord()
 		if coord is not None and coord != self.prev_coord:
 			self.prev_coord = coord
-			self._map.update_arrow(coord)
+			self.map.cursor = coord
+			self.map.update_arrow(coord)
 
 	def action_menu(self, actions, rollback, pos):
 		self.blit_map()
@@ -453,6 +462,7 @@ class Game(object):
 			self.screen.blit(menu.render(), menu.pos)
 			pygame.display.flip()
 			event = self.wait_for_user_input()
+			print(event)
 			if event.type == pygame.MOUSEBUTTONDOWN:
 				if event.button == 3:
 					action = -1
@@ -464,50 +474,79 @@ class Game(object):
 
 		return action
 
+	def battle_wrapper(self):
+		coord = self.get_mouse_coord()
+
+		defending = self.map.get_unit(coord)
+		attacking = self.map.get_unit(self.map.curr_sel)
+
+		# enemy chosen by the user... let the battle begin!
+		self.battle(attacking, defending, distance(coord, self.map.curr_sel))
+
+		self.state = self.MAP_STATE  # return to map state
+		self.map.reset_selection()
+
+	def action_menu_wrapper(self, menu_entries):
+		if menu_entries is not None and len(menu_entries) > 0:  # Have to display action menu
+			# rollback will be called if the user aborts the
+			# action menu by right clicking
+			rollback = self.map.rollback_callback
+			pos = pygame.mouse.get_pos()
+			action = self.action_menu(menu_entries, rollback, pos)
+
+			if action == 0 and menu_entries[0][0] is "Attack":
+				# user choose to attack.
+				# Now he has to choose the enemy to attack
+				# so the next click must be an enemy unit
+				self.state = self.CHOOSE_ENEMY_STATE
+
+	def abort_action(self):
+		self.state = self.MAP_STATE
+		self.map.move(self.map.curr_sel, self.map.prev_sel)
+		self.map.reset_selection()
+
 	def handle_click(self, event):
 		"""
 		Handles clicks.
 		"""
 
 		if self.state == self.MAP_STATE:  # normal state
-
-			if event.button == 1:
-				menu_entries = self._map.handle_click(event.pos, self.active_player)
-				if len(menu_entries) > 0:  # Have to display action menu
-					# rollback will be called if the user aborts the
-					# action menu by right clicking
-					rollback = self._map.rollback_callback
-					pos = pygame.mouse.get_pos()
-					action = self.action_menu(menu_entries, rollback, pos)
-
-					if action == 0 and menu_entries[0][0] is "Attack":
-						# user choose to attack.
-						# Now he has to choose the enemy to attack
-						# so the next click must be an enemy unit
-						self.state = self.CHOOSE_ENEMY_STATE
-
-			elif event.button == 3:
-				self._map.reset_selection()
+			menu_entries = self.map.handle_click(event, self.active_player)
+			self.action_menu_wrapper(menu_entries)
 
 		elif self.state == self.CHOOSE_ENEMY_STATE:
 			# user must click on an enemy unit
-			if event.button == 1 and self._map.is_attack_click(event.pos):
-				try:
-					new_sel = self._map.mouse2cell(event.pos)
-				except ValueError:
-					return
-				defending = self._map.get_unit(new_sel)
-				attacking = self._map.get_unit(self._map.curr_sel)
-				# enemy chosen by the user... let the battle begin!
-				self.battle(attacking, defending, distance(new_sel, self._map.curr_sel))
-				self.state = self.MAP_STATE  # return to map state
-				self._map.reset_selection()
+			if event.button == 1 and self.map.is_attack_click(event.pos):
+				self.battle_wrapper()
 			elif event.button == 3:
-				# abort
-				self.state = self.MAP_STATE
-				self._map.move(self._map.curr_sel, self._map.prev_sel)
-				self._map.reset_selection()
+				self.abort_action()
 
-		if self.winner is None and self.active_player.is_turn_over():
+		self.check_turn()
+
+	def check_turn(self):
+		if self.active_player.is_turn_over():
 			self.switch_turn()
+
+	def handle_keyboard(self, event):
+		if self.state == self.MAP_STATE:  # normal state
+			menu_entries = self.map.handle_keyboard(event, self.active_player)
+			self.action_menu_wrapper(menu_entries)
+		elif self.state == self.CHOOSE_ENEMY_STATE:
+			# user must choose an enemy unit
+			if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
+				self.battle_wrapper()
+			elif event.key == pygame.K_ESCAPE:
+				self.abort_action()
+
+		self.check_turn()
+
+	def handle_event(self, event):
+		if event.type == pygame.MOUSEBUTTONDOWN: # user click on map
+			self.handle_click(event)
+		elif event.type == pygame.MOUSEMOTION:
+			self.handle_mouse_motion(event)
+		elif event.type == pygame.KEYDOWN:
+			self.handle_keyboard(event)
+		elif event.type == pygame.VIDEORESIZE: # user resized window
+			self.screen_resize(event.size) # update window's size
 
