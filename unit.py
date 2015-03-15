@@ -252,6 +252,16 @@ Unit: "%s"
 		print("%s gained %d experience points! EXP: %d" % (self.name, exp, self.exp))
 
 
+class Flying(Unit):
+	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
+		super().__init__(name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank)
+
+
+class Water(Unit):
+	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
+		super().__init__(name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank)
+
+
 class Player(object):
 	"""This class represents the player status and which units belong to."""
 

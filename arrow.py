@@ -11,6 +11,9 @@ class Arrow(object):
 
 		self.arrow = {}
 
+		self.path = []
+		self.first_coord = None
+
 		self.update_tiles(tilesize)
 
 	def update_tiles(self, tilesize):
@@ -40,8 +43,11 @@ class Arrow(object):
 			'right': arrow_parts[6],
 		}
 
-	def get_arrow_part(self, triple):
-		a, b, c = triple
+	def get_arrow_part(self, coord):
+		index = self.path.index(coord)
+		a = self.path[index - 1] if index - 1 >= 0 else self.first_coord
+		b = self.path[index]
+		c = self.path[index + 1] if (index + 1) < len(self.path) else None
 
 		if c is None:
 			ax, ay = a
@@ -76,4 +82,4 @@ class Arrow(object):
 				return self.arrow['topleft']
 
 			else:
-				raise ValueError("ArrowError: " + str(triple))
+				raise ValueError("ArrowError: " + str((a, b, c)))

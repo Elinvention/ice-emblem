@@ -250,6 +250,7 @@ class Game(object):
 			curr_exp += 1
 			pygame.display.flip()
 			self.clock.tick(60)
+			self.check_quit_event()
 
 		self.wait_for_user_input(2000)
 

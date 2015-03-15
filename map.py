@@ -23,6 +23,7 @@
 import tmx
 import pygame
 import os.path
+from unit import Unit
 
 from arrow import Arrow
 
@@ -34,10 +35,11 @@ def distance(p0, p1):
 class MapNode(object):
 	"""Node"""
 
-	def __init__(self, coord, tile, unit=None, weight=1, bonus_defence=0):
+	def __init__(self, coord, tile, unit=None, allowed_unit_classes=[Unit], weight=1, bonus_defence=0):
 		self.x, self.y = coord
 		self.tile = tile
 		self.unit = unit
+		self.allowed_unit_classes = allowed_unit_classes
 		self.weight = 1
 		self.bonus_defence = bonus_defence
 
@@ -103,8 +105,7 @@ class Map(object):
 		self.curr_sel = None
 		self.move_area = []
 		self.attack_area = []
-		self.arrow = []
-		self.arrow_image = Arrow(os.path.join('images', 'arrow.png'), self.square)
+		self.arrow = Arrow(os.path.join('images', 'arrow.png'), self.square)
 
 		self.highlight_colors = highlight_colors
 		self.highlight_surfaces = {}
@@ -276,15 +277,9 @@ class Map(object):
 					blit(self.highlight_surfaces['played'], (i * side, j * side))
 
 				# arrow
-				if (i, j) in self.arrow:
-					index = self.arrow.index((i, j))
-					first = self.arrow[index - 1] if index - 1 >= 0 else self.curr_sel
-					second = self.arrow[index]
-					third = self.arrow[index + 1] if (index + 1) < len(self.arrow) else None
-					triple = (first, second, third)
-					img = self.arrow_image.get_arrow_part(triple)
-					pos = (i * side, j * side)
-					blit(img, pos)
+				if (i, j) in self.arrow.path:
+					img = self.arrow.get_arrow_part((i, j))
+					blit(img, (i * side, j * side))
 
 		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
 		horizontal_line.fill((0, 0, 0, 100))
@@ -410,9 +405,10 @@ class Map(object):
 	def update_arrow(self, target):
 		if self.curr_sel is not None and self.move_area:
 			dist, prev = self.dijkstra(self.curr_sel)
-			self.arrow = self.shortest_path(prev, target)
+			self.arrow.first_coord = self.curr_sel
+			self.arrow.path = self.shortest_path(prev, target)
 		else:
-			self.arrow = []
+			self.arrow.path = []
 
 	def nearby_units(self, coord, colors=[]):
 		"""
@@ -453,7 +449,7 @@ class Map(object):
 		self.prev_sel = None
 		self.move_area = []
 		self.attack_area = []
-		self.arrow = []
+		self.arrow.path = []
 
 	def can_selection_move(self, active_player):
 		nx, ny = self.curr_sel
@@ -518,7 +514,7 @@ class Map(object):
 	def select(self, coord, active_player):
 		x, y = coord
 		self.curr_sel = coord
-		self.arrow = []
+		self.arrow.path = []
 
 		if self.prev_sel is None:
 			unit = self.get_unit(x, y)
