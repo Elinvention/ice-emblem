@@ -137,7 +137,6 @@ class Game(object):
 				pygame.quit()
 				sys.exit(0)
 
-		print(event)
 		return event
 
 	def main_menu(self):
@@ -228,9 +227,38 @@ class Game(object):
 				pygame.quit()
 				sys.exit()
 
+	def experience_animation(self, unit, bg):
+		img_pos = center(self.screen.get_rect(), unit.image.get_rect())
+		exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
+
+		curr_exp = unit.prev_exp
+		target_exp = unit.exp if unit.prev_exp <= unit.exp else 100 + unit.exp
+
+		while curr_exp <= unit.exp:
+			exp = pygame.Surface((curr_exp % 100, 20))
+			exp.fill(YELLOW)
+
+			exp_text = self.SMALL_FONT.render("EXP: %d" % (curr_exp % 100), True, YELLOW)
+			lv_text = self.SMALL_FONT.render("LV: %d" % unit.lv, True, BLUE)
+
+			self.screen.blit(bg, (0, 0))
+			self.screen.blit(unit.image, img_pos)
+			self.screen.blit(exp, exp_pos)
+			self.screen.blit(exp_text, (exp_pos[0], exp_pos[1] + 25))
+			self.screen.blit(lv_text, (exp_pos[0] + exp_text.get_width() + 10, exp_pos[1] + 25))
+
+			curr_exp += 1
+			pygame.display.flip()
+			self.clock.tick(60)
+
+		self.wait_for_user_input(2000)
+
 	def battle(self, attacking, defending, dist):
 		attacking_player = self.whose_unit(attacking)
 		defending_player = self.whose_unit(defending)
+
+		attacking.prepare_battle()
+		defending.prepare_battle()
 
 		at, dt = attacking.number_of_attacks(defending, dist)
 
@@ -375,6 +403,14 @@ class Game(object):
 
 			time_since_anim_start = pygame.time.get_ticks() - start
 			time_since_latest_attack = pygame.time.get_ticks() - latest_attack
+
+		if attacking.hp > 0:
+			attacking.experience(defending)
+			self.experience_animation(attacking, battle_background)
+
+		if defending.hp > 0:
+			defending.experience(attacking)
+			self.experience_animation(defending, battle_background)
 
 		self.battle_music_ch.fadeout(500)
 		pygame.time.wait(500)
@@ -521,7 +557,8 @@ class Game(object):
 			elif event.button == 3:
 				self.abort_action()
 
-		self.check_turn()
+		if self.winner is None:
+			self.check_turn()
 
 	def check_turn(self):
 		if self.active_player.is_turn_over():
@@ -538,7 +575,8 @@ class Game(object):
 			elif event.key == pygame.K_ESCAPE:
 				self.abort_action()
 
-		self.check_turn()
+		if self.winner is None:
+			self.check_turn()
 
 	def handle_event(self, event):
 		if event.type == pygame.MOUSEBUTTONDOWN: # user click on map

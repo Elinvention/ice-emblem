@@ -29,12 +29,14 @@ class Unit(object):
 	"""
 	This class is a unit with stats
 	"""
-	def __init__(self, name, hp_max, hp, lv, e, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
+	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
 		self.name	=	str(name)   	# name of the character
 		self.hp_max	=	int(hp_max) 	# maximum hp
 		self.hp 	=	int(hp)     	# current hp
+		self.prev_hp=	self.hp     	# HP before an attack
 		self.lv 	=	int(lv)     	# level
-		self.e  	=	int(e)      	# experience
+		self.exp	=	int(exp)    	# experience
+		self.prev_exp= self.exp
 		self.strength = int(strength)	# strength determines the damage inflicted to the enemy
 		self.skill	=	int(skill)  	# skill chance of hitting the enemy
 		self.spd	=	int(spd)    	# speed chance to avoid enemy's attack
@@ -63,7 +65,7 @@ class Unit(object):
 		return """
 Unit: "%s"
 	HP: %d/%d
-	LV: %d	E: %d
+	LV: %d	EXP: %d
 	Str: %d	Skill: %d
 	Spd: %d	Luck: %d
 	Def: %d	Res: %d
@@ -74,7 +76,7 @@ Unit: "%s"
 	Items: %s
 	Played: %s
 """ % (self.name,
-			self.hp, self.hp_max, self.lv, self.e, self.strength,
+			self.hp, self.hp_max, self.lv, self.exp, self.strength,
 			self.skill, self.spd, self.luck, self.defence,
 			self.res, self.move, self.con, self.aid, self.trv,
 			self.affin, self.cond, self.wrank, self.items, self.played)
@@ -96,7 +98,7 @@ Unit: "%s"
 		counter = 0
 
 		# which attributes to show
-		show = ['HP', 'LV', 'E', 'Str', 'Skill', 'Spd', 'Luck', 'Def']
+		show = ['HP', 'LV', 'EXP', 'Str', 'Skill', 'Spd', 'Luck', 'Def']
 
 		# split newlines and tabs except the "indentation" tabs
 		for raw_line in iter(info_text.splitlines()):
@@ -212,6 +214,42 @@ Unit: "%s"
 				else:
 					ret = 1
 		return ret
+
+	def prepare_battle(self):
+		self.prev_hp = self.hp
+
+	def get_damage(self):
+		return self.prev_hp - self.hp
+
+	def experience(self, enemy):
+		self.prev_exp = self.exp
+		exp = 1
+
+		damages = enemy.get_damage()
+		if damages > 0:
+			lv_diff = abs(enemy.lv - self.lv)
+
+			if enemy.lv < self.lv:
+				exp += damages // lv_diff
+			else:
+				exp += damages * lv_diff
+
+			exp += random.randrange(0, self.luck // 2 + 1)
+
+		if enemy.hp == 0:
+			exp += damages // 2
+
+		if exp > 100:
+			exp = 100
+
+		self.exp += exp
+		
+		if self.exp >= 100:
+			self.exp %= 100
+			self.lv += 1
+			print(self.name, " levelled up!")
+
+		print("%s gained %d experience points! EXP: %d" % (self.name, exp, self.exp))
 
 
 class Player(object):
