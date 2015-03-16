@@ -74,8 +74,7 @@ class Game(object):
 		"""
 		This method renders and blits the map on the screen.
 		"""
-		rendered_map = self.map.render(self.screen.get_size(), self.SMALL_FONT)
-		self.screen.blit(rendered_map, (0, 0))
+		self.map.tilemap.draw(self.screen)
 
 	def blit_info(self):
 		screen_w, screen_h = self.screen.get_size()
@@ -431,7 +430,7 @@ class Game(object):
 		print("#" * 12 + " Battle ends " + "#" * 12 + "\r\n")
 
 	def kill(self, unit):
-		self.map.remove_unit(unit)
+		self.map.kill_unit(unit)
 		self.whose_unit(unit).units.remove(unit)
 
 	def get_active_player(self):
@@ -475,18 +474,19 @@ class Game(object):
 		pygame.event.clear()
 		self.wait_for_user_input()
 
-	def get_mouse_coord(self):
-		pos = pygame.mouse.get_pos()
+	def get_mouse_coord(self, pos=None):
+		if pos is None:
+			pos = pygame.mouse.get_pos()
 		try:
 			return self.map.mouse2cell(pos)
 		except ValueError:
 			return None
 
 	def handle_mouse_motion(self, event):
-		coord = self.get_mouse_coord()
+		coord = self.get_mouse_coord(event.pos)
 		if coord is not None and coord != self.prev_coord:
 			self.prev_coord = coord
-			self.map.cursor = coord
+			self.map.cursor.update(event)
 			self.map.update_arrow(coord)
 
 	def action_menu(self, actions, rollback, pos):

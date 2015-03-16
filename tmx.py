@@ -868,14 +868,18 @@ class TileMap(object):
 	def pixel_to_screen(self, x, y):
 		'''Look up the screen-space pixel matching the Layer-space pixel.
 		'''
-		screen_x = x-self.childs_ox
-		screen_y = y-self.childs_oy
+		screen_x = x - self.childs_ox
+		screen_y = y - self.childs_oy
 		return int(screen_x), int(screen_y)
 
-	def index_at(self, x, y):
+	def index_at(self, x, y=None):
 		'''Return the map index at the (screen-space) pixel position.
 		'''
-		sx, sy = self.pixel_from_screen(x, y)
+		if y is None:
+			a, b = x
+		else:
+			a, b = x, y
+		sx, sy = self.pixel_from_screen(a, b)
 		return int(sx//self.tile_width), int(sy//self.tile_height)
 
 def load(filename, viewport):
