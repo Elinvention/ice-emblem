@@ -25,93 +25,260 @@ import pygame
 import os.path
 from unit import Unit
 
-from arrow import Arrow
-
 
 def distance(p0, p1):
 	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
+def resize_keep_ratio(size, max_size):
+	w, h = size
+	max_w, max_h = max_size
+	resize_ratio = min(max_w / w, max_h / h)
+	return int(w * resize_ratio), int(h * resize_ratio)
 
-class MapNode(object):
-	"""Node"""
+def center(rect1, rect2, xoffset=0, yoffset=0):
+	"""Center rect2 in rect1 with offset."""
+	return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
 
-	def __init__(self, coord, tile, unit=None, allowed_unit_classes=[Unit], weight=1, bonus_defence=0):
-		self.x, self.y = coord
-		self.tile = tile
+
+class UnitSprite(pygame.sprite.Sprite):
+	def __init__(self, size, font, obj, unit, *groups):
+		super(UnitSprite, self).__init__(*groups)
+
 		self.unit = unit
-		self.allowed_unit_classes = allowed_unit_classes
-		self.weight = 1
-		self.bonus_defence = bonus_defence
+		self.image = pygame.Surface(size).convert_alpha()
+		w, h = size
+		self.x, self.y = self.coord = (obj.px // w), (obj.py // h)
+		pos = self.x * w, self.y * h
+		self.rect = rect = pygame.Rect(pos, size)
 
-	def __str__(self):
-		return ("<MapNode (%d:%d) %s %d %d>" %
-				(self.x, self.y,
-				self.unit.name if self.unit is not None else 'None',
-				self.weight, self.bonus_defence))
+		self.update()
 
-	def is_obstacle(self, color=None):
-		if color is not None:
-			return (self.weight == float('inf') or
-				(self.unit is not None and self.unit.color != color))
+	def update(self, new_coord=None):
+		if new_coord is not None:
+			self.x, self.y = self.coord = new_coord
+			self.rect.topleft = self.x * self.rect.w, self.y * self.rect.h
+
+		w, h = self.rect.size
+		w2, h2 = w // 2, h // 2
+		mw, mh = img_max_size = (w, h - 5)
+		mw2, mh2 = mw // 2, mh // 2
+
+		self.image.fill((0, 0, 0, 0))
+		pygame.draw.circle(self.image, self.unit.color, (mw2, mh2), mh2, 3)
+
+		src_img = self.unit.image
+		if src_img is None:
+			text = font.render(self.unit.name, 1, BLACK)
+			self.image.blit(text, center(self.image.get_rect(), text.get_rect()))
 		else:
-			return self.weight == float('inf') or self.unit is not None
+			image_size = resize_keep_ratio(src_img.get_size(), img_max_size)
+			resized_image = pygame.transform.smoothscale(src_img, image_size).convert_alpha()
+			self.image.blit(resized_image, center(self.image.get_rect(), resized_image.get_rect()))
+			
+		hp_bar_length = int(self.unit.hp / self.unit.hp_max * self.rect.w)
+		hp_bar = pygame.Surface((hp_bar_length, 5))
+		hp_bar.fill((0, 255, 0))
+		self.image.blit(hp_bar, (0, self.rect.h - 5))
 
-	def get_unit_color(self):
-		return self.unit.color if self.unit is not None else None
+
+class Cursor(pygame.sprite.Sprite):
+	def __init__(self, tilemap, img_path, *groups):
+		super(Cursor, self).__init__(*groups)
+		self.image = pygame.image.load(img_path).convert_alpha()
+		self.tilesize = tilemap.tile_width, tilemap.tile_height
+		self.rect = pygame.Rect((0, 0), self.tilesize)
+		self.coord = (0, 0)
+		self.tilemap = tilemap
+
+	def update(self, event):
+		if event.type == pygame.KEYDOWN:
+			cx, cy = self.coord
+			if event.key == pygame.K_UP:
+				cx, cy = (cx, (cy - 1) % self.tilemap.height)
+			elif event.key == pygame.K_DOWN:
+				cx, cy = (cx, (cy + 1) % self.tilemap.height)
+			elif event.key == pygame.K_LEFT:
+				cx, cy = ((cx - 1) % self.tilemap.width, cy)
+			elif event.key == pygame.K_RIGHT:
+				cx, cy = ((cx + 1) % self.tilemap.width, cy)
+
+			self.rect.x = cx * self.tilemap.tile_width
+			self.rect.y = cy * self.tilemap.tile_height
+			self.coord = cx, cy
+		elif event.type == pygame.MOUSEMOTION:
+			cx, cy = self.tilemap.index_at(event.pos)
+			if 0 <= cx < self.tilemap.width and 0 <= cy < self.tilemap.height:
+				self.rect.x = cx * self.tilemap.tile_width
+				self.rect.y = cy * self.tilemap.tile_height
+				self.coord = cx, cy
+
+"""
+		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
+		horizontal_line.fill((0, 0, 0, 100))
+		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
+		vertical_line.fill((0, 0, 0, 100))
+
+		for i in range(self.tilemap.width):
+			rendering.blit(vertical_line, (i * self.tile_size - 1, 0))
+		for j in range(self.tilemap.height):
+			rendering.blit(horizontal_line, (0, j * self.tile_size - 1))
+
+		if self.is_selected((x, y)):
+			self.image = self.highlight_surfaces['selected'], (x * side, y * side))
+		elif self.is_in_move_range((i, j)):
+			blit(self.highlight_surfaces['move'], (i * side, j * side))
+		elif self.is_in_attack_range((i, j)):
+			blit(self.highlight_surfaces['attack'], (i * side, j * side))
+		elif unit is not None and unit.played:
+			blit(self.highlight_surfaces['played'], (i * side, j * side))
+"""
+
+
+class CellHighlight(pygame.sprite.Sprite):
+	def __init__(self, coord, color, *groups):
+		super(CellHighlight, self).__init__(*groups)
+		self.image = None
+		self.rect = pygame.Rect((0, 0), (0, 0))
+
+	def update(self, image, pos):
+		self.image = image
+		self.rect.topleft = pos
+
+
+class Lines(pygame.sprite.Sprite):
+	def __init__(self, *groups):
+		super(Lines, self).__init__(*groups)
+
+
+class Arrow(pygame.sprite.Sprite):
+	"""
+
+	"""
+	def __init__(self, screen_size, image_path, tilesize, *groups):
+		super(Arrow, self).__init__(*groups)
+		self.source_image = pygame.image.load(image_path)
+
+		self.arrow = {}
+
+		self.path = []
+		self.first_coord = None
+
+		self.set_tilesize(tilesize)
+
+		self.image = pygame.Surface(screen_size).convert_alpha()
+		self.image.fill((0, 0, 0, 0))
+		self.rect = pygame.Rect((0, 0), screen_size)
+
+	def update(self, path=None):
+		if path is not None:
+			self.path = path
+		self.image.fill((0, 0, 0, 0))
+		for (x, y) in self.path:
+			img = self.get_arrow_part((x, y))
+			pos = (x * self.tilesize[0], y * self.tilesize[1])
+			self.image.blit(img, pos)
+
+	def set_tilesize(self, tilesize):
+		self.tilesize = tilesize
+		w, h = self.source_image.get_size()
+		rw, rh = rectsize = (w // 4, h // 4)
+
+		arrow_parts = []
+		for j in range(4):
+			for i in range(4):
+				pos = (i * rw, j * rh)
+				rect = pygame.Rect(pos, rectsize)
+				img = pygame.Surface.subsurface(self.source_image, rect)
+				img = pygame.transform.smoothscale(img, tilesize)
+				arrow_parts.append(img)
+
+		self.arrow = {
+			'horizontal': arrow_parts[1],
+			'vertical': arrow_parts[4],
+			'topleft': arrow_parts[0],
+			'topright': arrow_parts[3],
+			'bottomleft': arrow_parts[12],
+			'bottomright': arrow_parts[15],
+			'up': arrow_parts[5],
+			'down': arrow_parts[10],
+			'left': arrow_parts[9],
+			'right': arrow_parts[6],
+		}
+
+	def get_arrow_part(self, coord):
+		index = self.path.index(coord)
+		a = self.path[index - 1] if index - 1 >= 0 else self.first_coord
+		b = self.path[index]
+		c = self.path[index + 1] if (index + 1) < len(self.path) else None
+
+		if c is None:
+			ax, ay = a
+			bx, by = b
+			if bx == ax + 1:
+				return self.arrow['right']
+			elif bx == ax - 1:
+				return self.arrow['left']
+			elif by == ay + 1:
+				return self.arrow['down']
+			elif by == ay - 1:
+				return self.arrow['up']
+		else:
+			ax, ay = a
+			bx, by = b
+			cx, cy = c
+			if ax == bx == cx:
+				return self.arrow['vertical']
+			elif ay == by == cy:
+				return self.arrow['horizontal']
+
+			elif (ax == bx and ay < by and bx < cx and by == cy) or (cx == bx and by == ay and cy < by and bx < ax):
+				return self.arrow['bottomleft']
+
+			elif (ax == bx and ay < by and bx > cx and by == cy) or (ax < bx and ay == by and bx == cx and by > cy):
+				return self.arrow['bottomright']
+
+			elif (ax == bx and ay > by and bx > cx and by == cy) or (ax < bx and ay == by and bx == cx and by < cy):
+				return self.arrow['topright']
+
+			elif (ax == bx and ay > by and bx < cx and by == cy) or (ax > bx and ay == by and bx == cx and by < cy):
+				return self.arrow['topleft']
+
+			else:
+				raise ValueError("ArrowError: " + str((a, b, c)))
 
 
 class Map(object):
 	"""The map is composed of nodes."""
-	def __init__(self, map_path, screen_size, highlight_colors, units):
-		(screen_w, screen_h) = screen_size
-		tmx_data = tmx.load(map_path, screen_size)
-		self.h = tmx_data.height
-		self.w = tmx_data.width
-		self.tile_size = min(screen_w // self.w, screen_h // self.h)
-		self.square = (self.tile_size, self.tile_size)
+	def __init__(self, map_path, screen_size, highlight_colors, units, origin=(0,0)):
+		self.tilemap = tmx.load(map_path, screen_size)
+		self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 
-		# this part is a hacky way to reuse this class to render the map
-		# instead of built in tmx.py method. Probabily something con be
-		# done to reduce code duplication and memory
-		self.nodes = [[] for _ in range(self.w)]
+		self.units = units
 
-		for layer in tmx_data.layers:
-			if layer.visible and isinstance(layer, tmx.Layer):
-				# iterate over the tiles in the layer
-				for cell in layer:
-					if cell is not None:
-						x, y = (cell.x, cell.y)
-						image = cell.tile.surface
-						try:  # if there are more layers fuse them togheter
-							tile = self.nodes[x][y].tile.convert_alpha()
-							tile.blit(image, (0,0))
-							self.nodes[x][y].tile = tile
-						except IndexError:
-							node = MapNode((x, y), image)
-							self.nodes[x].append(node)
+		self.sprites_layer = tmx.SpriteLayer()
+		self.sprites = []
 
-		for layer in tmx_data.layers:
-			if layer.visible and isinstance(layer, tmx.ObjectLayer):
-				for obj in layer.objects:
-					if obj.type == 'unit':
-						x = obj.px // tmx_data.tile_width
-						y = obj.py // tmx_data.tile_height
-						self[x, y].unit = units[obj.name]
+		for obj in self.tilemap.layers['Sprites'].objects:
+			if obj.type == 'unit':
+				self.sprites.append(UnitSprite(self.tile_size, None, obj, units[obj.name], self.sprites_layer))
 
-		self.cursor = (0, 0)
-		self.cursor_image = pygame.image.load(os.path.join('images', 'cursor.png'))
+		cursor_layer = tmx.SpriteLayer()
+		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), cursor_layer)
+
+		arrow_layer = tmx.SpriteLayer()
+		self.arrow = Arrow(screen_size, os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
+
+		self.tilemap.layers.append(self.sprites_layer)
+		self.tilemap.layers.append(arrow_layer)
+		self.tilemap.layers.append(cursor_layer)
+
+		self.tilemap.set_focus(self.tilemap.px_width // 2, self.tilemap.px_height // 2)
 
 		self.prev_sel = None
 		self.curr_sel = None
 		self.move_area = []
 		self.attack_area = []
-		self.arrow = Arrow(os.path.join('images', 'arrow.png'), self.square)
-
-		self.highlight_colors = highlight_colors
-		self.highlight_surfaces = {}
-		for highlight, color in self.highlight_colors.items():
-			self.highlight_surfaces[highlight] = pygame.Surface(self.square).convert_alpha()
-			self.highlight_surfaces[highlight].fill(color)
+		
 
 	def __getitem__(self, pos):
 		(x, y) = pos
@@ -128,21 +295,20 @@ class Map(object):
 		return value to find the shortest path from any node to the
 		source node.
 		"""
-		dist = [[None for _ in range(self.h)] for _ in range(self.w)]
-		prev = [[None for _ in range(self.h)] for _ in range(self.w)]
+		dist = [[None for _ in range(self.tilemap.height)] for _ in range(self.tilemap.width)]
+		prev = [[None for _ in range(self.tilemap.height)] for _ in range(self.tilemap.width)]
 		sx, sy = source
 		dist[sx][sy] = 0     # Distance from source to source
 		prev[sx][sy] = None  # Previous node in optimal path initialization
 
 		Q = []
-		for i in range(self.w):  # Initialization
-			for j in range(self.h):
+		for i in range(self.tilemap.width):  # Initialization
+			for j in range(self.tilemap.height):
 				if (i, j) != source:  # Where v has not yet been removed from Q (unvisited nodes)
 					dist[i][j] = float('inf')  # Unknown distance function from source to v
 					prev[i][j] = None  # Previous node in optimal path from source
 				Q.append((i, j))  # All nodes initially in Q (unvisited nodes)
 
-		source_node = self.get_node(source)
 		while Q:
 			u0, u1 = Q[0]
 			min_dist = dist[u0][u1]
@@ -154,20 +320,19 @@ class Map(object):
 					min_dist = dist[i][j]
 					u0, u1 = u = el  #  Source node in first case
 
-			Q.remove(u)  
+			Q.remove(u)
+
+			source_unit_color = self.get_unit(source).color
 
 			# where v has not yet been removed from Q.
 			for v in self.neighbors(u):
 				v0, v1 = v
-				node = self.get_node(v)
 
-				source_unit_color = source_node.get_unit_color()
-
-				if node.is_obstacle(source_unit_color):
+				if self.is_obstacle(v, source_unit_color):
 					dist[v0][v1] = float('inf')
 					prev[v0][v1] = None
 				else:
-					alt = dist[u0][u1] + node.weight
+					alt = dist[u0][u1] + self.get_cell_weight(v)
 
 					# A shorter path to v has been found
 					if alt < dist[v0][v1]:  
@@ -176,9 +341,31 @@ class Map(object):
 
 		return dist, prev
 
+	def is_obstacle(self, coord, color):
+		for sprite in self.sprites:
+			if (sprite.x, sprite.y) == coord and sprite.unit.color != color:
+				return True
+		for layer in self.tilemap.layers:
+			try:
+				cell = layer[coord[0], coord[1]]
+				if cell['walk'] == 'false':
+					return True
+			except (KeyError, TypeError):
+				pass
+		return False
+
+	def get_cell_weight(self, coord):
+		for layer in self.tilemap.layers:
+			try:
+				cell = layer[coord[0], coord[1]]
+				return cell['weight']
+			except (KeyError, TypeError):
+				pass
+		return 1
+
 	def check_coord(self, coord):
 		x, y = coord
-		if 0 <= x < self.w and 0 <= y < self.h:
+		if 0 <= x < self.tilemap.width and 0 <= y < self.tilemap.height:
 			return True
 		else:
 			return False
@@ -215,125 +402,33 @@ class Map(object):
 
 		return S
 
-	def render(self, screen_size, font):
-		"""Renders the map returning a Surface"""
-
-		(screen_w, screen_h) = screen_size
-
-		map_w = self.tile_size * self.w
-		map_h = self.tile_size * self.h
-		side = self.tile_size
-
-		rendering = pygame.Surface((map_w, map_h))
-
-		# deref these heavily used references for speed
-		smoothscale = pygame.transform.smoothscale
-		circle = pygame.draw.circle
-		blit = rendering.blit
-
-		for i in range(self.w):
-			for j in range(self.h):
-				node = self.get_node(i, j)
-				tile = smoothscale(node.tile, self.square)
-				blit(tile, (i * self.tile_size, j * self.tile_size))
-				unit = node.unit
-
-				if unit is not None and unit.color is not None:
-					pos = (i * side + side // 2, j * side + side // 2)
-					circle(rendering, unit.color, pos, side // 2, 5)
-
-					if unit.image is None:
-						text = font.render(unit.name, 1, BLACK)
-						blit(text, (i * side, j * side))
-					else:
-						image_w, image_h = unit.image.get_size()
-						if (image_w, image_h) != (side, side - 5):
-							if image_w > image_h:
-								aspect_ratio = float(image_h / image_w)
-								resized_w = side
-								resized_h = int(aspect_ratio * resized_w)
-							else:
-								aspect_ratio = float(image_w / image_h)
-								resized_h = side - 5
-								resized_w = int(aspect_ratio * resized_h)
-							image = smoothscale(unit.image, (resized_w, resized_h))
-						else:
-							image = unit.image
-
-						blit(image, (i * side + side // 2 - image.get_size()[0] // 2, j * side))
-
-					hp_bar_length = int(unit.hp / unit.hp_max * side)
-					hp_bar = pygame.Surface((hp_bar_length, 5))
-					hp_bar.fill((0, 255, 0))
-					blit(hp_bar, (i * side, j * side + side - 5))  # hp bar
-
-				if self.is_selected((i, j)):
-					blit(self.highlight_surfaces['selected'], (i * side, j * side))
-				elif self.is_in_move_range((i, j)):
-					blit(self.highlight_surfaces['move'], (i * side, j * side))
-				elif self.is_in_attack_range((i, j)):
-					blit(self.highlight_surfaces['attack'], (i * side, j * side))
-				elif unit is not None and unit.played:
-					blit(self.highlight_surfaces['played'], (i * side, j * side))
-
-				# arrow
-				if (i, j) in self.arrow.path:
-					img = self.arrow.get_arrow_part((i, j))
-					blit(img, (i * side, j * side))
-
-		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
-		horizontal_line.fill((0, 0, 0, 100))
-		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
-		vertical_line.fill((0, 0, 0, 100))
-
-		for i in range(self.w):
-			blit(vertical_line, (i * self.tile_size - 1, 0))
-		for j in range(self.h):
-			blit(horizontal_line, (0, j * self.tile_size - 1))
-
-		cursor_image = smoothscale(self.cursor_image, self.square)
-		blit(cursor_image, (self.cursor[0] * side, self.cursor[1] * side))
-		return rendering
-
-	def position_unit(self, unit, coord):
-		"""Set an unit to the coordinates."""
-		(x, y) = coord
-		self.nodes[x][y].unit = unit
-
-	def screen_resize(self, screen_size):
-		"""
-		On screen resize this method has to be called to resize every
-		tile.
-		"""
-		(screen_w, screen_h) = screen_size
-		self.tile_size = min(screen_w // self.w, screen_h // self.h)
-		self.square = (self.tile_size, self.tile_size)
-		for highlight, color in self.highlight_colors.items():
-			h = pygame.Surface(self.square).convert_alpha()
-			self.highlight_surfaces[highlight] = h
-			self.highlight_surfaces[highlight].fill(color)
+	#def screen_resize(self, screen_size):
+	#	"""
+	#	On screen resize this method has to be called to resize every
+	#	tile.
+	#	"""
+	#	(screen_w, screen_h) = screen_size
+	#	self.tile_size = min(screen_w // self.tilemap.width, screen_h // self.tilemap.height)
+	#	self.tile_size = (self.tile_size, self.tile_size)
+	#	for highlight, color in self.highlight_colors.items():
+	#		h = pygame.Surface(self.tile_size).convert_alpha()
+	#		self.highlight_surfaces[highlight] = h
+	#		self.highlight_surfaces[highlight].fill(color)
 
 	def mouse2cell(self, cursor_coord):
-		"""mouse position to map indexes."""
-
-		(cursor_x, cursor_y) = cursor_coord
-
-		x = int(cursor_x // self.tile_size)
-		y = int(cursor_y // self.tile_size)
-
-		if x >= self.w or y >= self.h:
-			raise ValueError('%d >= %d or %d >= %d' % (x, self.w, y, self.h))
-
-		return (x, y)
+		"""mouse position to map index."""
+		x, y = cursor_coord
+		map_index = self.tilemap.index_at(x, y)
+		if self.check_coord(map_index):
+			return map_index
+		else:
+			raise ValueError('(%d:%d) Cursor out of map')
 
 	def where_is(self, unit):
 		"""
 		This method finds a unit and returns its position.
 		"""
-		for i in range(self.w):
-			for j in range(self.h):
-				if self.nodes[i][j].unit == unit:
-					return (i, j)
+		
 		return None
 
 	def move(self, old_coord, new_coord):
@@ -345,21 +440,20 @@ class Map(object):
 		(x, y) = new_coord
 
 		if old_coord != new_coord:
-			print('Unit %s moved from %d:%d to %d:%d' %
-				(self.get_unit(old_x, old_y).name, old_x, old_y, x, y))
-			self.nodes[x][y].unit = self.nodes[old_x][old_y].unit
-			self.nodes[old_x][old_y].unit = None
+			for sprite in self.sprites:
+				if sprite.coord == old_coord:
+					sprite.update(new_coord)
+					print('Unit %s moved from %d:%d to %d:%d' %
+					(sprite.unit.name, old_x, old_y, x, y))
 
-	def remove_unit(self, unit):
+	def kill_unit(self, unit):
 		"""
 		Remove a unit from the map. Raises a ValueError if the unit
 		couldn't be found.
 		"""
-		x, y = coord = self.where_is(unit)
-		if coord is not None:
-			self.nodes[x][y].unit = None
-		else:
-			raise ValueError("Can't find unit " + str(unit))
+		for sprite in self.sprites:
+			if sprite.unit == unit:
+				self.sprites_layer.remove(sprite)
 
 	def update_move_area(self, coord):
 		"""
@@ -374,17 +468,20 @@ class Map(object):
 
 		dist, prev = self.dijkstra(coord)
 
-		for i in range(self.w):
-			for j in range(self.h):
+		for i in range(self.tilemap.width):
+			for j in range(self.tilemap.height):
 				if dist[i][j] <= move:
 					self.move_area.append((i, j))
 
-	def get_node(self, a, b=None):
+	def get_unit(self, a, b=None):
 		if b is None:
 			x, y = a
-			return self[x, y]
 		else:
-			return self[a, b]
+			x, y = a, b
+
+		for sprite in self.sprites:
+			if sprite.coord == (x, y):
+				return sprite.unit
 
 	def update_attack_area(self, coord):
 		"""
@@ -406,9 +503,10 @@ class Map(object):
 		if self.curr_sel is not None and self.move_area:
 			dist, prev = self.dijkstra(self.curr_sel)
 			self.arrow.first_coord = self.curr_sel
-			self.arrow.path = self.shortest_path(prev, target)
+			shortest_path = self.shortest_path(prev, target)
+			self.arrow.update(shortest_path)
 		else:
-			self.arrow.path = []
+			self.arrow.update([])
 
 	def nearby_units(self, coord, colors=[]):
 		"""
@@ -418,8 +516,8 @@ class Map(object):
 		color will be included.
 		"""
 		(x, y) = coord
-		unit = self.nodes[x][y].unit
-		unit_range = self.nodes[x][y].unit.get_weapon_range()
+		unit = self.get_unit(x, y)
+		unit_range = unit.get_weapon_range()
 		nearby_list = []
 
 		for i in range(x - unit_range, x + unit_range + 1):
@@ -449,13 +547,13 @@ class Map(object):
 		self.prev_sel = None
 		self.move_area = []
 		self.attack_area = []
-		self.arrow.path = []
+		self.arrow.update([])
 
 	def can_selection_move(self, active_player):
 		nx, ny = self.curr_sel
 		sx, sy = self.prev_sel
-		prev_unit = self.nodes[sx][sy].unit
-		curr_unit = self.nodes[nx][ny].unit
+		prev_unit = self.get_unit(sx, sy)
+		curr_unit = self.get_unit(nx, ny)
 
 		return (prev_unit is not None and not prev_unit.played and
 			active_player.is_mine(prev_unit) and
@@ -467,21 +565,14 @@ class Map(object):
 	def can_selection_attack(self, active_player):
 		nx, ny = self.curr_sel
 		sx, sy = self.prev_sel
-		prev_unit = self.nodes[sx][sy].unit
-		curr_unit = self.nodes[nx][ny].unit
+		prev_unit = self.get_unit(sx, sy)
+		curr_unit = self.get_unit(nx, ny)
 
 		return (prev_unit is not None and not prev_unit.played and
 			active_player.is_mine(prev_unit) and
 			curr_unit is not None and
 			not active_player.is_mine(curr_unit) and
 			self.sel_distance() <= prev_unit.get_weapon_range())
-
-	def get_unit(self, a, b=None):
-		if b is None:
-			x, y = a
-			return self[x, y].unit
-		else:
-			return self[a, b].unit
 
 	def handle_click(self, event, active_player):
 		if event.button == 1:
@@ -495,21 +586,13 @@ class Map(object):
 			return []
 
 	def handle_keyboard(self, event, active_player):
-		cx, cy = self.cursor
-		if event.key == pygame.K_UP:
-			self.cursor = (cx, (cy - 1) % self.h)
-		elif event.key == pygame.K_DOWN:
-			self.cursor = (cx, (cy + 1) % self.h)
-		elif event.key == pygame.K_LEFT:
-			self.cursor = ((cx - 1) % self.w, cy)
-		elif event.key == pygame.K_RIGHT:
-			self.cursor = ((cx + 1) % self.w, cy)
+		self.cursor.update(event)
 
 		if self.move_area:
-			self.update_arrow(self.cursor)
+			self.update_arrow(self.cursor.coord)
 
 		if event.key == pygame.K_SPACE:
-			return self.select(self.cursor, active_player)
+			return self.select(self.cursor.coord, active_player)
 
 	def select(self, coord, active_player):
 		x, y = coord
@@ -582,4 +665,4 @@ class Map(object):
 		return (x, y) in self.attack_area
 
 	def is_enemy_cursor(self):
-		return self.cursor in self.attack_area
+		return self.cursor.coord in self.attack_area
