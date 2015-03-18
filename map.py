@@ -123,26 +123,43 @@ class Cursor(pygame.sprite.Sprite):
 		for j in range(self.tilemap.height):
 			rendering.blit(horizontal_line, (0, j * self.tile_size - 1))
 
-		if self.is_selected((x, y)):
-			self.image = self.highlight_surfaces['selected'], (x * side, y * side))
-		elif self.is_in_move_range((i, j)):
-			blit(self.highlight_surfaces['move'], (i * side, j * side))
-		elif self.is_in_attack_range((i, j)):
-			blit(self.highlight_surfaces['attack'], (i * side, j * side))
-		elif unit is not None and unit.played:
-			blit(self.highlight_surfaces['played'], (i * side, j * side))
+		
 """
 
 
 class CellHighlight(pygame.sprite.Sprite):
-	def __init__(self, coord, color, *groups):
+	def __init__(self, screen_size, tile_size, highlight_colors, *groups):
 		super(CellHighlight, self).__init__(*groups)
-		self.image = None
-		self.rect = pygame.Rect((0, 0), (0, 0))
 
-	def update(self, image, pos):
-		self.image = image
-		self.rect.topleft = pos
+		self.tw, self.th = self.tile_size = tile_size
+
+		self.highlight_colors = highlight_colors
+		self.highlight_surfaces = {}
+		for highlight, color in self.highlight_colors.items():
+			self.highlight_surfaces[highlight] = pygame.Surface(tile_size).convert_alpha()
+			self.highlight_surfaces[highlight].fill(color)
+
+		self.image = pygame.Surface(screen_size).convert_alpha()
+		self.image.fill((0, 0, 0, 0))
+		self.rect = pygame.Rect((0, 0), screen_size)
+
+	def update(self, selected, move, attack, played):
+		self.image.fill((0, 0, 0, 0))
+
+		blit = self.image.blit
+
+		if selected is not None:
+			x, y = selected
+			blit(self.highlight_surfaces['selected'], (x * self.tw, y * self.th))
+
+		for (x, y) in move:
+			blit(self.highlight_surfaces['move'], (x * self.tw, y * self.th))
+
+		for (x, y) in attack:
+			blit(self.highlight_surfaces['attack'], (x * self.tw, y * self.th))
+
+		for (x, y) in played:
+			blit(self.highlight_surfaces['played'], (x * self.tw, y * self.th))
 
 
 class Lines(pygame.sprite.Sprite):
@@ -268,7 +285,11 @@ class Map(object):
 		arrow_layer = tmx.SpriteLayer()
 		self.arrow = Arrow(screen_size, os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
 
+		highlight_layer = tmx.SpriteLayer()
+		self.highlight = CellHighlight(screen_size, self.tile_size, highlight_colors, highlight_layer)
+
 		self.tilemap.layers.append(self.sprites_layer)
+		self.tilemap.layers.append(highlight_layer)
 		self.tilemap.layers.append(arrow_layer)
 		self.tilemap.layers.append(cursor_layer)
 
@@ -278,7 +299,6 @@ class Map(object):
 		self.curr_sel = None
 		self.move_area = []
 		self.attack_area = []
-		
 
 	def __getitem__(self, pos):
 		(x, y) = pos
@@ -495,7 +515,7 @@ class Map(object):
 		for (x, y) in self.move_area:
 			for i in range(x - weapon_range, x + weapon_range + 1):
 				for j in range(y - weapon_range, y + weapon_range + 1):
-					if (i, j) not in self.move_area:
+					if (i, j) not in self.move_area and (i, j) not in self.attack_area:
 						if distance((x, y), (i, j)) <= weapon_range:
 							self.attack_area.append((i, j))
 
@@ -533,21 +553,13 @@ class Map(object):
 
 		return nearby_list
 
-	def is_in_move_range(self, coord):
-		return coord in self.move_area
-
-	def is_in_attack_range(self, coord):
-		return coord in self.attack_area
-
-	def is_selected(self, coord):
-		return self.curr_sel == coord
-
 	def reset_selection(self):
 		self.curr_sel = None
 		self.prev_sel = None
 		self.move_area = []
 		self.attack_area = []
 		self.arrow.update([])
+		self.highlight.update(self.curr_sel, self.move_area, self.attack_area, self.list_played())
 
 	def can_selection_move(self, active_player):
 		nx, ny = self.curr_sel
@@ -557,7 +569,7 @@ class Map(object):
 
 		return (prev_unit is not None and not prev_unit.played and
 			active_player.is_mine(prev_unit) and
-			self.is_in_move_range(self.curr_sel))
+			self.curr_sel in self.move_area)
 
 	def sel_distance(self):
 		return distance(self.curr_sel, self.prev_sel)
@@ -580,10 +592,19 @@ class Map(object):
 				coord = self.mouse2cell(event.pos)
 			except ValueError:
 				return []
-			return self.select(coord, active_player)
+			ret = self.select(coord, active_player)
+			self.highlight.update(self.curr_sel, self.move_area, self.attack_area, self.list_played())
+			return ret
 		elif event.button == 3:
 			self.reset_selection()
 			return []
+
+	def list_played(self):
+		r = []
+		for sprite in self.sprites:
+			if sprite.unit.played:
+				r.append(sprite.coord)
+		return r
 
 	def handle_keyboard(self, event, active_player):
 		self.cursor.update(event)
@@ -592,7 +613,9 @@ class Map(object):
 			self.update_arrow(self.cursor.coord)
 
 		if event.key == pygame.K_SPACE:
-			return self.select(self.cursor.coord, active_player)
+			ret = self.select(self.cursor.coord, active_player)
+			self.highlight.update(self.curr_sel, self.move_area, self.attack_area, self.list_played())
+			return ret
 
 	def select(self, coord, active_player):
 		x, y = coord
