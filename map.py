@@ -112,38 +112,37 @@ class Cursor(pygame.sprite.Sprite):
 				self.rect.y = cy * self.tilemap.tile_height
 				self.coord = cx, cy
 
-"""
-		horizontal_line = pygame.Surface((map_w, 2)).convert_alpha()
-		horizontal_line.fill((0, 0, 0, 100))
-		vertical_line = pygame.Surface((2, map_h)).convert_alpha()
-		vertical_line.fill((0, 0, 0, 100))
-
-		for i in range(self.tilemap.width):
-			rendering.blit(vertical_line, (i * self.tile_size - 1, 0))
-		for j in range(self.tilemap.height):
-			rendering.blit(horizontal_line, (0, j * self.tile_size - 1))
-
-		
-"""
-
 
 class CellHighlight(pygame.sprite.Sprite):
-	def __init__(self, screen_size, tile_size, highlight_colors, *groups):
+	def __init__(self, tilemap, highlight_colors, *groups):
 		super(CellHighlight, self).__init__(*groups)
 
-		self.tw, self.th = self.tile_size = tile_size
+		self.w, self.h = tilemap.width, tilemap.height
+		self.tile_size = self.tw, self.th = tilemap.tile_width, tilemap.tile_height
 
 		self.highlight_colors = highlight_colors
 		self.highlight_surfaces = {}
 		for highlight, color in self.highlight_colors.items():
-			self.highlight_surfaces[highlight] = pygame.Surface(tile_size).convert_alpha()
+			self.highlight_surfaces[highlight] = pygame.Surface(self.tile_size).convert_alpha()
 			self.highlight_surfaces[highlight].fill(color)
 
-		self.image = pygame.Surface(screen_size).convert_alpha()
+		self.horizontal_line = pygame.Surface((tilemap.view_w, 2)).convert_alpha()
+		self.horizontal_line.fill((0, 0, 0, 100))
+		self.vertical_line = pygame.Surface((2, tilemap.view_h)).convert_alpha()
+		self.vertical_line.fill((0, 0, 0, 100))
+
+		self.image = pygame.Surface((tilemap.px_width, tilemap.px_height)).convert_alpha()
 		self.image.fill((0, 0, 0, 0))
-		self.rect = pygame.Rect((0, 0), screen_size)
+
+		for i in range(self.w):
+			self.image.blit(self.vertical_line, (i * self.tw - 1, 0))
+		for j in range(self.h):
+			self.image.blit(self.horizontal_line, (0, j * self.th - 1))
+
+		self.rect = pygame.Rect((tilemap.view_x, tilemap.view_y), (tilemap.view_w, tilemap.view_h))
 
 	def update(self, selected, move, attack, played):
+		print("Updating CellHighlight")
 		self.image.fill((0, 0, 0, 0))
 
 		blit = self.image.blit
@@ -161,11 +160,10 @@ class CellHighlight(pygame.sprite.Sprite):
 		for (x, y) in played:
 			blit(self.highlight_surfaces['played'], (x * self.tw, y * self.th))
 
-
-class Lines(pygame.sprite.Sprite):
-	def __init__(self, *groups):
-		super(Lines, self).__init__(*groups)
-
+		for i in range(self.w):
+			self.image.blit(self.vertical_line, (i * self.tw - 1, 0))
+		for j in range(self.h):
+			self.image.blit(self.horizontal_line, (0, j * self.th - 1))
 
 class Arrow(pygame.sprite.Sprite):
 	"""
@@ -286,7 +284,7 @@ class Map(object):
 		self.arrow = Arrow(screen_size, os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
 
 		highlight_layer = tmx.SpriteLayer()
-		self.highlight = CellHighlight(screen_size, self.tile_size, highlight_colors, highlight_layer)
+		self.highlight = CellHighlight(self.tilemap, highlight_colors, highlight_layer)
 
 		self.tilemap.layers.append(self.sprites_layer)
 		self.tilemap.layers.append(highlight_layer)
