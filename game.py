@@ -37,6 +37,44 @@ def center(rect1, rect2, xoffset=0, yoffset=0):
 def distance(p0, p1):
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
+
+class Sidebar(object):
+	BG = (100, 100, 100)
+	def __init__(self, screen_size, font):
+		pos = (screen_size[0] - 200, 0)
+		size = (200, screen_size[1])
+		self.rect = pygame.Rect(pos, size)
+		self.surface = pygame.Surface(size).convert()
+		self.surface.fill(self.BG)
+		self.start_time = pygame.time.get_ticks()
+		self.font = font
+
+	def update(self, unit, coord, player):
+		self.surface.fill(self.BG)
+
+		turn_s = self.font.render(player.name + ' phase', True, player.color)
+		pos = turn_s.get_rect(top=40, left=5)
+		self.surface.blit(turn_s, pos)
+
+		if unit is not None:
+			unit_name = self.font.render(unit.name, True, unit.color)
+			pos = unit_name.get_rect(top=pos.y + 40, left=5)
+			self.surface.blit(unit_name, pos)
+
+		cell_label = self.font.render('X: %d Y: %d' % coord, True, WHITE)
+		pos = cell_label.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(cell_label, pos)
+
+		time = pygame.time.get_ticks() - self.start_time
+		time //= 1000
+		sec = time % 60
+		minutes = time / 60 % 60
+		hours = time / 3600 % 24
+		time_s = self.font.render("%02d:%02d:%02d" % (hours, minutes, sec), True, WHITE)
+		pos = time_s.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(time_s, pos)
+
+
 class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000
 	MAP_STATE = 0
@@ -68,34 +106,28 @@ class Game(object):
 
 		self.winner = None
 		self.state = 0
-		self.prev_coord = None
+
+		self.sidebar = Sidebar(self.screen.get_size(), self.SMALL_FONT)
 
 	def blit_map(self):
 		"""
 		This method renders and blits the map on the screen.
 		"""
-		self.map.tilemap.draw(self.screen)
+		self.screen.blit(self.map.render(), (0, 0))
 
 	def blit_info(self):
-		screen_w, screen_h = self.screen.get_size()
-		try:
-			cell_x, cell_y = self.map.mouse2cell(pygame.mouse.get_pos())
-		except ValueError:
-			pass
-		else:
-			cell_label = self.SMALL_FONT.render('X: %d Y: %d' % (cell_x, cell_y), True, WHITE)
-			rec = cell_label.get_rect(bottom=screen_h - 5, right=screen_w - 5)
-			self.screen.blit(cell_label, rec)
-
+		unit = self.map.get_unit(self.map.cursor.coord)
+		coord = self.map.cursor.coord
 		turn = self.whose_turn()
-		turn_label = self.SMALL_FONT.render('phase', True, WHITE)
-		turn_square = pygame.Surface((16, 16))
-		turn_square.fill(turn.color)
-		turn_surface = pygame.Surface((turn_label.get_width() + 20, self.SMALL_FONT.get_linesize()))
-		turn_surface.blit(turn_square, (0, (turn_label.get_height() // 2) - 8))
-		turn_surface.blit(turn_label, (20, 0))
-		pos = turn_surface.get_rect(bottom=screen_h - 40, right=screen_w - 5)
-		self.screen.blit(turn_surface, pos)
+		self.sidebar.update(unit, coord, turn)
+		self.screen.blit(self.sidebar.surface, self.sidebar.rect)
+
+	def blit_fps(self):
+		screen_w, screen_h = self.screen.get_size()
+		fps = self.clock.get_fps()
+		fpslabel = self.FPS_FONT.render(str(int(fps)) + ' FPS', True, WHITE)
+		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
+		self.screen.blit(fpslabel, rec)
 
 	def screen_resize(self, screen_size):
 		"""
@@ -184,13 +216,6 @@ class Game(object):
 		pygame.mixer.fadeout(2000)
 		self.fade_out(2000)
 		pygame.mixer.stop() # Make sure mixer is not busy
-
-	def blit_fps(self):
-		screen_w, screen_h = self.screen.get_size()
-		fps = self.clock.get_fps()
-		fpslabel = self.FPS_FONT.render(str(int(fps)) + ' FPS', True, WHITE)
-		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
-		self.screen.blit(fpslabel, rec)
 
 	def whose_unit(self, unit):
 		for player in self.players:
@@ -483,11 +508,7 @@ class Game(object):
 			return None
 
 	def handle_mouse_motion(self, event):
-		coord = self.get_mouse_coord(event.pos)
-		if coord is not None and coord != self.prev_coord:
-			self.prev_coord = coord
-			self.map.cursor.update(event)
-			self.map.update_arrow(coord)
+		self.map.handle_mouse_motion(event)
 
 	def action_menu(self, actions, rollback, pos):
 		self.blit_map()
@@ -588,4 +609,3 @@ class Game(object):
 			self.handle_keyboard(event)
 		elif event.type == pygame.VIDEORESIZE: # user resized window
 			self.screen_resize(event.size) # update window's size
-

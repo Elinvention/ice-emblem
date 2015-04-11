@@ -126,9 +126,9 @@ class CellHighlight(pygame.sprite.Sprite):
 			self.highlight_surfaces[highlight] = pygame.Surface(self.tile_size).convert_alpha()
 			self.highlight_surfaces[highlight].fill(color)
 
-		self.horizontal_line = pygame.Surface((tilemap.view_w, 2)).convert_alpha()
+		self.horizontal_line = pygame.Surface((tilemap.px_width, 2)).convert_alpha()
 		self.horizontal_line.fill((0, 0, 0, 100))
-		self.vertical_line = pygame.Surface((2, tilemap.view_h)).convert_alpha()
+		self.vertical_line = pygame.Surface((2, tilemap.px_height)).convert_alpha()
 		self.vertical_line.fill((0, 0, 0, 100))
 
 		self.image = pygame.Surface((tilemap.px_width, tilemap.px_height)).convert_alpha()
@@ -139,10 +139,10 @@ class CellHighlight(pygame.sprite.Sprite):
 		for j in range(self.h):
 			self.image.blit(self.horizontal_line, (0, j * self.th - 1))
 
-		self.rect = pygame.Rect((tilemap.view_x, tilemap.view_y), (tilemap.view_w, tilemap.view_h))
+		self.rect = pygame.Rect((0, 0), (tilemap.px_width, tilemap.px_height))
 
 	def update(self, selected, move, attack, played):
-		print("Updating CellHighlight")
+		#print("Updating CellHighlight")
 		self.image.fill((0, 0, 0, 0))
 
 		blit = self.image.blit
@@ -263,9 +263,12 @@ class Arrow(pygame.sprite.Sprite):
 
 
 class Map(object):
-	"""The map is composed of nodes."""
+	"""
+	
+	"""
+
 	def __init__(self, map_path, screen_size, highlight_colors, units, origin=(0,0)):
-		self.tilemap = tmx.load(map_path, screen_size)
+		self.tilemap = tmx.load(map_path, (screen_size[0] - 200, screen_size[1]))
 		self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 
 		self.units = units
@@ -291,12 +294,15 @@ class Map(object):
 		self.tilemap.layers.append(arrow_layer)
 		self.tilemap.layers.append(cursor_layer)
 
-		self.tilemap.set_focus(self.tilemap.px_width // 2, self.tilemap.px_height // 2)
+		self.tilemap.set_focus(0, 0)
 
 		self.prev_sel = None
 		self.curr_sel = None
 		self.move_area = []
 		self.attack_area = []
+
+		self.move_x, self.move_y = 0, 0
+		self.prev_coord = None
 
 	def __getitem__(self, pos):
 		(x, y) = pos
@@ -446,8 +452,11 @@ class Map(object):
 		"""
 		This method finds a unit and returns its position.
 		"""
-		
-		return None
+		for sprite in self.sprites:
+			if sprite.unit == unit:
+				return sprite.coord
+
+		raise ValueError("Couldn't find " + str(unit))
 
 	def move(self, old_coord, new_coord):
 		"""
@@ -466,12 +475,15 @@ class Map(object):
 
 	def kill_unit(self, unit):
 		"""
-		Remove a unit from the map. Raises a ValueError if the unit
+		Removes a unit from the map. Raises a ValueError if the unit
 		couldn't be found.
 		"""
 		for sprite in self.sprites:
 			if sprite.unit == unit:
 				self.sprites_layer.remove(sprite)
+				self.sprites.remove(sprite)
+				break
+		raise ValueError("Unit not found")
 
 	def update_move_area(self, coord):
 		"""
@@ -604,8 +616,45 @@ class Map(object):
 				r.append(sprite.coord)
 		return r
 
+	def handle_mouse_motion(self, event):
+		try:
+			coord = self.mouse2cell(event.pos)
+			if coord != self.prev_coord:
+				self.update_arrow(coord)
+				self.prev_coord = coord
+		except ValueError:
+			pass
+		self.cursor.update(event)
+
+		x, y = event.pos
+		if x < 10:
+			self.move_x = -2
+		elif x > self.tilemap.view_w - 10:
+			self.move_x = 2
+		else:
+			self.move_x = 0
+
+		if y < 10:
+			self.move_y = -2
+		elif y > self.tilemap.view_h - 10:
+			self.move_y = 2
+		else:
+			self.move_y = 0
+
+	def render(self):
+		rendering = pygame.Surface((self.tilemap.view_w, self.tilemap.view_h))
+		
+		fx = self.tilemap.fx + self.move_x
+		fy = self.tilemap.fy + self.move_y
+		if fx != self.tilemap.fx or fy != self.tilemap.fy:
+			self.tilemap.set_focus(fx, fy)
+
+		self.tilemap.draw(rendering)
+		return rendering
+
 	def handle_keyboard(self, event, active_player):
 		self.cursor.update(event)
+		self.tilemap.set_focus(self.cursor.rect.x, self.cursor.rect.y)
 
 		if self.move_area:
 			self.update_arrow(self.cursor.coord)
@@ -647,6 +696,7 @@ class Map(object):
 			elif self.can_selection_move(active_player):
 
 				self.move(self.prev_sel, self.curr_sel)
+				self.arrow.update([])
 				enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
 
 				if enemies_nearby > 0:
