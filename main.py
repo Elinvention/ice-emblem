@@ -107,7 +107,7 @@ def main(screen):
 			MAIN_GAME.blit_info()
 			MAIN_GAME.blit_fps()
 			pygame.display.flip()
-			MAIN_GAME.clock.tick(10)
+			MAIN_GAME.clock.tick(25)
 
 
 if __name__ == '__main__':
