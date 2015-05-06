@@ -41,25 +41,38 @@ def distance(p0, p1):
 class Sidebar(object):
 	BG = (100, 100, 100)
 	def __init__(self, screen_size, font):
-		pos = (screen_size[0] - 200, 0)
-		size = (200, screen_size[1])
-		self.rect = pygame.Rect(pos, size)
-		self.surface = pygame.Surface(size).convert()
-		self.surface.fill(self.BG)
+		self.screen_resize(screen_size)
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
 
-	def update(self, unit, coord, player):
+	def update(self, unit, terrain, coord, player):
 		self.surface.fill(self.BG)
 
 		turn_s = self.font.render(player.name + ' phase', True, player.color)
 		pos = turn_s.get_rect(top=40, left=5)
 		self.surface.blit(turn_s, pos)
 
+		t_name = self.font.render(terrain.name, True, WHITE)
+		t_def = self.font.render("Def: %d" % terrain.defense, True, WHITE)
+		t_avoid = self.font.render("Avoid: %d" % terrain.avoid, True, WHITE)
+		t_allowed = self.font.render("Allowed: " + terrain.allowed, True, WHITE)
+		pos = t_name.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(t_name, pos)
+		pos.left += pos.w + 5
+		self.surface.blit(terrain.surface, pos)
+		pos = t_def.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(t_def, pos)
+		pos = t_avoid.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(t_avoid, pos)
+		pos = t_allowed.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(t_allowed, pos)
+
 		if unit is not None:
 			unit_name = self.font.render(unit.name, True, unit.color)
-			pos = unit_name.get_rect(top=pos.y + 40, left=5)
-			self.surface.blit(unit_name, pos)
+		else:
+			unit_name = self.font.render("No units", True, WHITE)
+		pos = unit_name.get_rect(top=pos.y + 40, left=5)
+		self.surface.blit(unit_name, pos)
 
 		cell_label = self.font.render('X: %d Y: %d' % coord, True, WHITE)
 		pos = cell_label.get_rect(top=pos.y + 40, left=5)
@@ -73,6 +86,13 @@ class Sidebar(object):
 		time_s = self.font.render("%02d:%02d:%02d" % (hours, minutes, sec), True, WHITE)
 		pos = time_s.get_rect(top=pos.y + 40, left=5)
 		self.surface.blit(time_s, pos)
+
+	def screen_resize(self, screen_size):
+		pos = (screen_size[0] - 200, 0)
+		size = (200, screen_size[1])
+		self.rect = pygame.Rect(pos, size)
+		self.surface = pygame.Surface(size).convert()
+		self.surface.fill(self.BG)
 
 
 class Game(object):
@@ -116,10 +136,11 @@ class Game(object):
 		self.screen.blit(self.map.render(), (0, 0))
 
 	def blit_info(self):
-		unit = self.map.get_unit(self.map.cursor.coord)
 		coord = self.map.cursor.coord
+		unit = self.map.get_unit(coord)
+		terrain = self.map.get_terrain(coord)
 		turn = self.whose_turn()
-		self.sidebar.update(unit, coord, turn)
+		self.sidebar.update(unit, terrain, coord, turn)
 		self.screen.blit(self.sidebar.surface, self.sidebar.rect)
 
 	def blit_fps(self):
@@ -133,7 +154,7 @@ class Game(object):
 		"""
 		This method takes care to resize and scale everithing to match
 		the new window's size. The minum window size is 800x600.
-		On Debian testing there is an issue that makes the window kind of
+		On Debian Jessie there is an issue that makes the window kind of
 		"rebel" while trying to resize it.
 		"""
 		if screen_size[0] < 800:
@@ -142,6 +163,7 @@ class Game(object):
 			screen_size = (screen_size[0], 600)
 		self.screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
 		self.map.screen_resize(screen_size)
+		self.sidebar.screen_resize(screen_size)
 
 	def play_overworld_music(self):
 		"""Start playing overworld music in a loop."""
@@ -472,6 +494,7 @@ class Game(object):
 				self.active_player = self.players[active_player_index]
 				self.active_player.begin_turn()
 				break
+		self.map.reset_selection()
 		self.blit_map()
 		self.blit_info()
 		phase_str = self.active_player.name + ' phase'

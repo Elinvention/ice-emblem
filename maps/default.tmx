@@ -82,9 +82,21 @@
   <tile id="76" terrain=",,,3"/>
   <tile id="77" terrain=",,3,3"/>
   <tile id="78" terrain=",,3,"/>
-  <tile id="79" terrain=",,,4"/>
-  <tile id="80" terrain=",,4,4"/>
-  <tile id="81" terrain=",,4,"/>
+  <tile id="79" terrain=",,,4">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
+  <tile id="80" terrain=",,4,4">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
+  <tile id="81" terrain=",,4,">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
   <tile id="82" terrain=",,,5"/>
   <tile id="83" terrain=",,5,5"/>
   <tile id="84" terrain=",,5,"/>
@@ -94,9 +106,21 @@
   <tile id="88" terrain=",,,7"/>
   <tile id="89" terrain=",,7,7"/>
   <tile id="90" terrain=",,7,"/>
-  <tile id="91" terrain=",,,8"/>
-  <tile id="92" terrain=",,8,8"/>
-  <tile id="93" terrain=",,8,"/>
+  <tile id="91" terrain=",,,8">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
+  <tile id="92" terrain=",,8,8">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
+  <tile id="93" terrain=",,8,">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
   <tile id="96" terrain=",11,,11"/>
   <tile id="97" terrain="11,11,11,11"/>
   <tile id="98" terrain="11,,11,"/>
@@ -111,24 +135,33 @@
   <tile id="107" terrain="2,,2,"/>
   <tile id="108" terrain=",3,,3"/>
   <tile id="110" terrain="3,,3,"/>
-  <tile id="111" terrain=",4,,4"/>
-  <tile id="112" terrain="4,4,4,4">
+  <tile id="111" terrain=",4,,4">
    <properties>
-    <property name="walk" value="false"/>
+    <property name="name" value="Lava"/>
    </properties>
   </tile>
-  <tile id="113" terrain="4,,4,"/>
+  <tile id="112" terrain="4,4,4,4">
+   <properties>
+    <property name="allowed" value="none"/>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
+  <tile id="113" terrain="4,,4,">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
   <tile id="114" terrain=",5,,5"/>
   <tile id="115" terrain="5,5,5,5">
    <properties>
-    <property name="walk" value="false"/>
+    <property name="allowed" value="fly"/>
    </properties>
   </tile>
   <tile id="116" terrain="5,,5,"/>
   <tile id="117" terrain=",6,,6"/>
   <tile id="118" terrain="6,6,6,6">
    <properties>
-    <property name="walk" value="false"/>
+    <property name="allowed" value="fly"/>
    </properties>
   </tile>
   <tile id="119" terrain="6,,6,"/>
@@ -139,14 +172,23 @@
    </properties>
   </tile>
   <tile id="122" terrain="7,,7,"/>
-  <tile id="123" terrain=",8,,8"/>
-  <tile id="124">
+  <tile id="123" terrain=",8,,8">
    <properties>
-    <property name="fly" value="true"/>
-    <property name="walk" value="false"/>
+    <property name="name" value="Coast"/>
    </properties>
   </tile>
-  <tile id="125" terrain="8,,8,"/>
+  <tile id="124">
+   <properties>
+    <property name="allowed" value="water,fly"/>
+    <property name="fly" value="true"/>
+    <property name="name" value="Sea"/>
+   </properties>
+  </tile>
+  <tile id="125" terrain="8,,8,">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
   <tile id="128" terrain=",11,,"/>
   <tile id="129" terrain="11,11,,"/>
   <tile id="130" terrain="11,,,"/>
@@ -162,9 +204,21 @@
   <tile id="140" terrain=",3,,"/>
   <tile id="141" terrain="3,3,,"/>
   <tile id="142" terrain="3,,,"/>
-  <tile id="143" terrain=",4,,"/>
-  <tile id="144" terrain="4,4,,"/>
-  <tile id="145" terrain="4,,,"/>
+  <tile id="143" terrain=",4,,">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
+  <tile id="144" terrain="4,4,,">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
+  <tile id="145" terrain="4,,,">
+   <properties>
+    <property name="name" value="Lava"/>
+   </properties>
+  </tile>
   <tile id="146" terrain=",5,,"/>
   <tile id="147" terrain="5,5,,"/>
   <tile id="148" terrain="5,,,"/>
@@ -174,9 +228,21 @@
   <tile id="152" terrain=",7,,"/>
   <tile id="153" terrain="7,7,,"/>
   <tile id="154" terrain="7,,,"/>
-  <tile id="155" terrain=",8,,"/>
-  <tile id="156" terrain="8,8,,"/>
-  <tile id="157" terrain="8,,,"/>
+  <tile id="155" terrain=",8,,">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
+  <tile id="156" terrain="8,8,,">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
+  <tile id="157" terrain="8,,,">
+   <properties>
+    <property name="name" value="Coast"/>
+   </properties>
+  </tile>
   <tile id="160" terrain="9,9,9,9"/>
   <tile id="161" terrain="9,9,9,9"/>
   <tile id="162" terrain="9,9,9,9"/>
@@ -247,17 +313,26 @@
   <tile id="267" terrain=",,14,"/>
   <tile id="268" terrain=",,,15">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="269" terrain=",,15,15">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="270" terrain=",,15,">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="271" terrain=",,,16"/>
@@ -266,44 +341,94 @@
   <tile id="274" terrain=",,,18"/>
   <tile id="275" terrain=",,18,18"/>
   <tile id="276" terrain=",,18,"/>
-  <tile id="277" terrain=",,,19"/>
-  <tile id="278" terrain=",,19,19"/>
-  <tile id="279" terrain=",,19,"/>
+  <tile id="277" terrain=",,,19">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="278" terrain=",,19,19">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="279" terrain=",,19,">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
   <tile id="288" terrain=",12,,12"/>
+  <tile id="289">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
   <tile id="290" terrain="12,,12,"/>
   <tile id="291" terrain=",12,,12"/>
-  <tile id="292" terrain="12,12,12,12"/>
+  <tile id="292" terrain="12,12,12,12">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
   <tile id="293" terrain="12,,12,"/>
   <tile id="294" terrain=",13,,13"/>
-  <tile id="295" terrain="13,13,13,13"/>
+  <tile id="295" terrain="13,13,13,13">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
   <tile id="296" terrain="13,,13,"/>
   <tile id="297" terrain=",14,,14"/>
   <tile id="298" terrain="14,14,14,14"/>
   <tile id="299" terrain="14,,14,"/>
   <tile id="300" terrain=",15,,15">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="301" terrain="15,15,15,15">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="302" terrain="15,,15,">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="303" terrain=",16,,16"/>
   <tile id="304" terrain="16,16,16,16"/>
   <tile id="305" terrain="16,,16,"/>
   <tile id="306" terrain=",18,,18"/>
-  <tile id="307" terrain="18,18,18,18"/>
+  <tile id="307" terrain="18,18,18,18">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
   <tile id="308" terrain="18,,18,"/>
-  <tile id="309" terrain=",19,,19"/>
-  <tile id="310" terrain="19,19,19,19"/>
-  <tile id="311" terrain="19,,19,"/>
+  <tile id="309" terrain=",19,,19">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="310" terrain="19,19,19,19">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="311" terrain="19,,19,">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
   <tile id="320" terrain=",12,,"/>
   <tile id="321" terrain="12,12,,"/>
   <tile id="322" terrain="12,,,"/>
@@ -318,17 +443,26 @@
   <tile id="331" terrain="14,,,"/>
   <tile id="332" terrain=",15,,">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="333" terrain="15,15,,">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="334" terrain="15,,,">
    <properties>
-    <property name="weight" value="3"/>
+    <property name="avoid" value="25"/>
+    <property name="defense" value="1"/>
+    <property name="moves" value="3"/>
+    <property name="name" value="Cornfield"/>
    </properties>
   </tile>
   <tile id="335" terrain=",16,,"/>
@@ -337,18 +471,96 @@
   <tile id="338" terrain=",18,,"/>
   <tile id="339" terrain="18,18,,"/>
   <tile id="340" terrain="18,,,"/>
-  <tile id="341" terrain=",19,,"/>
-  <tile id="342" terrain="19,19,,"/>
-  <tile id="343" terrain="19,,,"/>
-  <tile id="352" terrain="12,12,12,12"/>
-  <tile id="353" terrain="12,12,12,12"/>
-  <tile id="354" terrain="12,12,12,12"/>
-  <tile id="358" terrain="13,13,13,13"/>
-  <tile id="359" terrain="13,13,13,13"/>
-  <tile id="360" terrain="13,13,13,13"/>
-  <tile id="370" terrain="18,18,18,18"/>
-  <tile id="371" terrain="18,18,18,18"/>
-  <tile id="372" terrain="18,18,18,18"/>
+  <tile id="341" terrain=",19,,">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="342" terrain="19,19,,">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="343" terrain="19,,,">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="352" terrain="12,12,12,12">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="353" terrain="12,12,12,12">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="354" terrain="12,12,12,12">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="355">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="356">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="357">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="358" terrain="13,13,13,13">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="359" terrain="13,13,13,13">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="360" terrain="13,13,13,13">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="364">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="365">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="366">
+   <properties>
+    <property name="name" value="Field"/>
+   </properties>
+  </tile>
+  <tile id="370" terrain="18,18,18,18">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="371" terrain="18,18,18,18">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
+  <tile id="372" terrain="18,18,18,18">
+   <properties>
+    <property name="name" value="Beach"/>
+   </properties>
+  </tile>
   <tile id="385" terrain="26,26,26,"/>
   <tile id="386" terrain="26,26,,26"/>
   <tile id="388" terrain="25,25,25,"/>
@@ -463,7 +675,10 @@
   <tile id="572" terrain="10,10,10,10"/>
   <tile id="575">
    <properties>
-    <property name="weight" value="2"/>
+    <property name="avoid" value="10"/>
+    <property name="defense" value="2"/>
+    <property name="moves" value="2"/>
+    <property name="name" value="Rocks"/>
    </properties>
   </tile>
   <tile id="580" terrain="17,17,17,"/>
