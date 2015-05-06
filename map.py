@@ -81,6 +81,16 @@ class UnitSprite(pygame.sprite.Sprite):
 		self.image.blit(hp_bar, (0, self.rect.h - 5))
 
 
+class Terrain(object):
+	def __init__(self, tile):
+		self.name = tile.properties.get('name', 'Unknown')
+		self.moves = float(tile.properties.get('moves', 1))  # how many moves are required to move a unit through
+		self.defense = int(tile.properties.get('defense', 0))  # bonus defense
+		self.avoid = int(tile.properties.get('avoid', 0))  # bonus avoid
+		self.allowed = tile.properties.get('allowed', 'any')
+		self.surface = tile.surface
+
+
 class Cursor(pygame.sprite.Sprite):
 	def __init__(self, tilemap, img_path, *groups):
 		super(Cursor, self).__init__(*groups)
@@ -356,7 +366,7 @@ class Map(object):
 					dist[v0][v1] = float('inf')
 					prev[v0][v1] = None
 				else:
-					alt = dist[u0][u1] + self.get_cell_weight(v)
+					alt = dist[u0][u1] + self.get_terrain(v).moves
 
 					# A shorter path to v has been found
 					if alt < dist[v0][v1]:  
@@ -369,23 +379,7 @@ class Map(object):
 		for sprite in self.sprites:
 			if (sprite.x, sprite.y) == coord and sprite.unit.color != color:
 				return True
-		for layer in self.tilemap.layers:
-			try:
-				cell = layer[coord[0], coord[1]]
-				if cell['walk'] == 'false':
-					return True
-			except (KeyError, TypeError):
-				pass
-		return False
-
-	def get_cell_weight(self, coord):
-		for layer in self.tilemap.layers:
-			try:
-				cell = layer[coord[0], coord[1]]
-				return cell['weight']
-			except (KeyError, TypeError):
-				pass
-		return 1
+		return self.get_terrain(coord).allowed != 'any'
 
 	def check_coord(self, coord):
 		x, y = coord
@@ -426,18 +420,14 @@ class Map(object):
 
 		return S
 
-	#def screen_resize(self, screen_size):
-	#	"""
-	#	On screen resize this method has to be called to resize every
-	#	tile.
-	#	"""
-	#	(screen_w, screen_h) = screen_size
-	#	self.tile_size = min(screen_w // self.tilemap.width, screen_h // self.tilemap.height)
-	#	self.tile_size = (self.tile_size, self.tile_size)
-	#	for highlight, color in self.highlight_colors.items():
-	#		h = pygame.Surface(self.tile_size).convert_alpha()
-	#		self.highlight_surfaces[highlight] = h
-	#		self.highlight_surfaces[highlight].fill(color)
+	def screen_resize(self, screen_size):
+		"""
+		On screen resize this method has to be called to resize every
+		tile.
+		"""
+		viewport_size = (screen_size[0] - 200, screen_size[1])
+		self.tilemap.viewport = pygame.Rect(self.tilemap.viewport.topleft, viewport_size)
+		self.tilemap.view_w, self.tilemap.view_h = viewport_size
 
 	def mouse2cell(self, cursor_coord):
 		"""mouse position to map index."""
@@ -737,3 +727,10 @@ class Map(object):
 
 	def is_enemy_cursor(self):
 		return self.cursor.coord in self.attack_area
+
+	def get_terrain(self, coord):
+		for layer in reversed(self.tilemap.layers):
+			try:
+				return Terrain(layer[coord[0], coord[1]].tile)
+			except (TypeError, AttributeError):
+				continue
