@@ -468,12 +468,16 @@ class Map(object):
 		Removes a unit from the map. Raises a ValueError if the unit
 		couldn't be found.
 		"""
+		found = False
 		for sprite in self.sprites:
 			if sprite.unit == unit:
 				self.sprites_layer.remove(sprite)
 				self.sprites.remove(sprite)
+				found = True
 				break
-		raise ValueError("Unit not found")
+
+		if not found:
+			raise ValueError("Unit not found")
 
 	def update_move_area(self, coord):
 		"""
