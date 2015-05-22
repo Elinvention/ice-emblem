@@ -619,30 +619,31 @@ class Map(object):
 		self.cursor.update(event)
 
 		x, y = event.pos
-		if x < 10:
-			self.move_x = -2
-		elif x > self.tilemap.view_w - 10:
-			self.move_x = 2
+		border = 50
+		speed = 5
+		if x < border:
+			self.move_x = -speed
+		elif x > self.tilemap.view_w - border:
+			self.move_x = speed
 		else:
 			self.move_x = 0
 
-		if y < 10:
-			self.move_y = -2
-		elif y > self.tilemap.view_h - 10:
-			self.move_y = 2
+		if y < border:
+			self.move_y = -speed
+		elif y > self.tilemap.view_h - border:
+			self.move_y = speed
 		else:
 			self.move_y = 0
 
 	def render(self):
-		rendering = pygame.Surface((self.tilemap.view_w, self.tilemap.view_h))
-		
 		fx = self.tilemap.fx + self.move_x
 		fy = self.tilemap.fy + self.move_y
 		if fx != self.tilemap.fx or fy != self.tilemap.fy:
 			self.tilemap.set_focus(fx, fy)
 
-		self.tilemap.draw(rendering)
-		return rendering
+		surf = pygame.Surface((self.tilemap.view_w, self.tilemap.view_h))
+		self.tilemap.draw(surf)
+		return surf
 
 	def handle_keyboard(self, event, active_player):
 		self.cursor.update(event)
