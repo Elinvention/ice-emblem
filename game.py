@@ -22,7 +22,7 @@
 import pygame
 from pygame.locals import *
 import sys
-import os.path
+import os
 
 from item import Item, Weapon
 from map import Map
@@ -52,20 +52,21 @@ class Sidebar(object):
 		pos = turn_s.get_rect(top=40, left=5)
 		self.surface.blit(turn_s, pos)
 
-		t_name = self.font.render(terrain.name, True, WHITE)
-		t_def = self.font.render("Def: %d" % terrain.defense, True, WHITE)
-		t_avoid = self.font.render("Avoid: %d" % terrain.avoid, True, WHITE)
-		t_allowed = self.font.render("Allowed: " + terrain.allowed, True, WHITE)
-		pos = t_name.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(t_name, pos)
-		pos.left += pos.w + 5
-		self.surface.blit(terrain.surface, pos)
-		pos = t_def.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(t_def, pos)
-		pos = t_avoid.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(t_avoid, pos)
-		pos = t_allowed.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(t_allowed, pos)
+		if terrain is not None:
+			t_name = self.font.render(terrain.name, True, WHITE)
+			t_def = self.font.render("Def: %d" % terrain.defense, True, WHITE)
+			t_avoid = self.font.render("Avoid: %d" % terrain.avoid, True, WHITE)
+			t_allowed = self.font.render("Allowed: " + terrain.allowed, True, WHITE)
+			pos = t_name.get_rect(top=pos.y + 40, left=5)
+			self.surface.blit(t_name, pos)
+			pos.left += pos.w + 5
+			self.surface.blit(terrain.surface, pos)
+			pos = t_def.get_rect(top=pos.y + 40, left=5)
+			self.surface.blit(t_def, pos)
+			pos = t_avoid.get_rect(top=pos.y + 40, left=5)
+			self.surface.blit(t_avoid, pos)
+			pos = t_allowed.get_rect(top=pos.y + 40, left=5)
+			self.surface.blit(t_allowed, pos)
 
 		if unit is not None:
 			unit_name = self.font.render(unit.name, True, unit.color)
@@ -114,7 +115,11 @@ class Game(object):
 		self.players = players
 		self.active_player = self.get_active_player()
 		self.units = units
-		self.map = Map(map_path, (800, 600), colors, units)
+		self.colors = colors
+		if map_path is not None:
+			self.map = Map(map_path, (800, 600), colors, units)
+		else:
+			self.map = None
 
 		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
@@ -177,6 +182,8 @@ class Game(object):
 		"""
 		if event_types is None:
 			event_types = self.INPUT_EVENTS
+		else:
+			event_types += self.INPUT_EVENTS
 
 		now = start = pygame.time.get_ticks()
 		event = pygame.event.poll()
@@ -235,9 +242,32 @@ class Game(object):
 			pygame.display.flip()
 			self.wait_for_user_input()
 
+		pygame.event.clear()
+
+		if self.map is None:
+			choose_label = self.MAIN_FONT.render("Choose a map!", True, ICE, BACKGROUND)
+			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_width() // 2))
+			
+			maps_path = os.path.abspath('maps')
+			files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
+
+			menu = Menu(files, self.MAIN_FONT, (25, 25))
+			menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
+
+			choice = None
+			while choice is None:
+				self.screen.blit(menu.render(), menu.rect.topleft)
+				pygame.display.flip()
+				event = self.wait_for_user_input(event_types=([pygame.MOUSEMOTION]))
+				choice = menu.handle_events(event)
+
+			self.map = Map(os.path.join('maps', files[choice][0]), (800, 600), self.colors, self.units)
+
 		pygame.mixer.fadeout(2000)
 		self.fade_out(2000)
 		pygame.mixer.stop() # Make sure mixer is not busy
+		self.sidebar.start_time = pygame.time.get_ticks()
+
 
 	def whose_unit(self, unit):
 		for player in self.players:
@@ -540,18 +570,16 @@ class Game(object):
 
 		action = None
 		while action is None:
-			self.screen.blit(menu.render(), menu.pos)
+			self.screen.blit(menu.render(), menu.rect.topleft)
 			pygame.display.flip()
-			event = self.wait_for_user_input()
-			print(event)
-			if event.type == pygame.MOUSEBUTTONDOWN:
-				if event.button == 3:
-					action = -1
-					rollback()
-				elif event.button == 1:
-					action = menu.handle_click(event)
-			elif event.type == pygame.KEYDOWN:
-				action = menu.handle_keydown(event)
+
+			event = self.wait_for_user_input(event_types=[pygame.MOUSEMOTION])
+
+			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+				action = -1
+				rollback()
+			else:
+				action = menu.handle_events(event)
 
 		return action
 

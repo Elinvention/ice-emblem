@@ -25,6 +25,8 @@ import pygame
 import csv
 import argparse
 import traceback
+import logging
+import os
 import sys
 
 from item import Item, Weapon
@@ -36,11 +38,14 @@ from colors import *
 
 
 def main(screen):
-
+	
 	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
 	parser.add_argument('-s','--skip', action='store_true', help='Skip main menu', required=False)
-	parser.add_argument('-m','--map', action='store', help='Which map to load', default='default', required=False)
+	parser.add_argument('-m','--map', action='store', help='Which map to load', default=None, required=False)
 	args = parser.parse_args()
+
+	logging.basicConfig(level=logging.DEBUG)
+	logging.info('Welcome to Ice Emblem 0.1!\n')
 
 	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
 	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
@@ -54,7 +59,7 @@ def main(screen):
 				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
 				row[11], row[12], row[13], row[14], row[15], row[16],
 				row[17]))
-			print(row[0] + " loaded")
+			logging.debug(row[0] + " loaded")
 
 	weapons = {}
 	with open('data/weapons.txt', 'r') as f:
@@ -63,7 +68,7 @@ def main(screen):
 		for row in reader:
 			weapons[row[0]] = (Weapon(row[0], row[1], row[2], row[3],
 				row[4], row[5], row[6], row[7], row[8], row[9], None))
-			print(row[0] + " loaded")
+			logging.debug(row[0] + " loaded")
 
 	units['Boss'].give_weapon(weapons['Biga Feroce'])
 	units['Pirate Tux'].give_weapon(weapons['Stuzzicadenti'])
@@ -78,7 +83,17 @@ def main(screen):
 	player1 = Player("Blue Team", BLUE, True, player1_units)
 	player2 = Player("Red Team", RED, False, player2_units)
 
-	MAIN_GAME = Game(screen, units, [player1, player2], 'maps/' + args.map + '.tmx', music, colors)
+	map_file = None
+	if args.map is not None:
+		map_file = os.path.join('maps', args.map + '.tmx')
+		logging.debug('Loading map: ' + map_file)
+	elif args.skip:
+		map_file = os.path.join('maps', 'default.tmx')
+		logging.debug('Loading default map: ' + map_file)
+	else:
+		logging.debug('No map on command line: choose tha map via the main menu')
+
+	MAIN_GAME = Game(screen, units, [player1, player2], map_file, music, colors)
 
 	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
 	# event will be generated every 50 ms

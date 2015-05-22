@@ -23,6 +23,7 @@
 import pygame
 import os.path
 import random
+import logging
 
 
 class Unit(object):
@@ -57,8 +58,8 @@ class Unit(object):
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
 		except pygame.error as e:
-			print("Couldn't load " + path)
-			print(e)
+			logging.warning("Couldn't load " + path)
+			logging.warning(e)
 			self.image = None
 
 	def __str__(self):
