@@ -116,10 +116,8 @@ class Game(object):
 		self.active_player = self.get_active_player()
 		self.units = units
 		self.colors = colors
-		if map_path is not None:
-			self.map = Map(map_path, (800, 600), colors, units)
-		else:
-			self.map = None
+
+		self.load_map(map_path)
 
 		#pygame.mixer.set_reserved(2)
 		self.overworld_music_ch = pygame.mixer.Channel(0)
@@ -133,6 +131,18 @@ class Game(object):
 		self.state = 0
 
 		self.sidebar = Sidebar(self.screen.get_size(), self.SMALL_FONT)
+
+	def load_map(self, map_path):
+		if map_path is not None:
+			self.map = Map(map_path, self.screen.get_size(), self.colors, self.units)
+			# remove unused units
+			self.units = {}
+			for sprite in self.map.sprites:
+				self.units[sprite.unit.name] = sprite.unit
+			for player in self.players:
+				player.units = [ u for u in player.units if u in self.units.values() ]
+		else:
+			self.map = None
 
 	def blit_map(self):
 		"""
@@ -261,7 +271,7 @@ class Game(object):
 				event = self.wait_for_user_input(event_types=([pygame.MOUSEMOTION]))
 				choice = menu.handle_events(event)
 
-			self.map = Map(os.path.join('maps', files[choice][0]), (800, 600), self.colors, self.units)
+			self.load_map(os.path.join('maps', files[choice][0]))
 
 		pygame.mixer.fadeout(2000)
 		self.fade_out(2000)

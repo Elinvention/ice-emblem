@@ -281,8 +281,6 @@ class Map(object):
 		self.tilemap = tmx.load(map_path, (screen_size[0] - 200, screen_size[1]))
 		self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 
-		self.units = units
-
 		self.sprites_layer = tmx.SpriteLayer()
 		self.sprites = []
 
@@ -294,7 +292,7 @@ class Map(object):
 		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), cursor_layer)
 
 		arrow_layer = tmx.SpriteLayer()
-		self.arrow = Arrow(screen_size, os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
+		self.arrow = Arrow((self.tilemap.px_width, self.tilemap.px_height), os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
 
 		highlight_layer = tmx.SpriteLayer()
 		self.highlight = CellHighlight(self.tilemap, highlight_colors, highlight_layer)
