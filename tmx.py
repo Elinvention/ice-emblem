@@ -96,9 +96,9 @@ class Tileset(object):
 	def fromxml(cls, tag, pwd, firstgid=None):
 		if 'source' in tag.attrib:
 			firstgid = int(tag.attrib['firstgid'])
-			with open(tag.attrib['source']) as f:
+			with open(os.path.join(pwd, tag.attrib['source'])) as f:
 				tileset = ElementTree.fromstring(f.read())
-			return cls.fromxml(tileset, firstgid)
+			return cls.fromxml(tileset, pwd, firstgid)
 
 		name = tag.attrib['name']
 		if firstgid is None:
@@ -111,7 +111,7 @@ class Tileset(object):
 		for c in tag.getchildren():
 			if c.tag == "image":
 				# create a tileset
-				filename = os.path.abspath(pwd + '/' + c.attrib['source'])
+				filename = os.path.join(pwd, c.attrib['source'])
 				tileset.add_image(filename)
 			elif c.tag == 'tile':
 				gid = tileset.firstgid + int(c.attrib['id'])
