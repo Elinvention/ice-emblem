@@ -1,11 +1,12 @@
 import pygame
 from pygame.locals import *
+from colors import *
 
 
 class Menu(object):
 	BACKGROUND_COLOR = (51, 51, 51)
-	TEXT_COLOR = (255, 255, 153)
-	SELECTION_COLOR = (153, 102, 255)
+	TEXT_COLOR = ICE
+	SELECTION_COLOR = (96, 144, 145)
 
 	def __init__(self, menu_entries, font, margins=(0, 0, 0, 0), pos=(0, 0)):
 		self.menu_entries = menu_entries
@@ -24,10 +25,9 @@ class Menu(object):
 		else:
 			raise ValueError("Margins shold be a couple or a quadruple")
 		self.size = (self.get_width(), self.get_height())
-		self.pos = pos
-		self.rect = pygame.Rect(self.pos, self.size)
+		self.rect = pygame.Rect(pos, self.size)
 		self.w, self.h = self.size
-		self.prev_index = self.index = 0
+		self.prev_index = self.index = None
 		self.choice = None
 
 	def __getitem__(self, key):
@@ -50,39 +50,64 @@ class Menu(object):
 			self.move_index(-1)
 		elif event.key == K_DOWN:
 			self.move_index(1)
-		elif event.key == K_RETURN:
-			self.menu_entries[self.index][1]()
+		elif event.key == K_RETURN and self.index is not None:
+			if self.menu_entries[self.index][1] is not None:
+				self.menu_entries[self.index][1]()
 			self.choice = self.index
 			return self.choice
 
-	def move_index(self, amount):
+	def set_index(self, index):
 		self.prev_index = self.index
-		self.index += amount
-		self.index %= self.n_entries
+		self.index = index % self.n_entries
 
-		for i, entry in enumerate(self.menu_entries):
-			entry_text, entry_callback = entry
-			if self.index != self.prev_index:
+		if self.index != self.prev_index:
+			for i, entry in enumerate(self.menu_entries):
+				entry_text, entry_callback = entry
 				if i == self.index:
 					render = self.font.render(entry_text, True, self.TEXT_COLOR, self.SELECTION_COLOR).convert_alpha()
 					self.rendered_entries[i] = render
 				elif i == self.prev_index:
-					render = self.font.render(entry_text, True, self.TEXT_COLOR).convert_alpha()
+					render = self.font.render(entry_text, True, self.TEXT_COLOR, self.BACKGROUND_COLOR).convert_alpha()
 					self.rendered_entries[i] = render
+
+	def move_index(self, amount):
+		if self.index is None:
+			self.set_index(0)
+		else:
+			self.set_index(self.index + amount)
 
 	def handle_click(self, event):
 		if event.type != MOUSEBUTTONDOWN:
 			raise ValueError("Event type must be MOUSEBUTTONDOWN")
 		elif event.button == 1:
 			for i, entry in enumerate(self.rendered_entries):
-				pos = (self.pos[0], self.pos[1] + (i * self.font.get_linesize()))
+				pos = (self.margins[3] + self.rect.x, self.margins[0] + self.rect.y + (i * self.font.get_linesize()))
 				rect = pygame.Rect(pos, entry.get_size())
 
 				if rect.collidepoint(event.pos):
 					self.choice = i
-					self.menu_entries[i][1]()
+					if self.menu_entries[i][1] is not None:
+						self.menu_entries[i][1]()
 
 			return self.choice
+
+	def handle_mouse_motion(self, event):
+		if event.type != MOUSEMOTION:
+			raise ValueError("Event type must be MOUSEMOTION")
+		for i, entry in enumerate(self.rendered_entries):
+			pos = (self.margins[3] + self.rect.x, self.margins[0] + self.rect.y + (i * self.font.get_linesize()))
+			rect = pygame.Rect(pos, entry.get_size())
+
+			if rect.collidepoint(event.pos):
+				self.set_index(i)
+	
+	def handle_events(self, event):
+		if event.type == MOUSEMOTION:
+			return self.handle_mouse_motion(event)
+		if event.type == MOUSEBUTTONDOWN:
+			return self.handle_click(event)
+		if event.type == KEYDOWN:
+			return self.handle_keydown(event)
 
 	def render(self, surface=None):
 		if surface is None:
