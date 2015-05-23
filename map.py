@@ -272,6 +272,111 @@ class Arrow(pygame.sprite.Sprite):
 				raise ValueError("ArrowError: " + str((a, b, c)))
 
 
+class Path(object):
+	def __init__(self, matrix):
+		self.matrix = matrix
+		self.w, self.h = len(self.matrix), len(self.matrix[0])
+		self.reset()
+
+	def reset(self):
+		self.obstacles = []
+		self.source = None
+		self.target = None
+		self.shortest = None
+		self.dist = None
+		self.prev = None
+
+	def check_coord(self, coord):
+		x, y = coord
+		if 0 <= x < self.w and 0 <= y < self.h:
+			return True
+		return False
+
+	def neighbors(self, coord):
+		x, y = coord
+
+		if not self.check_coord(coord):
+			raise ValueError("Invalid coordinates")
+
+		n = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+		ret = [tuple(y for y in x) for x in n if self.check_coord(x)]
+
+		return ret
+
+	def dijkstra(self, source):
+		"""
+		Implementation of Dijkstra's Algorithm.
+		See https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for
+		reference.
+		This method computes the distance of every node of the map from
+		a given source node.
+		You can then feed the shortest_path method with this method's
+		return value to find the shortest path from any node to the
+		source node.
+		"""
+
+		self.dist = [[None for _ in range(self.h)] for _ in range(self.w)]
+		self.prev = [[None for _ in range(self.h)] for _ in range(self.w)]
+
+		sx, sy = self.source = source
+		self.dist[sx][sy] = 0     # Distance from source to source
+		self.prev[sx][sy] = None  # Previous node in optimal path initialization
+
+		Q = []
+		for i in range(self.w):  # Initialization
+			for j in range(self.h):
+				if (i, j) != source:  # Where v has not yet been removed from Q (unvisited nodes)
+					self.dist[i][j] = float('inf')  # Unknown distance function from source to v
+					self.prev[i][j] = None  # Previous node in optimal path from source
+				Q.append((i, j))  # All nodes initially in Q (unvisited nodes)
+
+		while Q:
+			u0, u1 = Q[0]
+			min_dist = self.dist[u0][u1]
+			u = (u0, u1)
+
+			for el in Q:
+				i, j = el
+				if self.dist[i][j] < min_dist:
+					min_dist = self.dist[i][j]
+					u0, u1 = u = el  #  Source node in first case
+
+			Q.remove(u)
+
+			# where v has not yet been removed from Q.
+			for v in self.neighbors(u):
+				v0, v1 = v
+
+				if v in self.obstacles:
+					self.dist[v0][v1] = float('inf')
+					self.prev[v0][v1] = None
+				else:
+					alt = self.dist[u0][u1] + self.matrix[v0][v1]
+					# A shorter path to v has been found
+					if alt < self.dist[v0][v1]:  
+						self.dist[v0][v1] = alt
+						self.prev[v0][v1] = u
+
+	def shortest_path(self, target):
+		"""
+		This method wants the second list returned by the dijkstra
+		method and a target node. The shortest path between target and
+		source previously specified when calling the dijkstra method
+		will be returned as a list.
+		"""
+
+		S = []
+		u0, u1 = u = self.target = target
+
+		# Construct the shortest path with a stack S
+		while self.prev[u0][u1] is not None:
+			S.insert(0, u)  # Push the vertex onto the stack
+			u0, u1 = u = self.prev[u0][u1]  # Traverse from target to source
+
+		self.shortest = S
+		return S
+
+
 class Map(object):
 	"""
 	
@@ -310,68 +415,18 @@ class Map(object):
 		self.attack_area = []
 
 		self.move_x, self.move_y = 0, 0
-		self.prev_coord = None
+
+		w, h = range(self.tilemap.width), range(self.tilemap.height)
+		matrix = [[ self.get_terrain((x, y)).moves for y in h ] for x in w]
+		self.path = Path(matrix)
+
+	def list_obstacles(self, color=None):
+		w, h = range(self.tilemap.width), range(self.tilemap.height)
+		return [ (x, y) for y in h for x in w if self.is_obstacle((x, y), color) ]
 
 	def __getitem__(self, pos):
 		(x, y) = pos
 		return self.nodes[x][y]
-
-	def dijkstra(self, source):
-		"""
-		Implementation of Dijkstra's Algorithm.
-		See https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for
-		reference.
-		This method computes the distance of every node of the map from
-		a given source node.
-		You can then feed the shortest_path method with this method's
-		return value to find the shortest path from any node to the
-		source node.
-		"""
-		dist = [[None for _ in range(self.tilemap.height)] for _ in range(self.tilemap.width)]
-		prev = [[None for _ in range(self.tilemap.height)] for _ in range(self.tilemap.width)]
-		sx, sy = source
-		dist[sx][sy] = 0     # Distance from source to source
-		prev[sx][sy] = None  # Previous node in optimal path initialization
-
-		Q = []
-		for i in range(self.tilemap.width):  # Initialization
-			for j in range(self.tilemap.height):
-				if (i, j) != source:  # Where v has not yet been removed from Q (unvisited nodes)
-					dist[i][j] = float('inf')  # Unknown distance function from source to v
-					prev[i][j] = None  # Previous node in optimal path from source
-				Q.append((i, j))  # All nodes initially in Q (unvisited nodes)
-
-		while Q:
-			u0, u1 = Q[0]
-			min_dist = dist[u0][u1]
-			u = (u0, u1)
-
-			for el in Q:
-				i, j = el
-				if dist[i][j] < min_dist:
-					min_dist = dist[i][j]
-					u0, u1 = u = el  #  Source node in first case
-
-			Q.remove(u)
-
-			source_unit_color = self.get_unit(source).color
-
-			# where v has not yet been removed from Q.
-			for v in self.neighbors(u):
-				v0, v1 = v
-
-				if self.is_obstacle(v, source_unit_color):
-					dist[v0][v1] = float('inf')
-					prev[v0][v1] = None
-				else:
-					alt = dist[u0][u1] + self.get_terrain(v).moves
-
-					# A shorter path to v has been found
-					if alt < dist[v0][v1]:  
-						dist[v0][v1] = alt
-						prev[v0][v1] = u
-
-		return dist, prev
 
 	def is_obstacle(self, coord, color):
 		for sprite in self.sprites:
@@ -400,23 +455,6 @@ class Map(object):
 		ret = [tuple(y for y in x) for x in n if self.check_coord(x)]
 
 		return ret
-
-	def shortest_path(self, prev, target):
-		"""
-		This method wants the second list returned by the dijkstra
-		method and a target node. The shortest path between target and
-		source previously specified when calling the dijkstra method
-		will be returned as a list.
-		"""
-		S = []
-		u0, u1 = u = target
-
-		# Construct the shortest path with a stack S
-		while prev[u0][u1] is not None:
-			S.insert(0, u)  # Push the vertex onto the stack
-			u0, u1 = u = prev[u0][u1]  # Traverse from target to source
-
-		return S
 
 	def screen_resize(self, screen_size):
 		"""
@@ -466,34 +504,27 @@ class Map(object):
 		Removes a unit from the map. Raises a ValueError if the unit
 		couldn't be found.
 		"""
-		found = False
 		for sprite in self.sprites:
 			if sprite.unit == unit:
-				self.sprites_layer.remove(sprite)
-				self.sprites.remove(sprite)
-				found = True
-				break
+				self.sprites_layer.remove(sprite)  # invisible
+				self.sprites.remove(sprite)  # dead
+				return
 
-		if not found:
-			raise ValueError("Unit not found")
+		raise ValueError("Unit not found")
 
 	def update_move_area(self, coord):
 		"""
 		Updates the area which will be highlighted on the map to show
 		which nodes can be reached by the selected unit.
 		"""
-		(x, y) = coord
 		unit = self.get_unit(coord)
-		move = unit.move
-		weapon_range = unit.get_weapon_range()
-		self.move_area = []
 
-		dist, prev = self.dijkstra(coord)
+		if self.path.source != coord:
+			self.path.obstacles = self.list_obstacles(unit.color)
+			self.path.dijkstra(coord)
 
-		for i in range(self.tilemap.width):
-			for j in range(self.tilemap.height):
-				if dist[i][j] <= move:
-					self.move_area.append((i, j))
+		h, w = range(self.tilemap.height), range(self.tilemap.width)
+		self.move_area = [ (i, j) for j in h for i in w if self.path.dist[i][j] <= unit.move ]
 
 	def get_unit(self, a, b=None):
 		if b is None:
@@ -523,10 +554,12 @@ class Map(object):
 
 	def update_arrow(self, target):
 		if self.curr_sel is not None and self.move_area:
-			dist, prev = self.dijkstra(self.curr_sel)
 			self.arrow.first_coord = self.curr_sel
-			shortest_path = self.shortest_path(prev, target)
-			self.arrow.update(shortest_path)
+			if self.path.source != self.curr_sel:
+				self.path.dijkstra(self.curr_sel)
+			if self.path.target != target:
+				shortest_path = self.path.shortest_path(target)
+				self.arrow.update(shortest_path)
 		else:
 			self.arrow.update([])
 
@@ -611,9 +644,7 @@ class Map(object):
 	def handle_mouse_motion(self, event):
 		try:
 			coord = self.mouse2cell(event.pos)
-			if coord != self.prev_coord:
-				self.update_arrow(coord)
-				self.prev_coord = coord
+			self.update_arrow(coord)
 		except ValueError:
 			pass
 		self.cursor.update(event)
