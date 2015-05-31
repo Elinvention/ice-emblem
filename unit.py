@@ -58,7 +58,7 @@ class Unit(object):
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
 		except pygame.error as e:
-			logging.warning("Couldn't load " + path)
+			logging.warning(_("Couldn't load %s") % path)
 			logging.warning(e)
 			self.image = None
 
@@ -140,7 +140,7 @@ Unit: "%s"
 		self.hp -= dmg
 		if self.hp <= 0:
 			self.hp = 0
-			print("%s died" % self.name)
+			print(_("%s died") % self.name)
 
 	def get_weapon_range(self):
 		active_weapon = self.get_active_weapon()
@@ -188,13 +188,13 @@ Unit: "%s"
 			if dmg < 0:
 				dmg = 0
 			hit = self.skill * 2 + self.luck / 2
-			print("%s attacks %s with his bare hands" % (self.name, enemy.name))
+			print(_("%s attacks %s with his bare hands") % (self.name, enemy.name))
 			print("Dmg: %d  Hit: %d" % (dmg, hit))
 			if random.randrange(0, 100) > hit:
-				print("%s misses %s" % (self.name, enemy.name))
+				print(_("%s misses %s") % (self.name, enemy.name))
 				ret = 0
 			else:
-				print("%s inflicts %s %d damages" % (self.name, enemy.name, dmg))
+				print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
 				enemy.inflict_damage(dmg)
 				ret = 1
 		else:
@@ -202,13 +202,13 @@ Unit: "%s"
 			if dmg < 0:
 				dmg = 0
 			hit = (self.skill * 2) + active_weapon.hit + (self.luck / 2)
-			print("%s attacks %s with %s" % (self.name, enemy.name, active_weapon.name))
+			print(_("%s attacks %s with %s") % (self.name, enemy.name, active_weapon.name))
 			print("Dmg: %d  Hit: %d" % (dmg, hit))
 			if random.randrange(0, 100) > hit:
-				print("%s misses %s" % (self.name, enemy.name))
+				print(_("%s misses %s") % (self.name, enemy.name))
 				ret = 0
 			else:
-				print("%s inflicts %s %d damages" % (self.name, enemy.name, dmg))
+				print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
 				enemy.inflict_damage(dmg)
 				if active_weapon.use() == 0:
 					ret = 2
@@ -248,9 +248,9 @@ Unit: "%s"
 		if self.exp >= 100:
 			self.exp %= 100
 			self.lv += 1
-			print(self.name, " levelled up!")
+			print(_("%s levelled up!") % self.name)
 
-		print("%s gained %d experience points! EXP: %d" % (self.name, exp, self.exp))
+		print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.exp))
 
 
 class Flying(Unit):
@@ -300,13 +300,13 @@ class Player(object):
 		for unit in self.units:
 			unit.played = False
 		self.my_turn = False
-		print("Player %s ends its turn" % self.name)
+		print(_("Player %s ends its turn") % self.name)
 
 	def begin_turn(self):
 		self.my_turn = True
 		for unit in self.units:
 			unit.played = False
-		print("Player %s begins its turn" % self.name)
+		print(_("Player %s begins its turn") % self.name)
 
 	def is_defeated(self):
 		return True if len(self.units) == 0 else False

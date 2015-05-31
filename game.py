@@ -48,15 +48,15 @@ class Sidebar(object):
 	def update(self, unit, terrain, coord, player):
 		self.surface.fill(self.BG)
 
-		turn_s = self.font.render(player.name + ' phase', True, player.color)
+		turn_s = self.font.render(_('%s phase') % player.name, True, player.color)
 		pos = turn_s.get_rect(top=40, left=5)
 		self.surface.blit(turn_s, pos)
 
 		if terrain is not None:
 			t_name = self.font.render(terrain.name, True, WHITE)
-			t_def = self.font.render("Def: %d" % terrain.defense, True, WHITE)
-			t_avoid = self.font.render("Avoid: %d" % terrain.avoid, True, WHITE)
-			t_allowed = self.font.render("Allowed: " + terrain.allowed, True, WHITE)
+			t_def = self.font.render(_("Def: %d") % terrain.defense, True, WHITE)
+			t_avoid = self.font.render(_("Avoid: %d") % terrain.avoid, True, WHITE)
+			t_allowed = self.font.render(_("Allowed: %s") % terrain.allowed, True, WHITE)
 			pos = t_name.get_rect(top=pos.y + 40, left=5)
 			self.surface.blit(t_name, pos)
 			pos.left += pos.w + 5
@@ -71,7 +71,7 @@ class Sidebar(object):
 		if unit is not None:
 			unit_name = self.font.render(unit.name, True, unit.color)
 		else:
-			unit_name = self.font.render("No units", True, WHITE)
+			unit_name = self.font.render(_("No units"), True, WHITE)
 		pos = unit_name.get_rect(top=pos.y + 40, left=5)
 		self.surface.blit(unit_name, pos)
 
@@ -217,7 +217,7 @@ class Game(object):
 		self.screen.fill(BLACK)
 
 		elinvention = self.MAIN_MENU_FONT.render("Elinvention", 1, WHITE)
-		presents = self.MAIN_MENU_FONT.render("PRESENTS", 1, WHITE)
+		presents = self.MAIN_MENU_FONT.render(_("PRESENTS"), 1, WHITE)
 
 		self.screen.blit(elinvention, center(screen_rect, elinvention.get_rect()))
 
@@ -232,8 +232,8 @@ class Game(object):
 		main_menu_image = pygame.image.load(path).convert_alpha()
 		main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_w, screen_h))
 
-		click_to_start = self.MAIN_MENU_FONT.render("Click to Start", 1, ICE)
-		click_license = self.SMALL_FONT.render("License", 1, WHITE)
+		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
+		click_license = self.SMALL_FONT.render(_("License"), 1, WHITE)
 
 		self.screen.blit(main_menu_image, (0, 0))
 		self.screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
@@ -255,7 +255,7 @@ class Game(object):
 		pygame.event.clear()
 
 		if self.map is None:
-			choose_label = self.MAIN_FONT.render("Choose a map!", True, ICE, BACKGROUND)
+			choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, BACKGROUND)
 			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_width() // 2))
 			
 			maps_path = os.path.abspath('maps')
@@ -324,8 +324,8 @@ class Game(object):
 			exp = pygame.Surface((curr_exp % 100, 20))
 			exp.fill(YELLOW)
 
-			exp_text = self.SMALL_FONT.render("EXP: %d" % (curr_exp % 100), True, YELLOW)
-			lv_text = self.SMALL_FONT.render("LV: %d" % unit.lv, True, BLUE)
+			exp_text = self.SMALL_FONT.render(_("EXP: %d") % (curr_exp % 100), True, YELLOW)
+			lv_text = self.SMALL_FONT.render(_("LV: %d") % unit.lv, True, BLUE)
 
 			self.screen.blit(bg, (0, 0))
 			self.screen.blit(unit.image, img_pos)
@@ -350,10 +350,9 @@ class Game(object):
 		at, dt = attacking.number_of_attacks(defending, dist)
 
 		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
-		print("%s is going to attack %d %s" %
-				(attacking.name, at, "time" if at == 1 else "times"))
-		print("%s is going to attack %d %s" %
-				(defending.name, dt, "time" if dt == 1 else "times"))
+		att_str = _("%s is going to attack %d %s")
+		print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
+		print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))
 
 		self.overworld_music_ch.pause()  # Stop music and loop fight music
 		self.battle_music_ch.play(self.battle_music, -1)
@@ -394,8 +393,8 @@ class Game(object):
 		time_since_anim_start = pygame.time.get_ticks() - start
 		time_since_latest_attack = pygame.time.get_ticks() - latest_attack
 
-		missed_text = self.SMALL_FONT.render("MISSED", 1, YELLOW).convert_alpha()
-		void_text = self.SMALL_FONT.render("VOID ATTACK", 1, BLUE).convert_alpha()
+		missed_text = self.SMALL_FONT.render(_("MISSED"), 1, YELLOW).convert_alpha()
+		void_text = self.SMALL_FONT.render(_("VOID ATTACK"), 1, BLUE).convert_alpha()
 		ATT_TEXT_POS = (200, 100)
 		DEF_TEXT_POS = (300, 100)
 
@@ -544,14 +543,14 @@ class Game(object):
 		self.wait_for_user_input(5000)
 
 	def victory_screen(self):
-		print(self.winner.name + " wins")
+		print(_("%s wins") % self.winner.name)
 		pygame.mixer.stop()
 		pygame.mixer.music.load(os.path.abspath('music/Victory Track.ogg'))
 		pygame.mixer.music.play()
 		self.fade_out(1000)
 
 		victory = self.MAIN_MENU_FONT.render(self.winner.name + ' wins!', 1, self.winner.color)
-		thank_you = self.MAIN_MENU_FONT.render('Thank you for playing Ice Emblem!', 1, ICE)
+		thank_you = self.MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
 
 		self.screen.fill(BLACK)
 		self.screen.blit(victory, center(self.screen.get_rect(), victory.get_rect(), yoffset=-50))
@@ -613,7 +612,7 @@ class Game(object):
 			pos = pygame.mouse.get_pos()
 			action = self.action_menu(menu_entries, rollback, pos)
 
-			if action == 0 and menu_entries[0][0] is "Attack":
+			if action == 0 and menu_entries[0][0] is _("Attack"):
 				# user choose to attack.
 				# Now he has to choose the enemy to attack
 				# so the next click must be an enemy unit

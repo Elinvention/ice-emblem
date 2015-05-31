@@ -29,6 +29,9 @@ import logging
 import os
 import sys
 
+import gettext
+gettext.install('ice-emblem', 'locale')
+
 from item import Item, Weapon
 from map import Map
 from unit import Unit, Player
@@ -39,13 +42,13 @@ from colors import *
 
 def main(screen):
 	
-	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
-	parser.add_argument('-s','--skip', action='store_true', help='Skip main menu', required=False)
-	parser.add_argument('-m','--map', action='store', help='Which map to load', default=None, required=False)
+	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
+	parser.add_argument('-s','--skip', action='store_true', help=_('Skip main menu'), required=False)
+	parser.add_argument('-m','--map', action='store', help=_('Which map to load'), default=None, required=False)
 	args = parser.parse_args()
 
 	logging.basicConfig(level=logging.DEBUG)
-	logging.info('Welcome to Ice Emblem 0.1!\n')
+	logging.info(_('Welcome to %s!') % 'Ice Emblem 0.1')
 
 	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
 	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
@@ -80,18 +83,18 @@ def main(screen):
 	player1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
 	player2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
-	player1 = Player("Blue Team", BLUE, True, player1_units)
-	player2 = Player("Red Team", RED, False, player2_units)
+	player1 = Player(_("Blue Team"), BLUE, True, player1_units)
+	player2 = Player(_("Red Team"), RED, False, player2_units)
 
 	map_file = None
 	if args.map is not None:
 		map_file = os.path.join('maps', args.map + '.tmx')
-		logging.debug('Loading map: ' + map_file)
+		logging.debug(_('Loading map: %s') % map_file)
 	elif args.skip:
 		map_file = os.path.join('maps', 'default.tmx')
-		logging.debug('Loading default map: ' + map_file)
+		logging.debug(_('Loading default map: %s') % map_file)
 	else:
-		logging.debug('No map on command line: choose tha map via the main menu')
+		logging.debug(_('No map on command line: choose the map via the main menu'))
 
 	MAIN_GAME = Game(screen, units, [player1, player2], map_file, music, colors)
 
@@ -134,7 +137,7 @@ if __name__ == '__main__':
 
 	except (KeyboardInterrupt, SystemExit):
 		# game was interrupted by the user
-		print("Interrupted by user, exiting.")
+		print(_("Interrupted by user, exiting."))
 
 		# we're not playing anymore, go away
 		pygame.quit()
@@ -142,14 +145,24 @@ if __name__ == '__main__':
 
 	except:
 		# other error
-		print("\nOops, something went wrong. Dumping brain contents: ")
-		print("~" * 80)
-		traceback.print_exc(file=sys.stdout)
-		print("\n" + "~" * 80)
-		print("\nPlease mail this stack trace to elia.argentieri@openmailbox.org")
-		print("along with a short description of what you did when this crash happened, ")
-		print("so that the error can be fixed. Thank you! -- the Ice Emblem team\n")
+		kind_error_message = _("""
+Oops, something went wrong. Dumping brain contents:
 
+%s
+%s
+%s
+
+Please mail this stack trace to %s
+along with a short description of what you did when this crash happened
+so that the error can be fixed.
+
+Thank you!
+-- the Ice Emblem team
+
+""") % ('~' * 80, traceback.format_exc(), '~' * 80, "elia.argentieri@openmailbox.org")
+
+		print(kind_error_message)
+		
 		# we're not playing anymore, go away
 		pygame.quit()
 		sys.exit(0)
@@ -157,7 +170,7 @@ if __name__ == '__main__':
 	# we got here, so everything was normal
 	print()
 	print("~" * 80)
-	print("Game terminated normally.")
+	print(_("Game terminated normally."))
 
 	pygame.quit()
 	sys.exit(0)

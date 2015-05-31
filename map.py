@@ -83,11 +83,11 @@ class UnitSprite(pygame.sprite.Sprite):
 
 class Terrain(object):
 	def __init__(self, tile):
-		self.name = tile.properties.get('name', 'Unknown')
+		self.name = tile.properties.get('name', _('Unknown'))
 		self.moves = float(tile.properties.get('moves', 1))  # how many moves are required to move a unit through
 		self.defense = int(tile.properties.get('defense', 0))  # bonus defense
 		self.avoid = int(tile.properties.get('avoid', 0))  # bonus avoid
-		self.allowed = tile.properties.get('allowed', 'any')
+		self.allowed = tile.properties.get('allowed', _('any'))
 		self.surface = tile.surface
 
 
@@ -432,7 +432,7 @@ class Map(object):
 		for sprite in self.sprites:
 			if (sprite.x, sprite.y) == coord and sprite.unit.color != color:
 				return True
-		return self.get_terrain(coord).allowed != 'any'
+		return self.get_terrain(coord).allowed != _('any')
 
 	def check_coord(self, coord):
 		x, y = coord
@@ -496,7 +496,7 @@ class Map(object):
 			for sprite in self.sprites:
 				if sprite.coord == old_coord:
 					sprite.update(new_coord)
-					print('Unit %s moved from %d:%d to %d:%d' %
+					print(_('Unit %s moved from %d:%d to %d:%d') %
 					(sprite.unit.name, old_x, old_y, x, y))
 
 	def kill_unit(self, unit):
@@ -710,9 +710,9 @@ class Map(object):
 				if prev_unit == curr_unit and not prev_unit.played and active_player.is_mine(prev_unit):
 					enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
 					if enemies_nearby > 0:
-						return [("Attack", self.attack_callback), ("Wait", self.wait_callback)]
+						return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
 					else:
-						return[("Wait", self.wait_callback)]
+						return[(_("Wait"), self.wait_callback)]
 				else:
 					self.prev_sel = self.curr_sel
 					self.update_move_area(self.curr_sel)
@@ -724,9 +724,9 @@ class Map(object):
 				enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
 
 				if enemies_nearby > 0:
-					return [("Attack", self.attack_callback), ("Wait", self.wait_callback)]
+					return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
 				else:
-					return[("Wait", self.wait_callback)]
+					return[(_("Wait"), self.wait_callback)]
 
 			else:
 				self.reset_selection()

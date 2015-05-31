@@ -189,7 +189,7 @@ class Armour(Item):
 		self.uses -= 1
 		if self.uses <= 0:
 			self.uses = 0
-			print("%s is broken" % self.name)
+			print(_("%s is broken") % self.name)
 			return 0
 		else:
 			return self.uses
