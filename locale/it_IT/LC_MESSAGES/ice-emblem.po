@@ -4,9 +4,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: \n"
-"POT-Creation-Date: 2015-05-31 18:32+CEST\n"
-"PO-Revision-Date: 2015-05-31 18:38+0100\n"
+"Project-Id-Version: Ice Emblem 0.1\n"
+"POT-Creation-Date: 2015-06-08 13:14+0100\n"
+"PO-Revision-Date: 2015-06-08 13:23+0100\n"
 "Last-Translator: Elia Argentieri <elia.argentieri@openmailbox.org>\n"
 "Language-Team: \n"
 "Language: it_IT\n"
@@ -16,128 +16,149 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 "X-Generator: Poedit 1.7.7\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-SearchPath-0: .\n"
 
-#: game.py:51
+#: game.py:92
+#, python-format
 msgid "%s phase"
 msgstr "Fase %s"
 
-#: game.py:57
+#: game.py:98
+#, python-format
 msgid "Def: %d"
-msgstr "Dif: %s"
+msgstr "Dif: %d"
 
-#: game.py:58
+#: game.py:99
+#, python-format
 msgid "Avoid: %d"
 msgstr "Elusione: %d"
 
-#: game.py:59
+#: game.py:100
+#, python-format
 msgid "Allowed: %s"
 msgstr "Permesse: %s"
 
-#: game.py:74
+#: game.py:115
 msgid "No units"
 msgstr "Nessuna unità"
 
-#: game.py:220
+#: game.py:286
 msgid "PRESENTS"
 msgstr "PRESENTA"
 
-#: game.py:235
+#: game.py:301
 msgid "Click to Start"
 msgstr "Fai click per iniziare"
 
-#: game.py:236
+#: game.py:302
 msgid "License"
 msgstr "Licenza"
 
-#: game.py:258
+#: game.py:324
 msgid "Choose a map!"
 msgstr "Scegli una mappa!"
 
-#: game.py:327
+#: game.py:393
+#, python-format
 msgid "EXP: %d"
 msgstr "ESP: %d"
 
-#: game.py:328
+#: game.py:394
+#, python-format
 msgid "LV: %d"
 msgstr "LV: %d"
 
-#: game.py:353
+#: game.py:419
+#, python-format
 msgid "%s is going to attack %d %s"
 msgstr "%s sta per attaccare %d %s"
 
-#: game.py:354 game.py:355
+#: game.py:420 game.py:421
 msgid "time"
 msgstr "volta"
 
-#: game.py:354 game.py:355
+#: game.py:420 game.py:421
 msgid "times"
 msgstr "volte"
 
-#: game.py:396
+#: game.py:462
 msgid "MISSED"
 msgstr "MANCATO"
 
-#: game.py:397
+#: game.py:463
 msgid "VOID ATTACK"
 msgstr "ATTACCO NULLO"
 
-#: game.py:546
+#: game.py:612
+#, python-format
 msgid "%s wins"
 msgstr "%s ha vinto"
 
-#: game.py:553
+#: game.py:619
 msgid "Thank you for playing Ice Emblem!"
 msgstr "Grazie per aver giocato ad Ice Emblem!"
 
-#: game.py:615 map.py:713 map.py:727
+#: game.py:678 map.py:722 map.py:736
 msgid "Attack"
 msgstr "Attacca"
 
 #: item.py:192
+#, python-format
 msgid "%s is broken"
 msgstr "%s si è rotto"
 
-#: main.py:45
+#: main.py:61 main.py:72
+#, python-format
+msgid "%s loaded"
+msgstr "%s è stato caricato"
+
+#: main.py:78
 msgid "Ice Emblem, the free software clone of Fire Emblem"
 msgstr "Ice Emblem, il clone libero di Fire Emblem"
 
-#: main.py:46
+#: main.py:79
 msgid "Skip main menu"
 msgstr "Salta il menù principale"
 
-#: main.py:47
+#: main.py:80
 msgid "Which map to load"
 msgstr "Quale mappa caricare"
 
-#: main.py:51
+#: main.py:85
+#, python-format
 msgid "Welcome to %s!"
 msgstr "Benvenuto su %s!"
 
-#: main.py:86
+#: main.py:104
 msgid "Blue Team"
 msgstr "Squadra Blu"
 
-#: main.py:87
+#: main.py:105
 msgid "Red Team"
 msgstr "Squadra Rossa"
 
-#: main.py:92
+#: main.py:110
+#, python-format
 msgid "Loading map: %s"
 msgstr "Carico la mappa %s"
 
-#: main.py:95
+#: main.py:113
+#, python-format
 msgid "Loading default map: %s"
-msgstr "Carico la mappa predefinita"
+msgstr "Carico la mappa predefinita: %s"
 
-#: main.py:97
+#: main.py:115
 msgid "No map on command line: choose the map via the main menu"
 msgstr "Nessuna mappa specificata da riga di comando: sceglierne una dal menu"
 
-#: main.py:140
+#: main.py:138
 msgid "Interrupted by user, exiting."
 msgstr "Interruzione dell'utente, chiudo."
 
-#: main.py:148
+#: main.py:146
+#, python-format
 msgid ""
 "\n"
 "Oops, something went wrong. Dumping brain contents:\n"
@@ -169,7 +190,7 @@ msgstr ""
 "-- la squadra di Ice Emblem\n"
 "\n"
 
-#: main.py:173
+#: main.py:171
 msgid "Game terminated normally."
 msgstr "Il gioco è terminato normalmente."
 
@@ -177,86 +198,65 @@ msgstr "Il gioco è terminato normalmente."
 msgid "Unknown"
 msgstr "Sconosciuto"
 
-#: map.py:90 map.py:435
+#: map.py:90 map.py:444
 msgid "any"
 msgstr "tutte"
 
-#: map.py:499
+#: map.py:508
+#, python-format
 msgid "Unit %s moved from %d:%d to %d:%d"
 msgstr "L'unità %s si è spostata da %d:%d a %d:%d"
 
-#: map.py:713 map.py:715 map.py:727 map.py:729
+#: map.py:722 map.py:724 map.py:736 map.py:738
 msgid "Wait"
 msgstr "Attendi"
 
 #: unit.py:61
+#, python-format
 msgid "Couldn't load %s"
 msgstr "Impossibile caricare %s"
 
 #: unit.py:143
+#, python-format
 msgid "%s died"
 msgstr "%s è morto"
 
 #: unit.py:191
+#, python-format
 msgid "%s attacks %s with his bare hands"
 msgstr "%s attacca %s a mani nude"
 
 #: unit.py:194 unit.py:208
+#, python-format
 msgid "%s misses %s"
 msgstr "%s manca %s"
 
 #: unit.py:197 unit.py:211
+#, python-format
 msgid "%s inflicts %s %d damages"
 msgstr "%s infligge a %s %d danni"
 
 #: unit.py:205
+#, python-format
 msgid "%s attacks %s with %s"
 msgstr "%s attacca %s con %s"
 
 #: unit.py:251
+#, python-format
 msgid "%s levelled up!"
 msgstr "%s è salito di livello!"
 
 #: unit.py:253
+#, python-format
 msgid "%s gained %d experience points! EXP: %d"
 msgstr "%s ha gudagnato %d punti esperienza! ESP: %d"
 
 #: unit.py:303
+#, python-format
 msgid "Player %s ends its turn"
 msgstr "Il giocatore %s termina il suo turno"
 
 #: unit.py:309
+#, python-format
 msgid "Player %s begins its turn"
 msgstr "Il giocatore %s inizia il suo turno"
-
-#~ msgid "No map on command line: choose tha map via the main menu"
-#~ msgstr "Nessuna mappa specificata da riga di comando: scegline una dal menu"
-
-#~ msgid ""
-#~ "\n"
-#~ "Oops, something went wrong. Dumping brain contents:\n"
-#~ "\n"
-#~ "%s\n"
-#~ "%s\n"
-#~ "%s\n"
-#~ "\n"
-#~ "Please mail this stack trace to %s\n"
-#~ "along with a short description of what you did when this crash happened\n"
-#~ "so that the error can be fixed. Thank you! -- the Ice Emblem team\n"
-#~ "\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Oops, qualcosa è andato storto. Ti lascio il contenuto della mia mente:\n"
-#~ "\n"
-#~ "%s\n"
-#~ "%s\n"
-#~ "%s\n"
-#~ "\n"
-#~ "Per favore manda questa pila di chiamate a %s\n"
-#~ "insieme ad una breve descrizione di ciò che hai fatto quando è avvenuto "
-#~ "questo\n"
-#~ "problema così che l'errore possa essere risolto.\n"
-#~ "\n"
-#~ "Grazie!\n"
-#~ "-- la squadra di Ice Emblem\n"
-#~ "\n"

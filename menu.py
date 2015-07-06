@@ -21,17 +21,20 @@
 
 
 import pygame
+import logging
 from pygame.locals import *
 from colors import *
 
 
 class Menu(object):
+	EVENT_TYPES = [MOUSEBUTTONDOWN, QUIT, KEYDOWN, MOUSEMOTION]
 	BACKGROUND_COLOR = (51, 51, 51)
 	TEXT_COLOR = ICE
 	SELECTION_COLOR = (96, 144, 145)
 
-	def __init__(self, menu_entries, font, margins=(0, 0, 0, 0), pos=(0, 0)):
+	def __init__(self, menu_entries, font, callback=None, margins=(0, 0, 0, 0), pos=(0, 0)):
 		self.menu_entries = menu_entries
+		self.callback = callback
 		self.n_entries = len(menu_entries)
 		self.font = font
 		self.rendered_entries = []
@@ -72,11 +75,14 @@ class Menu(object):
 			self.move_index(-1)
 		elif event.key == K_DOWN:
 			self.move_index(1)
-		elif event.key == K_RETURN and self.index is not None:
+		elif event.key == K_ESCAPE:
+			if self.callback is not None:
+				self.choice = -1
+				self.callback()
+		elif (event.key == K_RETURN or event.key == K_SPACE) and self.index is not None:
 			if self.menu_entries[self.index][1] is not None:
-				self.menu_entries[self.index][1]()
+				return self.menu_entries[self.index][1]()
 			self.choice = self.index
-			return self.choice
 
 	def set_index(self, index):
 		self.prev_index = self.index
@@ -109,9 +115,11 @@ class Menu(object):
 				if rect.collidepoint(event.pos):
 					self.choice = i
 					if self.menu_entries[i][1] is not None:
-						self.menu_entries[i][1]()
-
-			return self.choice
+						return self.menu_entries[i][1]()
+		elif event.button == 3:
+			if self.callback is not None:
+				self.choice = -1
+				self.callback()
 
 	def handle_mouse_motion(self, event):
 		if event.type != MOUSEMOTION:
@@ -122,14 +130,6 @@ class Menu(object):
 
 			if rect.collidepoint(event.pos):
 				self.set_index(i)
-	
-	def handle_events(self, event):
-		if event.type == MOUSEMOTION:
-			return self.handle_mouse_motion(event)
-		if event.type == MOUSEBUTTONDOWN:
-			return self.handle_click(event)
-		if event.type == KEYDOWN:
-			return self.handle_keydown(event)
 
 	def render(self, surface=None):
 		if surface is None:

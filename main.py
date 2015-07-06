@@ -28,9 +28,7 @@ import traceback
 import logging
 import os
 import sys
-
 import gettext
-gettext.install('ice-emblem', 'locale')
 
 from item import Item, Weapon
 from map import Map
@@ -40,21 +38,19 @@ from game import Game
 from colors import *
 
 
-def main(screen):
-	
-	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
-	parser.add_argument('-s','--skip', action='store_true', help=_('Skip main menu'), required=False)
-	parser.add_argument('-m','--map', action='store', help=_('Which map to load'), default=None, required=False)
-	args = parser.parse_args()
+# Work around for Windows
+if sys.platform.startswith('win'):
+	logging.debug('Windows detected')
+	import locale
+	if os.getenv('LANG') is None:
+		logging.debug('Windows did not provide the LANG environment variable')
+		lang, enc = locale.getdefaultlocale()
+		os.environ['LANG'] = lang
+gettext.install('ice-emblem', 'locale')  # load translations
 
-	logging.basicConfig(level=logging.DEBUG)
-	logging.info(_('Welcome to %s!') % 'Ice Emblem 0.1')
-
-	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
-	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
-
+def load_units():
 	units = {}
-	with open('data/characters.txt', 'r') as f:
+	with open(os.path.join('data', 'characters.txt'), 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
 		reader.__next__()
 		for row in reader:
@@ -62,17 +58,38 @@ def main(screen):
 				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
 				row[11], row[12], row[13], row[14], row[15], row[16],
 				row[17]))
-			logging.debug(row[0] + " loaded")
+			logging.debug(_("%s loaded") % row[0])
+	return units
 
+def load_weapons():
 	weapons = {}
-	with open('data/weapons.txt', 'r') as f:
+	with open(os.path.join('data', 'weapons.txt'), 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
 		fields = reader.__next__()
 		for row in reader:
 			weapons[row[0]] = (Weapon(row[0], row[1], row[2], row[3],
 				row[4], row[5], row[6], row[7], row[8], row[9], None))
-			logging.debug(row[0] + " loaded")
+			logging.debug(_('%s loaded') % row[0])
+	return weapons
 
+
+def main(screen):
+	# command-line argument parsing
+	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
+	parser.add_argument('-s','--skip', action='store_true', help=_('Skip main menu'), required=False)
+	parser.add_argument('-m','--map', action='store', help=_('Which map to load'), default=None, required=False)
+	args = parser.parse_args()
+
+	# log to screen
+	logging.basicConfig(level=logging.DEBUG)
+	logging.info(_('Welcome to %s!') % 'Ice Emblem 0.1')
+
+	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
+	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
+	units = load_units()
+	weapons = load_weapons()
+
+	# TODO: units inventory to file
 	units['Boss'].give_weapon(weapons['Biga Feroce'])
 	units['Pirate Tux'].give_weapon(weapons['Stuzzicadenti'])
 	units['Soldier'].give_weapon(weapons['Bronze Sword'])
@@ -80,6 +97,7 @@ def main(screen):
 	units['Ninja'].give_weapon(weapons['Knife'])
 	units['Skeleton'].give_weapon(weapons['Nosferatu'])
 
+	# TODO: more than 2 players with names, colors and units
 	player1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
 	player2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
@@ -104,28 +122,8 @@ def main(screen):
 
 	if not args.skip:
 		MAIN_GAME.main_menu()
-		pygame.mixer.stop()
 
-	MAIN_GAME.play_overworld_music()
-
-	done = False
-	while not done:
-		for event in pygame.event.get():  # User did something
-			if event.type == pygame.QUIT:  # If user clicked close
-				done = True
-			else:
-				MAIN_GAME.handle_event(event)
-
-		if MAIN_GAME.winner is not None:
-			MAIN_GAME.victory_screen()
-			done = True
-		else:
-			MAIN_GAME.screen.fill(BLACK)
-			MAIN_GAME.blit_map()
-			MAIN_GAME.blit_info()
-			MAIN_GAME.blit_fps()
-			pygame.display.flip()
-			MAIN_GAME.clock.tick(25)
+	MAIN_GAME.play()
 
 
 if __name__ == '__main__':

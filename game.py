@@ -23,6 +23,7 @@ import pygame
 from pygame.locals import *
 import sys
 import os
+import logging
 
 from item import Item, Weapon
 from map import Map
@@ -35,7 +36,95 @@ def center(rect1, rect2, xoffset=0, yoffset=0):
 	return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
 
 def distance(p0, p1):
-    return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
+	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
+
+def return_to_os(*args):
+	pygame.quit()
+	sys.exit(0)
+
+
+class EventHandler(object):
+	"""
+	This class should provide a uniform and comfortable way to handle
+	events.
+	"""
+
+	def __init__(self):
+		self.handler = {pygame.QUIT: [return_to_os]}
+
+	def __call__(self):
+		"""
+		Process new events
+		"""
+		processed = []
+		for event in pygame.event.get():
+			if event.type in self.handler:
+				ret = self.handler[event.type][0](event)
+				processed.append((event.type, ret))
+		return processed
+
+	def wait(self, event_types=[MOUSEBUTTONDOWN, KEYDOWN], timeout=-1):
+		"""
+		if the timeout argument is positive, returns after the specified
+		number of milliseconds.
+		"""
+
+		event_types.append(QUIT)
+
+		if timeout > 0:
+			pygame.time.set_timer(USEREVENT+1, timeout)
+			event_types.append(USEREVENT+1)
+
+		pygame.event.set_allowed(None)  # only allow specified events
+		pygame.event.set_allowed(event_types)
+
+		event = pygame.event.wait()
+
+		ret = None
+		if event.type in self.handler:
+			ret = self.handler[event.type][0](event)
+
+		# workaround to re-enable all events except SYSWMEVENT
+		pygame.event.set_allowed(list(range(NOEVENT, NUMEVENTS)))
+		pygame.event.set_blocked(SYSWMEVENT)
+
+		return (event, ret)
+
+	def register(self, event_type, callback):
+		"""
+		Bind a callback function to a specified event type.
+		"""
+		if event_type in self.handler:
+			self.handler[event_type].insert(0, callback)
+		else:
+			self.handler[event_type] = [callback]
+		logging.debug(_('%s registered') % pygame.event.event_name(event_type))
+
+	def unregister(self, event_type, callback=None):
+		for key in list(self.handler):  # iterate over a copy of the dictionary's keys
+			if key == event_type:
+				if callback is not None:
+					self.handler[key].remove(callback)
+				else:
+					self.handler[key].pop(0)
+				if len(self.handler[key]) == 0:
+					del self.handler[key]  # to allow dictionary modification
+				logging.debug(_('%s unregistered') % pygame.event.event_name(event_type))
+
+	def register_menu(self, menu):
+		self.register(MOUSEMOTION, menu.handle_mouse_motion)
+		self.register(MOUSEBUTTONDOWN, menu.handle_click)
+		self.register(KEYDOWN, menu.handle_keydown)
+		logging.debug(_('Registered Menu'))
+
+	def unregister_menu(self, menu):
+		self.unregister(MOUSEMOTION, menu.handle_mouse_motion)
+		self.unregister(MOUSEBUTTONDOWN, menu.handle_click)
+		self.unregister(KEYDOWN, menu.handle_keydown)
+		logging.debug(_('Unregistered Menu'))
+
+	def reset(self):
+		self.handler = {pygame.QUIT: [return_to_os]}
 
 
 class Sidebar(object):
@@ -97,10 +186,7 @@ class Sidebar(object):
 
 
 class Game(object):
-	TIME_BETWEEN_ATTACKS = 2000
-	MAP_STATE = 0
-	CHOOSE_ENEMY_STATE = 1
-	INPUT_EVENTS = [MOUSEBUTTONDOWN, QUIT, KEYDOWN]
+	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
 
 	def __init__(self, screen, units, players, map_path, music, colors):
 		self.screen = screen
@@ -127,22 +213,54 @@ class Game(object):
 		self.overworld_music = pygame.mixer.Sound(os.path.abspath(music['overworld']))
 		self.battle_music = pygame.mixer.Sound(os.path.abspath(music['battle']))
 
-		self.winner = None
-		self.state = 0
-
 		self.sidebar = Sidebar(self.screen.get_size(), self.SMALL_FONT)
+		self.event_handler = EventHandler()
+
+		self.winner = None
+		self.done = False
 
 	def load_map(self, map_path):
 		if map_path is not None:
 			self.map = Map(map_path, self.screen.get_size(), self.colors, self.units)
-			# remove unused units
-			self.units = {}
-			for sprite in self.map.sprites:
-				self.units[sprite.unit.name] = sprite.unit
+
+			# discard unused units
+			map_units = { sprite.unit.name: self.units[sprite.unit.name] for sprite in self.map.sprites }
 			for player in self.players:
-				player.units = [ u for u in player.units if u in self.units.values() ]
+				player.units = [ u for u in player.units if u in map_units.values() ]
 		else:
 			self.map = None
+
+	def play(self):
+		while True:
+			logging.debug(_('Main game loop started'))
+			self.event_handler.register(MOUSEBUTTONDOWN, self.handle_click)
+			self.event_handler.register(MOUSEMOTION, self.handle_mouse_motion)
+			self.event_handler.register(KEYDOWN, self.handle_keyboard)
+			self.event_handler.register(VIDEORESIZE, self.screen_resize)
+			
+			self.play_overworld_music()
+
+			while not self.done:
+				self.event_handler()
+
+				if self.winner is not None:
+					self.victory_screen()
+					self.done = True
+				else:
+					self.check_turn()
+					self.screen.fill(BLACK)
+					self.blit_map()
+					self.blit_info()
+					self.blit_fps()
+					pygame.display.flip()
+					self.clock.tick(25)
+
+			logging.debug(_('Returning to main menu'))
+			self.map = None
+			self.winner = None
+			self.done = False
+			self.event_handler.reset()
+			self.main_menu()
 
 	def blit_map(self):
 		"""
@@ -152,8 +270,8 @@ class Game(object):
 
 	def blit_info(self):
 		coord = self.map.cursor.coord
-		unit = self.map.get_unit(coord)
-		terrain = self.map.get_terrain(coord)
+		unit = self.map.get_unit(*coord)
+		terrain = self.map.get_terrain(*coord)
 		turn = self.whose_turn()
 		self.sidebar.update(unit, terrain, coord, turn)
 		self.screen.blit(self.sidebar.surface, self.sidebar.rect)
@@ -165,13 +283,14 @@ class Game(object):
 		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
 		self.screen.blit(fpslabel, rec)
 
-	def screen_resize(self, screen_size):
+	def screen_resize(self, event):
 		"""
 		This method takes care to resize and scale everithing to match
 		the new window's size. The minum window size is 800x600.
 		On Debian Jessie there is an issue that makes the window kind of
 		"rebel" while trying to resize it.
 		"""
+		screen_size = event.size
 		if screen_size[0] < 800:
 			screen_size = (800, screen_size[1])
 		if screen_size[1] < 600:
@@ -183,31 +302,6 @@ class Game(object):
 	def play_overworld_music(self):
 		"""Start playing overworld music in a loop."""
 		self.overworld_music_ch.play(self.overworld_music, -1)
-
-	def wait_for_user_input(self, timeout=-1, event_types=None, fps=10):
-		"""
-		This function waits for the user to left-click somewhere and,
-		if the timeout argument is positive, exits after the specified
-		number of milliseconds.
-		"""
-		if event_types is None:
-			event_types = self.INPUT_EVENTS
-		else:
-			event_types += self.INPUT_EVENTS
-
-		now = start = pygame.time.get_ticks()
-		event = pygame.event.poll()
-
-		while event.type not in event_types and (now - start < timeout or timeout < 0):
-			event = pygame.event.poll()
-			if event.type == pygame.NOEVENT:
-				self.clock.tick(fps)
-				now = pygame.time.get_ticks()
-			elif event.type == pygame.QUIT:  # If user clicked close
-				pygame.quit()
-				sys.exit(0)
-
-		return event
 
 	def main_menu(self):
 		self.main_menu_music.play()
@@ -225,7 +319,7 @@ class Game(object):
 
 		pygame.display.flip()
 
-		self.wait_for_user_input(6000)
+		self.event_handler.wait(timeout=6000)
 
 
 		path = os.path.abspath('images/Ice Emblem.png')
@@ -242,7 +336,7 @@ class Game(object):
 
 		pygame.display.flip()
 
-		click_x, click_y = self.wait_for_user_input().pos
+		click_x, click_y = self.event_handler.wait([MOUSEBUTTONDOWN])[0].pos
 
 		if click_x > screen_w - license_w and click_y > screen_h - license_h:
 			path = os.path.abspath('images/GNU GPL.jpg')
@@ -250,9 +344,7 @@ class Game(object):
 			gpl_image = pygame.transform.smoothscale(gpl_image, (screen_rect.w, screen_rect.h))
 			self.screen.blit(gpl_image, (0, 0))
 			pygame.display.flip()
-			self.wait_for_user_input()
-
-		pygame.event.clear()
+			self.event_handler.wait()
 
 		if self.map is None:
 			choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, BACKGROUND)
@@ -261,20 +353,21 @@ class Game(object):
 			maps_path = os.path.abspath('maps')
 			files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
 
-			menu = Menu(files, self.MAIN_FONT, (25, 25))
+			menu = Menu(files, self.MAIN_FONT, None, (25, 25))
 			menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
+			self.event_handler.register_menu(menu)
 
-			choice = None
-			while choice is None:
+			while menu.choice is None:
 				self.screen.blit(menu.render(), menu.rect.topleft)
 				pygame.display.flip()
-				event = self.wait_for_user_input(event_types=([pygame.MOUSEMOTION]))
-				choice = menu.handle_events(event)
+				self.event_handler.wait(Menu.EVENT_TYPES)
 
-			self.load_map(os.path.join('maps', files[choice][0]))
+			self.event_handler.unregister_menu(menu)
+
+			self.load_map(os.path.join('maps', files[menu.choice][0]))
 
 		pygame.mixer.fadeout(2000)
-		self.fade_out(2000)
+		self.fadeout(2000)
 		pygame.mixer.stop() # Make sure mixer is not busy
 		self.sidebar.start_time = pygame.time.get_ticks()
 
@@ -292,26 +385,26 @@ class Game(object):
 				return player
 		return None
 
-	def fade_out(self, fade_out_time, percent=0):
+	def fadeout(self, fadeout_time, percent=0):
 		start = pygame.time.get_ticks()
 		fade = self.screen.copy()
 		state_time = 0
 		percent = (100 - percent) / 100.0
 
-		while state_time < fade_out_time:
-			alpha = int(255.0 - 255.0 * state_time / fade_out_time * percent)
+		while state_time < fadeout_time:
+			alpha = int(255.0 - 255.0 * state_time / fadeout_time * percent)
 			fade.set_alpha(alpha)
 			self.screen.fill(BLACK)
 			self.screen.blit(fade, (0, 0))
 			pygame.display.flip()
 			self.clock.tick(60)
 			state_time = pygame.time.get_ticks() - start
+			self.check_quit_event()
 
 	def check_quit_event(self):
 		for event in pygame.event.get(pygame.QUIT):
 			if event.type == pygame.QUIT:  # If user clicked close
-				pygame.quit()
-				sys.exit()
+				return_to_os()
 
 	def experience_animation(self, unit, bg):
 		img_pos = center(self.screen.get_rect(), unit.image.get_rect())
@@ -338,7 +431,7 @@ class Game(object):
 			self.clock.tick(60)
 			self.check_quit_event()
 
-		self.wait_for_user_input(2000)
+		self.event_handler.wait(timeout=2000)
 
 	def battle(self, attacking, defending, dist):
 		attacking_player = self.whose_unit(attacking)
@@ -359,7 +452,7 @@ class Game(object):
 
 		latest_attack = start = pygame.time.get_ticks()
 
-		self.fade_out(1000, 10)  # Darker atmosphere
+		self.fadeout(1000, 10)  # Darker atmosphere
 
 		battle_background = self.screen.copy()
 
@@ -540,14 +633,14 @@ class Game(object):
 		phase = self.MAIN_MENU_FONT.render(phase_str, 1, self.active_player.color)
 		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
 		pygame.display.flip()
-		self.wait_for_user_input(5000)
+		self.event_handler.wait(timeout=5000)
 
 	def victory_screen(self):
 		print(_("%s wins") % self.winner.name)
 		pygame.mixer.stop()
-		pygame.mixer.music.load(os.path.abspath('music/Victory Track.ogg'))
+		pygame.mixer.music.load(os.path.join('music', 'Victory Track.ogg'))
 		pygame.mixer.music.play()
-		self.fade_out(1000)
+		self.fadeout(1000)
 
 		victory = self.MAIN_MENU_FONT.render(self.winner.name + ' wins!', 1, self.winner.color)
 		thank_you = self.MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
@@ -559,7 +652,7 @@ class Game(object):
 		pygame.display.flip()
 
 		pygame.event.clear()
-		self.wait_for_user_input()
+		self.event_handler.wait()
 
 	def get_mouse_coord(self, pos=None):
 		if pos is None:
@@ -569,43 +662,90 @@ class Game(object):
 		except ValueError:
 			return None
 
-	def handle_mouse_motion(self, event):
-		self.map.handle_mouse_motion(event)
-
 	def action_menu(self, actions, rollback, pos):
 		self.blit_map()
 
-		menu = Menu(actions, self.SMALL_FONT, (5, 10), pos)
+		menu = Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
+		self.event_handler.register_menu(menu)
 
 		action = None
+
 		while action is None:
 			self.screen.blit(menu.render(), menu.rect.topleft)
 			pygame.display.flip()
+			self.event_handler.wait(Menu.EVENT_TYPES)
+			action = menu.choice
 
-			event = self.wait_for_user_input(event_types=[pygame.MOUSEMOTION])
-
-			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-				action = -1
-				rollback()
-			else:
-				action = menu.handle_events(event)
+		self.event_handler.unregister_menu(menu)
 
 		return action
 
-	def battle_wrapper(self):
-		coord = self.get_mouse_coord()
-
-		defending = self.map.get_unit(coord)
-		attacking = self.map.get_unit(self.map.curr_sel)
+	def battle_wrapper(self, coord):
+		defending = self.map.get_unit(*coord)
+		attacking = self.map.get_unit(*self.map.curr_sel)
 
 		# enemy chosen by the user... let the battle begin!
 		self.battle(attacking, defending, distance(coord, self.map.curr_sel))
 
-		self.state = self.MAP_STATE  # return to map state
-		self.map.reset_selection()
+		self.map.find_sprite(attacking).update()
+		self.map.find_sprite(defending).update()
 
-	def action_menu_wrapper(self, menu_entries):
-		if menu_entries is not None and len(menu_entries) > 0:  # Have to display action menu
+		self.map.reset_selection()
+		self.event_handler.unregister(MOUSEBUTTONDOWN)
+		self.event_handler.unregister(KEYDOWN)
+
+	def __attack_mousebuttondown(self, event):
+		# user must click on an enemy unit
+		if event.button == 1 and self.map.is_attack_click(event.pos):
+			self.battle_wrapper(self.get_mouse_coord())
+		elif event.button == 3:
+			self.abort_action()
+
+	def __attack_keydown(self, event):
+		# user must choose an enemy unit
+		if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
+			self.battle_wrapper(self.map.cursor.coord)
+		elif event.key == pygame.K_ESCAPE:
+			self.abort_action()
+		self.map.cursor.update(event)
+
+	def abort_action(self):
+		self.map.move(self.map.curr_sel, self.map.prev_sel)
+		self.map.reset_selection()
+		self.event_handler.unregister(MOUSEBUTTONDOWN)
+		self.event_handler.unregister(KEYDOWN)
+
+	def reset(self):
+		pygame.mixer.fadeout(1000)
+		self.fadeout(1000)
+		self.done = True
+
+	def pause_menu(self):
+		menu_entries = [('Return to Game', None), ('Return to Main Menu', self.reset), ('Return to O.S.', return_to_os)]
+		menu = Menu(menu_entries, self.MAIN_FONT)
+		menu.rect.center = self.screen.get_rect().center
+
+		self.event_handler.register_menu(menu)
+
+		while menu.choice is None:
+			self.screen.blit(menu.render(), menu.rect.topleft)
+			pygame.display.flip()
+			self.event_handler.wait(Menu.EVENT_TYPES)
+
+		self.event_handler.unregister_menu(menu)
+
+	def check_turn(self):
+		if self.active_player.is_turn_over():
+			self.switch_turn()
+
+	def handle_mouse_motion(self, event):
+		self.map.handle_mouse_motion(event)
+
+	def handle_click(self, event):
+		menu_entries = self.map.handle_click(event, self.active_player)
+
+		# Check if have to display action menu
+		if menu_entries is not None and len(menu_entries) > 0:
 			# rollback will be called if the user aborts the
 			# action menu by right clicking
 			rollback = self.map.rollback_callback
@@ -616,56 +756,25 @@ class Game(object):
 				# user choose to attack.
 				# Now he has to choose the enemy to attack
 				# so the next click must be an enemy unit
-				self.state = self.CHOOSE_ENEMY_STATE
-
-	def abort_action(self):
-		self.state = self.MAP_STATE
-		self.map.move(self.map.curr_sel, self.map.prev_sel)
-		self.map.reset_selection()
-
-	def handle_click(self, event):
-		"""
-		Handles clicks.
-		"""
-
-		if self.state == self.MAP_STATE:  # normal state
-			menu_entries = self.map.handle_click(event, self.active_player)
-			self.action_menu_wrapper(menu_entries)
-
-		elif self.state == self.CHOOSE_ENEMY_STATE:
-			# user must click on an enemy unit
-			if event.button == 1 and self.map.is_attack_click(event.pos):
-				self.battle_wrapper()
-			elif event.button == 3:
-				self.abort_action()
-
-		if self.winner is None:
-			self.check_turn()
-
-	def check_turn(self):
-		if self.active_player.is_turn_over():
-			self.switch_turn()
+				self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
+				self.event_handler.register(KEYDOWN, self.__attack_keydown)
 
 	def handle_keyboard(self, event):
-		if self.state == self.MAP_STATE:  # normal state
+		if event.key == pygame.K_ESCAPE:
+			self.pause_menu()
+		else:
 			menu_entries = self.map.handle_keyboard(event, self.active_player)
-			self.action_menu_wrapper(menu_entries)
-		elif self.state == self.CHOOSE_ENEMY_STATE:
-			# user must choose an enemy unit
-			if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
-				self.battle_wrapper()
-			elif event.key == pygame.K_ESCAPE:
-				self.abort_action()
 
-		if self.winner is None:
-			self.check_turn()
+			# Check if have to display action menu
+			if menu_entries is not None and len(menu_entries) > 0:
+				rollback = self.map.rollback_callback
+				pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
+				pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
+				action = self.action_menu(menu_entries, rollback, pos)
 
-	def handle_event(self, event):
-		if event.type == pygame.MOUSEBUTTONDOWN: # user click on map
-			self.handle_click(event)
-		elif event.type == pygame.MOUSEMOTION:
-			self.handle_mouse_motion(event)
-		elif event.type == pygame.KEYDOWN:
-			self.handle_keyboard(event)
-		elif event.type == pygame.VIDEORESIZE: # user resized window
-			self.screen_resize(event.size) # update window's size
+				if action == 0 and menu_entries[0][0] is _("Attack"):
+					# user choose to attack.
+					# Now he has to choose the enemy to attack
+					# so the next click must be an enemy unit
+					self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
+					self.event_handler.register(KEYDOWN, self.__attack_keydown)
