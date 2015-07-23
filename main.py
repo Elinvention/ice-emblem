@@ -84,8 +84,10 @@ def main(screen):
 	logging.basicConfig(level=logging.DEBUG)
 	logging.info(_('Welcome to %s!') % 'Ice Emblem 0.1')
 
-	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
-	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
+	colors = dict(selected = SELECTED, move = MOVE, attack = ATTACK, played = PLAYED)
+	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg',
+				 battle='music/The Last Encounter Short Loop.ogg',
+				 menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
 	units = load_units()
 	weapons = load_weapons()
 

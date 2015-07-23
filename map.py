@@ -24,32 +24,26 @@ import tmx
 import pygame
 import os.path
 import logging
+from utils import *
 from unit import Unit
 
 
-def distance(p0, p1):
-	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
-
-def resize_keep_ratio(size, max_size):
-	w, h = size
-	max_w, max_h = max_size
-	resize_ratio = min(max_w / w, max_h / h)
-	return int(w * resize_ratio), int(h * resize_ratio)
-
-def center(rect1, rect2, xoffset=0, yoffset=0):
-	"""Center rect2 in rect1 with offset."""
-	return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
-
-
 class UnitSprite(pygame.sprite.Sprite):
-	def __init__(self, size, font, obj, unit, *groups):
+	def __init__(self, size, obj, unit, *groups):
+		"""
+		size: sprite size in pixels
+		obj: unit data from tmx
+		unit: unit object
+		groups: sprites layer
+		"""
 		super(UnitSprite, self).__init__(*groups)
 
 		self.unit = unit
-		self.image = pygame.Surface(size).convert_alpha()
 		w, h = size
 		self.x, self.y = self.coord = (obj.px // w), (obj.py // h)
 		pos = self.x * w, self.y * h
+
+		self.image = pygame.Surface(size).convert_alpha()
 		self.rect = rect = pygame.Rect(pos, size)
 
 		self.update()
@@ -69,8 +63,7 @@ class UnitSprite(pygame.sprite.Sprite):
 
 		src_img = self.unit.image
 		if src_img is None:
-			text = font.render(self.unit.name, 1, BLACK)
-			self.image.blit(text, center(self.image.get_rect(), text.get_rect()))
+			self.image.blit(src_img, center(self.image.get_rect(), src_img.get_rect()))
 		else:
 			image_size = resize_keep_ratio(src_img.get_size(), img_max_size)
 			resized_image = pygame.transform.smoothscale(src_img, image_size).convert_alpha()
@@ -153,7 +146,6 @@ class CellHighlight(pygame.sprite.Sprite):
 		self.rect = pygame.Rect((0, 0), (tilemap.px_width, tilemap.px_height))
 
 	def update(self, selected, move, attack, played):
-		#print("Updating CellHighlight")
 		self.image.fill((0, 0, 0, 0))
 
 		blit = self.image.blit
@@ -397,7 +389,7 @@ class Map(object):
 
 		for obj in self.tilemap.layers['Sprites'].objects:
 			if obj.type == 'unit' and obj.name in units:
-				self.sprites.append(UnitSprite(self.tile_size, None, obj, units[obj.name], self.sprites_layer))
+				self.sprites.append(UnitSprite(self.tile_size, obj, units[obj.name], self.sprites_layer))
 
 		cursor_layer = tmx.SpriteLayer()
 		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), cursor_layer)
@@ -408,8 +400,8 @@ class Map(object):
 		highlight_layer = tmx.SpriteLayer()
 		self.highlight = CellHighlight(self.tilemap, highlight_colors, highlight_layer)
 
-		self.tilemap.layers.append(self.sprites_layer)
 		self.tilemap.layers.append(highlight_layer)
+		self.tilemap.layers.append(self.sprites_layer)
 		self.tilemap.layers.append(arrow_layer)
 		self.tilemap.layers.append(cursor_layer)
 
@@ -783,3 +775,4 @@ class Map(object):
 				return Terrain(layer[x, y].tile)
 			except (TypeError, AttributeError):
 				continue
+

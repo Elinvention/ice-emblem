@@ -30,17 +30,7 @@ from map import Map
 from unit import Unit, Player
 from menu import Menu
 from colors import *
-
-def center(rect1, rect2, xoffset=0, yoffset=0):
-	"""Center rect2 in rect1 with offset."""
-	return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
-
-def distance(p0, p1):
-	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
-
-def return_to_os(*args):
-	pygame.quit()
-	sys.exit(0)
+from utils import *
 
 
 class EventHandler(object):

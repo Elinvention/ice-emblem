@@ -24,6 +24,7 @@ import pygame
 import os.path
 import random
 import logging
+import utils
 
 
 class Unit(object):
@@ -54,14 +55,16 @@ class Unit(object):
 		self.wrank	=	wrank       	# weapons' levels.
 		self.items	=	[]          	# list of items
 		self.played	=	False       	# wether unit was used or not in a turn
-		self.color = None
-		path = os.path.abspath('sprites/' + self.name + '.png')
+		self.color	=	None        	# team color
+		path = os.path.relpath(os.path.join('sprites', self.name + '.png'))
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
+			new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
+			self.image = pygame.transform.smoothscale(self.image, new_size)
 		except pygame.error as e:
-			logging.warning(_("Couldn't load %s") % path)
-			logging.warning(e)
-			self.image = None
+			logging.warning(_("Couldn't load %s! Loading default image") % path)
+			no_image_path = os.path.relpath(os.path.join('sprites', 'no_image.png'))
+			self.image = pygame.image.load(no_image_path).convert_alpha()
 
 	def __str__(self):
 		return """
@@ -217,6 +220,13 @@ Unit: "%s"
 					ret = 1
 		return ret
 
+	def value(self):
+		"""
+		the return value is used by ai to choose who enemy attack
+		"""
+		# TODO add type unit influence
+		return self.hp + self.strength + self.skill + self.spd + self.luck + self.defence
+
 	def prepare_battle(self):
 		self.prev_hp = self.hp
 		self.prev_lv = self.lv
@@ -227,26 +237,19 @@ Unit: "%s"
 	def experience(self, enemy):
 		self.prev_exp = self.exp
 		exp = 1
-
 		damages = enemy.get_damage()
 		if damages > 0:
 			lv_diff = abs(enemy.lv - self.lv)
-
 			if enemy.lv < self.lv:
 				exp += damages // lv_diff
 			else:
 				exp += damages * lv_diff
-
 			exp += random.randrange(0, self.luck // 2 + 1)
-
 		if enemy.hp == 0:
 			exp += damages // 2
-
 		if exp > 100:
 			exp = 100
-
 		self.exp += exp
-		
 		if self.exp >= 100:
 			self.exp %= 100
 			self.level_up()
