@@ -36,8 +36,9 @@ class Unit(object):
 		self.hp 	=	int(hp)     	# current hp
 		self.prev_hp=	self.hp     	# HP before an attack
 		self.lv 	=	int(lv)     	# level
+		self.prev_lv = self.lv
 		self.exp	=	int(exp)    	# experience
-		self.prev_exp= self.exp
+		self.prev_exp = self.exp
 		self.strength = int(strength)	# strength determines the damage inflicted to the enemy
 		self.skill	=	int(skill)  	# skill chance of hitting the enemy
 		self.spd	=	int(spd)    	# speed chance to avoid enemy's attack
@@ -218,6 +219,7 @@ Unit: "%s"
 
 	def prepare_battle(self):
 		self.prev_hp = self.hp
+		self.prev_lv = self.lv
 
 	def get_damage(self):
 		return self.prev_hp - self.hp
@@ -247,10 +249,24 @@ Unit: "%s"
 		
 		if self.exp >= 100:
 			self.exp %= 100
-			self.lv += 1
-			print(_("%s levelled up!") % self.name)
+			self.level_up()
 
 		print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.exp))
+
+	def gained_exp(self):
+		"""Return the gained experience with latest battle"""
+		if self.exp > self.prev_exp:
+			return self.exp - self.prev_exp
+		return self.exp + 100 - self.prev_exp
+
+	def level_up(self):
+		self.prev_lv = self.lv
+		self.lv += 1
+		print(_("%s levelled up!") % self.name)
+
+	def levelled_up(self):
+		"""Returns True if the latest attack caused a level-up"""
+		return self.lv > self.prev_lv
 
 
 class Flying(Unit):

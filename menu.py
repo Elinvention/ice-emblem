@@ -80,9 +80,9 @@ class Menu(object):
 				self.choice = -1
 				self.callback()
 		elif (event.key == K_RETURN or event.key == K_SPACE) and self.index is not None:
+			self.choice = self.index
 			if self.menu_entries[self.index][1] is not None:
 				return self.menu_entries[self.index][1]()
-			self.choice = self.index
 
 	def set_index(self, index):
 		self.prev_index = self.index

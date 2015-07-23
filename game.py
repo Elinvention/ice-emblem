@@ -88,6 +88,8 @@ class EventHandler(object):
 		pygame.event.set_allowed(list(range(NOEVENT, NUMEVENTS)))
 		pygame.event.set_blocked(SYSWMEVENT)
 
+		pygame.time.set_timer(USEREVENT+1, 0)
+
 		return (event, ret)
 
 	def register(self, event_type, callback):
@@ -212,6 +214,13 @@ class Game(object):
 		self.main_menu_music = pygame.mixer.Sound(os.path.abspath(music['menu']))
 		self.overworld_music = pygame.mixer.Sound(os.path.abspath(music['overworld']))
 		self.battle_music = pygame.mixer.Sound(os.path.abspath(music['battle']))
+
+		# load every .ogg file from sounds directory
+		sounds_path = os.path.relpath('sounds')
+		sounds_dir = os.listdir(sounds_path)
+		sound_files = [ f for f in sounds_dir if os.path.isfile(os.path.join(sounds_path, f)) and f.endswith('.ogg')]
+		# filename without extension : sound object
+		self.sounds = { f[:-4] : pygame.mixer.Sound(os.path.relpath(os.path.join('sounds', f))) for f in sound_files}
 
 		self.sidebar = Sidebar(self.screen.get_size(), self.SMALL_FONT)
 		self.event_handler = EventHandler()
@@ -410,10 +419,13 @@ class Game(object):
 		img_pos = center(self.screen.get_rect(), unit.image.get_rect())
 		exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
 
-		curr_exp = unit.prev_exp
-		target_exp = unit.exp if unit.prev_exp <= unit.exp else 100 + unit.exp
+		self.sounds['exp'].play(-1)
 
-		while curr_exp <= unit.exp:
+		gained_exp = unit.gained_exp()
+		curr_exp = unit.prev_exp
+		while curr_exp <= gained_exp + unit.prev_exp:
+			if unit.levelled_up() and curr_exp % 100 == 0:
+				self.sounds['levelup'].play()
 			exp = pygame.Surface((curr_exp % 100, 20))
 			exp.fill(YELLOW)
 
@@ -431,6 +443,7 @@ class Game(object):
 			self.clock.tick(60)
 			self.check_quit_event()
 
+		self.sounds['exp'].stop()
 		self.event_handler.wait(timeout=2000)
 
 	def battle(self, attacking, defending, dist):
@@ -505,12 +518,14 @@ class Game(object):
 							att_image_pos = (att_image_pos[0] + speed, 100)
 							#print(attacking.name + str(att_image_pos))
 							if att_image_pos[0] >= 200:
+								self.sounds['hit'].play()
 								att_image_pos = ATT_IMAGE_POS
 								animate_attack = False
 						else:
 							def_image_pos = (def_image_pos[0] - speed, 100)
 							#print(defending.name + str(def_image_pos))
 							if def_image_pos[0] <= 300:
+								self.sounds['hit'].play()
 								def_image_pos = DEF_IMAGE_POS
 								animate_attack = False
 					elif animate_miss:
@@ -687,33 +702,39 @@ class Game(object):
 		# enemy chosen by the user... let the battle begin!
 		self.battle(attacking, defending, distance(coord, self.map.curr_sel))
 
-		self.map.find_sprite(attacking).update()
-		self.map.find_sprite(defending).update()
+		att_sprite = self.map.find_sprite(attacking)
+		if att_sprite is not None:
+			att_sprite.update()
+		def_sprite = self.map.find_sprite(defending)
+		if def_sprite is not None:
+			def_sprite.update()
 
 		self.map.reset_selection()
-		self.event_handler.unregister(MOUSEBUTTONDOWN)
-		self.event_handler.unregister(KEYDOWN)
 
 	def __attack_mousebuttondown(self, event):
 		# user must click on an enemy unit
 		if event.button == 1 and self.map.is_attack_click(event.pos):
+			self.event_handler.unregister(KEYDOWN, self.__attack_keydown)
+			self.event_handler.unregister(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
 			self.battle_wrapper(self.get_mouse_coord())
 		elif event.button == 3:
-			self.abort_action()
+			self.__attack_abort()
 
 	def __attack_keydown(self, event):
 		# user must choose an enemy unit
 		if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
+			self.event_handler.unregister(KEYDOWN, self.__attack_keydown)
+			self.event_handler.unregister(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
 			self.battle_wrapper(self.map.cursor.coord)
 		elif event.key == pygame.K_ESCAPE:
-			self.abort_action()
+			self.__attack_abort()
 		self.map.cursor.update(event)
 
-	def abort_action(self):
+	def __attack_abort(self):
+		self.event_handler.unregister(KEYDOWN, self.__attack_keydown)
+		self.event_handler.unregister(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
 		self.map.move(self.map.curr_sel, self.map.prev_sel)
 		self.map.reset_selection()
-		self.event_handler.unregister(MOUSEBUTTONDOWN)
-		self.event_handler.unregister(KEYDOWN)
 
 	def reset(self):
 		pygame.mixer.fadeout(1000)
@@ -741,15 +762,12 @@ class Game(object):
 	def handle_mouse_motion(self, event):
 		self.map.handle_mouse_motion(event)
 
-	def handle_click(self, event):
-		menu_entries = self.map.handle_click(event, self.active_player)
-
+	def action_menu_wrapper(self, menu_entries, pos):
 		# Check if have to display action menu
 		if menu_entries is not None and len(menu_entries) > 0:
 			# rollback will be called if the user aborts the
 			# action menu by right clicking
 			rollback = self.map.rollback_callback
-			pos = pygame.mouse.get_pos()
 			action = self.action_menu(menu_entries, rollback, pos)
 
 			if action == 0 and menu_entries[0][0] is _("Attack"):
@@ -759,22 +777,17 @@ class Game(object):
 				self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
 				self.event_handler.register(KEYDOWN, self.__attack_keydown)
 
+	def handle_click(self, event):
+		menu_entries = self.map.handle_click(event, self.active_player)
+		pos = pygame.mouse.get_pos()
+		self.action_menu_wrapper(menu_entries, pos)
+
 	def handle_keyboard(self, event):
 		if event.key == pygame.K_ESCAPE:
 			self.pause_menu()
 		else:
 			menu_entries = self.map.handle_keyboard(event, self.active_player)
+			pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
+			pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
 
-			# Check if have to display action menu
-			if menu_entries is not None and len(menu_entries) > 0:
-				rollback = self.map.rollback_callback
-				pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
-				pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
-				action = self.action_menu(menu_entries, rollback, pos)
-
-				if action == 0 and menu_entries[0][0] is _("Attack"):
-					# user choose to attack.
-					# Now he has to choose the enemy to attack
-					# so the next click must be an enemy unit
-					self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
-					self.event_handler.register(KEYDOWN, self.__attack_keydown)
+			self.action_menu_wrapper(menu_entries, pos)

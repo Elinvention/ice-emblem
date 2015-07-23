@@ -704,7 +704,6 @@ class Map(object):
 
 	def select(self, coord, active_player):
 		x, y = coord
-		assert(coord is not None)
 		self.curr_sel = coord
 		self.arrow.path = []
 
