@@ -424,7 +424,7 @@ class Game(object):
 		gained_exp = unit.gained_exp()
 		curr_exp = unit.prev_exp
 		while curr_exp <= gained_exp + unit.prev_exp:
-			if unit.levelled_up() and curr_exp % 100 == 0:
+			if unit.levelled_up() and curr_exp == 100:
 				self.sounds['levelup'].play()
 			exp = pygame.Surface((curr_exp % 100, 20))
 			exp.fill(YELLOW)

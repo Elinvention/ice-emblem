@@ -1,5 +1,5 @@
 name	HP_max	HP	LV	E	Str	Skill	Spd	Luck	Def	Res	Move	Con	Aid	Trv	Affin	Cond	WRank
-Pirate Tux	30	30	1	0	9	5	2	10	10	1	1	1	5	None	None	0	['E','N','N','N','N','N','N','N']
+Pirate Tux	30	30	99	0	9	5	2	10	10	1	1	1	5	None	None	0	['E','N','N','N','N','N','N','N']
 Boss	30	30	1	0	10	5	2	10	10	1	3	1	5	None	None	0	['E','N','N','N','N','N','N','N']
 Skeleton	10	10	1	0	7	4	4	1	8	3	2	2	3	None	None	0	['E','N','N','N','N','N','N','N']
 Pirate	20	20	2	0	4	3	3	2	7	3	3	2	4	None	None	0	['E','N','N','N','N','N','N','N']
