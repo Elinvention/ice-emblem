@@ -21,6 +21,10 @@
 #  MA 02110-1301, USA.
 
 
+import pygame
+import sys
+
+
 def distance(p0, p1):
 	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 

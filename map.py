@@ -265,7 +265,7 @@ class Arrow(pygame.sprite.Sprite):
 				raise ValueError("ArrowError: " + str((a, b, c)))
 
 
-class Path(object):
+class Pathfinder(object):
 	def __init__(self, matrix):
 		self.matrix = matrix
 		self.w, self.h = len(self.matrix), len(self.matrix[0])
@@ -369,6 +369,10 @@ class Path(object):
 		self.shortest = S
 		return S
 
+	def area(self, max_distance):
+		h, w = range(self.h), range(self.w)
+		return [ (i, j) for j in h for i in w if self.dist[i][j] <= max_distance ]
+
 
 class Map(object):
 	"""
@@ -417,7 +421,7 @@ class Map(object):
 		# This matrix is used by dijkstra
 		w, h = range(self.tilemap.width), range(self.tilemap.height)
 		matrix = [[ self.get_terrain(x, y).moves for y in h ] for x in w]
-		self.path = Path(matrix)
+		self.path = Pathfinder(matrix)
 
 	def list_obstacles(self, unit=None):
 		"""
@@ -530,8 +534,7 @@ class Map(object):
 			self.path.obstacles = self.list_obstacles(unit)
 			self.path.dijkstra(coord)
 
-		h, w = range(self.tilemap.height), range(self.tilemap.width)
-		self.move_area = [ (i, j) for j in h for i in w if self.path.dist[i][j] <= unit.move ]
+		self.move_area = self.path.area(unit.move)
 
 	def get_unit(self, x, y):
 		for sprite in self.sprites:

@@ -282,22 +282,35 @@ class Water(Unit):
 		super().__init__(name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank)
 
 
-class Player(object):
-	"""This class represents the player status and which units belong to."""
+class Team(object):
+	"""Every unit is part of a Team."""
 
-	number_of_players = 0
+	number_of_teams = 0
 
-	def __init__(self, name, color, my_turn=False, units=[]):
-		self.number_of_players += 1
+	def __init__(self, name, color, relation, ai, my_turn, units):
+		"""
+		name [str]: name of the Team
+		color [tuple of 3 ints]: color of the Team
+		relation [number]: used to represent relationship between teams.
+			Two Teams can be allied, neutral or enemy. If the difference
+			between the two teams' value is 0 they are allied, if it is
+			1 they are neutral otherwise they are enemy.
+		ai [AI]: if ai is an AI object ai will be used for this team
+		my_turn [bool]: if it is this team's turn
+		units [list of units]: units part of the team
+		"""
+		self.number_of_teams += 1
 		self.name = name
+		self.color = color
+		self.relation = relation
+		self.ai = ai
+		self.my_turn = my_turn
 		for unit in units:
 			unit.color = color
 		self.units = units
-		self.color = color
-		self.my_turn = my_turn
 
 	def __del__(self):
-		self.number_of_players -= 1
+		self.number_of_teams -= 1
 
 	def __str__(self):
 		units = "["
@@ -319,17 +332,26 @@ class Player(object):
 		for unit in self.units:
 			unit.played = False
 		self.my_turn = False
-		print(_("Player %s ends its turn") % self.name)
+		print(_("Team %s ends its turn") % self.name)
 
 	def begin_turn(self):
 		self.my_turn = True
 		for unit in self.units:
 			unit.played = False
-		print(_("Player %s begins its turn") % self.name)
+		print(_("Team %s begins its turn") % self.name)
 
 	def is_defeated(self):
-		return True if len(self.units) == 0 else False
+		return len(self.units) == 0
 
 	def remove_unit(self, unit):
 		unit.color = None
 		self.units.remove(unit)
+
+	def is_enemy(self, team):
+		return abs(team.relation - self.relation) > 1
+
+	def is_neutral(self, team):
+		return abs(team.relation - self.relation) == 1
+
+	def is_allied(self, team):
+		return team.relation == self.relation

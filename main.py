@@ -29,10 +29,10 @@ import logging
 import os
 import sys
 import gettext
-
+import utils
 from item import Item, Weapon
 from map import Map
-from unit import Unit, Player
+from unit import Unit
 from game import Game
 
 from colors import *
@@ -83,11 +83,11 @@ def main(screen):
 	# log to screen
 	logging.basicConfig(level=logging.DEBUG)
 	logging.info(_('Welcome to %s!') % 'Ice Emblem 0.1')
+	logging.info(_('You are using Pygame version %s.') % pygame.version.ver)
+	if pygame.version.vernum < (1, 9, 2):
+		logging.warning(_('You are running a version of Pygame that might be outdated.'))
+		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	colors = dict(selected = SELECTED, move = MOVE, attack = ATTACK, played = PLAYED)
-	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg',
-				 battle='music/The Last Encounter Short Loop.ogg',
-				 menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
 	units = load_units()
 	weapons = load_weapons()
 
@@ -99,13 +99,6 @@ def main(screen):
 	units['Ninja'].give_weapon(weapons['Knife'])
 	units['Skeleton'].give_weapon(weapons['Nosferatu'])
 
-	# TODO: more than 2 players with names, colors and units
-	player1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
-	player2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
-
-	player1 = Player(_("Blue Team"), BLUE, True, player1_units)
-	player2 = Player(_("Red Team"), RED, False, player2_units)
-
 	map_file = None
 	if args.map is not None:
 		map_file = os.path.join('maps', args.map + '.tmx')
@@ -116,7 +109,7 @@ def main(screen):
 	else:
 		logging.debug(_('No map on command line: choose the map via the main menu'))
 
-	MAIN_GAME = Game(screen, units, [player1, player2], map_file, music, colors)
+	MAIN_GAME = Game(screen, units, map_file)
 
 	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
 	# event will be generated every 50 ms
@@ -131,6 +124,7 @@ def main(screen):
 if __name__ == '__main__':
 	try:
 		pygame.init()
+		pygame.display.set_icon(pygame.image.load(os.path.join('images', 'icon.png')))
 		screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
 		pygame.display.set_caption("Ice Emblem")
 		main(screen)
@@ -140,8 +134,7 @@ if __name__ == '__main__':
 		print(_("Interrupted by user, exiting."))
 
 		# we're not playing anymore, go away
-		pygame.quit()
-		sys.exit(0)
+		utils.return_to_os()
 
 	except:
 		# other error
@@ -164,13 +157,11 @@ Thank you!
 		print(kind_error_message)
 		
 		# we're not playing anymore, go away
-		pygame.quit()
-		sys.exit(0)
+		utils.return_to_os()
 
 	# we got here, so everything was normal
 	print()
 	print("~" * 80)
 	print(_("Game terminated normally."))
 
-	pygame.quit()
-	sys.exit(0)
+	utils.return_to_os()
