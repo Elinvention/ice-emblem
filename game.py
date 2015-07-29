@@ -31,6 +31,7 @@ from unit import Unit, Team
 from menu import Menu, HorizontalMenu, Button
 from colors import *
 from utils import *
+from ai import AI
 
 
 class EventHandler(object):
@@ -196,7 +197,7 @@ class Game(object):
 		team2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
 		team1 = Team(name=_("Blue Team"), color=BLUE, relation=10, ai=None, my_turn=True, units=team1_units)
-		team2 = Team(name=_("Red Team"), color=RED, relation=20, ai=True, my_turn=False, units=team2_units)
+		team2 = Team(name=_("Red Team"), color=RED, relation=20, ai=None, my_turn=False, units=team2_units)
 
 		self.teams = [team1, team2]
 		self.active_team = self.get_active_team()
@@ -237,6 +238,7 @@ class Game(object):
 			map_units = { sprite.unit.name: self.units[sprite.unit.name] for sprite in self.map.sprites }
 			for team in self.teams:
 				team.units = [ u for u in team.units if u in map_units.values() ]
+			self.teams[1].ai = AI(self.map, self.teams[1].color, self.battle)
 		else:
 			self.map = None
 
@@ -250,8 +252,8 @@ class Game(object):
 				self.enable_controls()
 
 			while not self.done:
-				#if self.active_team.ai is not None:
-					#self.active_team.ai()
+				if callable(self.active_team.ai):
+					self.active_team.ai()
 				self.event_handler()
 
 				if self.winner is not None:
@@ -281,7 +283,7 @@ class Game(object):
 
 	def blit_info(self):
 		coord = self.map.cursor.coord
-		unit = self.map.get_unit(*coord)
+		unit = self.map.get_unit(coord)
 		terrain = self.map.get_terrain(*coord)
 		turn = self.whose_turn()
 		self.sidebar.update(unit, terrain, coord, turn)
@@ -380,12 +382,11 @@ class Game(object):
 		self.screen.blit(main_menu_image, (0, 0))
 
 		if self.map is None:
-			choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, BACKGROUND)
+			choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
 			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_width() // 2))
-			
+
 			maps_path = os.path.abspath('maps')
 			files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
-
 			menu = Menu(files, self.MAIN_FONT, None, (25, 25))
 			menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
 			self.event_handler.register_menu(menu)
@@ -468,13 +469,14 @@ class Game(object):
 		self.sounds['exp'].stop()
 		self.event_handler.wait(timeout=2000)
 
-	def battle(self, attacking, defending, dist):
+	def battle(self, attacking, defending):
 		attacking_team = self.whose_unit(attacking)
 		defending_team = self.whose_unit(defending)
 
 		attacking.prepare_battle()
 		defending.prepare_battle()
 
+		dist = utils.distance(self.where_is(attacking), self.where_is(defending))
 		at, dt = attacking.number_of_attacks(defending, dist)
 
 		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
@@ -735,11 +737,11 @@ class Game(object):
 		return action
 
 	def battle_wrapper(self, coord):
-		defending = self.map.get_unit(*coord)
-		attacking = self.map.get_unit(*self.map.curr_sel)
+		defending = self.map.get_unit(coord)
+		attacking = self.map.get_unit(self.map.curr_sel)
 
 		# enemy chosen by the user... let the battle begin!
-		self.battle(attacking, defending, distance(coord, self.map.curr_sel))
+		self.battle(attacking, defending)
 
 		att_sprite = self.map.find_sprite(attacking)
 		if att_sprite is not None:

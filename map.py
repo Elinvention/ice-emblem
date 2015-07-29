@@ -68,7 +68,7 @@ class UnitSprite(pygame.sprite.Sprite):
 			image_size = resize_keep_ratio(src_img.get_size(), img_max_size)
 			resized_image = pygame.transform.smoothscale(src_img, image_size).convert_alpha()
 			self.image.blit(resized_image, center(self.image.get_rect(), resized_image.get_rect()))
-			
+
 		hp_bar_length = int(self.unit.hp / self.unit.hp_max * self.rect.w)
 		hp_bar = pygame.Surface((hp_bar_length, 5))
 		hp_bar.fill((0, 255, 0))
@@ -343,7 +343,7 @@ class Pathfinder(object):
 				else:
 					alt = self.dist[u0][u1] + self.matrix[v0][v1]
 					# A shorter path to v has been found
-					if alt < self.dist[v0][v1]:  
+					if alt < self.dist[v0][v1]:
 						self.dist[v0][v1] = alt
 						self.prev[v0][v1] = u
 
@@ -496,15 +496,14 @@ class Map(object):
 		This method moves a unit from a node to another one. If the two
 		coordinates are the same no action is performed.
 		"""
-		(old_x, old_y) = old_coord
-		(x, y) = new_coord
-
 		if old_coord != new_coord:
+			if self.get_unit(new_coord) is not None:
+				raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
 			for sprite in self.sprites:
 				if sprite.coord == old_coord:
 					sprite.update(new_coord)
-					print(_('Unit %s moved from %d:%d to %d:%d') %
-					(sprite.unit.name, old_x, old_y, x, y))
+					print(_('Unit %s moved from %s to %s') %
+					(sprite.unit.name, str(old_coord), str(new_coord)))
 
 	def find_sprite(self, unit):
 		for sprite in self.sprites:
@@ -529,7 +528,7 @@ class Map(object):
 		Updates the area which will be highlighted on the map to show
 		which nodes can be reached by the selected unit.
 		"""
-		unit = self.get_unit(*coord)
+		unit = self.get_unit(coord)
 
 		if self.path.source != coord:
 			self.path.obstacles = self.list_obstacles(unit)
@@ -537,9 +536,9 @@ class Map(object):
 
 		self.move_area = self.path.area(unit.move)
 
-	def get_unit(self, x, y):
+	def get_unit(self, coord):
 		for sprite in self.sprites:
-			if sprite.coord == (x, y):
+			if sprite.coord == coord:
 				return sprite.unit
 
 	def update_attack_area(self, coord):
@@ -547,8 +546,7 @@ class Map(object):
 		Updates the area which will be highlighted on the map to show
 		how far the selected unit can attack.
 		"""
-		(x, y) = coord
-		weapon_range = self.get_unit(x, y).get_weapon_range()
+		weapon_range = self.get_unit(coord).get_weapon_range()
 		self.attack_area = []
 
 		for (x, y) in self.move_area:
@@ -575,7 +573,7 @@ class Map(object):
 		color will be included.
 		"""
 		(x, y) = coord
-		unit = self.get_unit(x, y)
+		unit = self.get_unit(coord)
 		unit_range = unit.get_weapon_range()
 		nearby_list = []
 
@@ -583,13 +581,12 @@ class Map(object):
 			for j in range(y - unit_range, y + unit_range + 1):
 				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
 					try:
-						node_unit = self.get_unit(i, j)
+						node_unit = self.get_unit((i, j))
 						if node_unit is not None:
 							if (not colors) or (node_unit.color not in colors):
 								nearby_list.append((i, j))
 					except IndexError:
 						pass
-
 		return nearby_list
 
 	def reset_selection(self):
@@ -602,10 +599,8 @@ class Map(object):
 		self.update_highlight()
 
 	def can_selection_move(self, active_player):
-		nx, ny = self.curr_sel
-		sx, sy = self.prev_sel
-		prev_unit = self.get_unit(sx, sy)
-		curr_unit = self.get_unit(nx, ny)
+		prev_unit = self.get_unit(self.prev_sel)
+		curr_unit = self.get_unit(self.curr_sel)
 
 		return (prev_unit is not None and not prev_unit.played and
 			active_player.is_mine(prev_unit) and
@@ -615,10 +610,8 @@ class Map(object):
 		return distance(self.curr_sel, self.prev_sel)
 
 	def can_selection_attack(self, active_player):
-		nx, ny = self.curr_sel
-		sx, sy = self.prev_sel
-		prev_unit = self.get_unit(sx, sy)
-		curr_unit = self.get_unit(nx, ny)
+		prev_unit = self.get_unit(self.prev_sel)
+		curr_unit = self.get_unit(self.curr_sel)
 
 		return (prev_unit is not None and not prev_unit.played and
 			active_player.is_mine(prev_unit) and
@@ -694,22 +687,21 @@ class Map(object):
 			return ret
 
 	def select(self, coord, active_player):
-		x, y = coord
 		self.curr_sel = coord
 		self.arrow.path = []
 
 		if self.prev_sel is None:
-			unit = self.get_unit(x, y)
+			unit = self.get_unit(coord)
 			if unit is None or unit.played:
 				self.move_area = []
 				self.attack_area = []
 			else:
-				self.update_move_area((x, y))
-				self.update_attack_area((x, y))
+				self.update_move_area(coord)
+				self.update_attack_area(coord)
 			self.prev_sel = self.curr_sel
 		else:
-			prev_unit = self.get_unit(*self.prev_sel)
-			curr_unit = self.get_unit(*self.curr_sel)
+			prev_unit = self.get_unit(self.prev_sel)
+			curr_unit = self.get_unit(self.curr_sel)
 
 			if prev_unit is not None and curr_unit is not None:
 				if prev_unit == curr_unit and not prev_unit.played and active_player.is_mine(prev_unit):
@@ -735,21 +727,21 @@ class Map(object):
 
 			else:
 				self.reset_selection()
-				self.curr_sel = self.prev_sel = (x, y)
+				self.curr_sel = self.prev_sel = coord
 
 				if curr_unit is not None and not curr_unit.played:
-					self.update_move_area((x, y))
-					self.update_attack_area((x, y))
+					self.update_move_area(coord)
+					self.update_attack_area(coord)
 					self.update_arrow(coord)
 		return []
 
 	def wait_callback(self):
-		unit = self.get_unit(*self.curr_sel)
+		unit = self.get_unit(self.curr_sel)
 		unit.played = True
 		self.reset_selection()
 
 	def attack_callback(self):
-		unit = self.get_unit(*self.curr_sel)
+		unit = self.get_unit(self.curr_sel)
 		self.move_area = []
 		self.attack_area = self.nearby_units(self.curr_sel, [unit.color])
 		self.update_highlight()

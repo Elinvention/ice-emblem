@@ -198,6 +198,7 @@ class HorizontalMenu(Menu):
 
 		dest.blit(tmp, self.rect)
 
+
 class Button(GUI):
 	def __init__(self, text, font, callback, padding=(0,0,0,0), pos=(0,0), txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
 		self.text = text
