@@ -179,7 +179,7 @@ class Arrow(pygame.sprite.Sprite):
 		self.arrow = {}
 
 		self.path = []
-		self.first_coord = None
+		self.source = None
 
 		self.set_tilesize(tilesize)
 
@@ -187,9 +187,10 @@ class Arrow(pygame.sprite.Sprite):
 		self.image.fill((0, 0, 0, 0))
 		self.rect = pygame.Rect((0, 0), screen_size)
 
-	def update(self, path=None):
-		if path is not None:
-			self.path = path
+	def update(self, path, source=None):
+		if source is not None:
+			self.source = source
+		self.path = path
 		self.image.fill((0, 0, 0, 0))
 		for (x, y) in self.path:
 			img = self.get_arrow_part((x, y))
@@ -225,7 +226,7 @@ class Arrow(pygame.sprite.Sprite):
 
 	def get_arrow_part(self, coord):
 		index = self.path.index(coord)
-		a = self.path[index - 1] if index - 1 >= 0 else self.first_coord
+		a = self.path[index - 1] if index - 1 >= 0 else self.source
 		b = self.path[index]
 		c = self.path[index + 1] if (index + 1) < len(self.path) else None
 
@@ -281,9 +282,7 @@ class Pathfinder(object):
 
 	def check_coord(self, coord):
 		x, y = coord
-		if 0 <= x < self.w and 0 <= y < self.h:
-			return True
-		return False
+		return 0 <= x < self.w and 0 <= y < self.h
 
 	def neighbors(self, coord):
 		x, y = coord
@@ -292,11 +291,9 @@ class Pathfinder(object):
 			raise ValueError("Invalid coordinates")
 
 		n = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-		ret = [tuple(y for y in x) for x in n if self.check_coord(x)]
+		return [ x for x in n if self.check_coord(x) ]
 
-		return ret
-
-	def dijkstra(self, source):
+	def set_source(self, source):
 		"""
 		Implementation of Dijkstra's Algorithm.
 		See https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for
@@ -350,7 +347,7 @@ class Pathfinder(object):
 						self.dist[v0][v1] = alt
 						self.prev[v0][v1] = u
 
-	def shortest_path(self, target):
+	def set_target(self, target):
 		"""
 		This method wants the second list returned by the dijkstra
 		method and a target node. The shortest path between target and
@@ -368,6 +365,13 @@ class Pathfinder(object):
 
 		self.shortest = S
 		return S
+
+	def shortest_path(self, source, target):
+		if self.source != source:
+			self.set_source(source)
+		if self.source != source or self.target != target:
+			self.set_target(target)
+		return self.shortest
 
 	def area(self, max_distance):
 		h, w = range(self.h), range(self.w)
@@ -442,10 +446,7 @@ class Map(object):
 
 	def check_coord(self, coord):
 		x, y = coord
-		if 0 <= x < self.tilemap.width and 0 <= y < self.tilemap.height:
-			return True
-		else:
-			return False
+		return 0 <= x < self.tilemap.width and 0 <= y < self.tilemap.height
 
 	def neighbors(self, coord):
 		"""
@@ -532,7 +533,7 @@ class Map(object):
 
 		if self.path.source != coord:
 			self.path.obstacles = self.list_obstacles(unit)
-			self.path.dijkstra(coord)
+			self.path.set_source(coord)
 
 		self.move_area = self.path.area(unit.move)
 
@@ -559,12 +560,7 @@ class Map(object):
 
 	def update_arrow(self, target):
 		if self.curr_sel is not None and self.move_area:
-			self.arrow.first_coord = self.curr_sel
-			if self.path.source != self.curr_sel:
-				self.path.dijkstra(self.curr_sel)
-			if self.path.target != target:
-				shortest_path = self.path.shortest_path(target)
-				self.arrow.update(shortest_path)
+			self.arrow.update(self.path.shortest_path(self.curr_sel, target), self.curr_sel)
 		else:
 			self.arrow.update([])
 
@@ -744,6 +740,7 @@ class Map(object):
 				if curr_unit is not None and not curr_unit.played:
 					self.update_move_area((x, y))
 					self.update_attack_area((x, y))
+					self.update_arrow(coord)
 		return []
 
 	def wait_callback(self):

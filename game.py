@@ -46,11 +46,13 @@ class EventHandler(object):
 		"""
 		Process new events
 		"""
-		processed = []
+		processed = {}
 		for event in pygame.event.get():
 			if event.type in self.callbacks:
-				ret = self.callbacks[event.type][0](event)
-				processed.append((event.type, ret))
+				for callback in self.callbacks[event.type]:
+					ret = callback(event)
+					if processed.setdefault(event.type, [ret]) is None:
+						processed[event.type].append(ret)
 		return processed
 
 	def wait(self, event_types=[MOUSEBUTTONDOWN, KEYDOWN], timeout=-1):
@@ -69,10 +71,10 @@ class EventHandler(object):
 		pygame.event.set_allowed(event_types)
 
 		event = pygame.event.wait()
-
-		ret = None
+		ret = []
 		if event.type in self.callbacks:
-			self.callbacks[event.type][0](event)
+			for callback in self.callbacks[event.type]:
+				ret.append(callback(event))
 
 		# workaround to re-enable all events except SYSWMEVENT
 		pygame.event.set_allowed(list(range(NOEVENT, NUMEVENTS)))
@@ -715,6 +717,7 @@ class Game(object):
 	def action_menu(self, actions, rollback, pos):
 		self.blit_map()
 
+		self.disable_controls()
 		menu = Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
 		self.event_handler.register_menu(menu)
 
@@ -727,6 +730,7 @@ class Game(object):
 			action = menu.choice
 
 		self.event_handler.unregister_menu(menu)
+		self.enable_controls()
 
 		return action
 
