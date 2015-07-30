@@ -476,7 +476,7 @@ class Game(object):
 		attacking.prepare_battle()
 		defending.prepare_battle()
 
-		dist = utils.distance(self.where_is(attacking), self.where_is(defending))
+		dist = distance(self.map.where_is(attacking), self.map.where_is(defending))
 		at, dt = attacking.number_of_attacks(defending, dist)
 
 		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
@@ -632,6 +632,7 @@ class Game(object):
 
 		self.battle_music_ch.fadeout(500)
 		pygame.time.wait(500)
+		self.battle_music_ch.stop()
 		self.overworld_music_ch.unpause()
 		attacking.played = True
 

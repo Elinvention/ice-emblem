@@ -277,6 +277,7 @@ class Pathfinder(object):
 		self.source = None  # dijkstra executed with this node as source
 		self.target = None  # shortest path target
 		self.shortest = None  # shortest path output
+		self.max_distance = None
 		self.dist = None  # results of dijkstra
 		self.prev = None
 
@@ -293,7 +294,7 @@ class Pathfinder(object):
 		n = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
 		return [ x for x in n if self.check_coord(x) ]
 
-	def set_source(self, source):
+	def __set_source(self, source):
 		"""
 		Implementation of Dijkstra's Algorithm.
 		See https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for
@@ -304,6 +305,9 @@ class Pathfinder(object):
 		return value to find the shortest path from any node to the
 		source node.
 		"""
+
+		print("set_source(%s)" % str(source))
+		self.shortest = None
 
 		self.dist = [[None for _ in range(self.h)] for _ in range(self.w)]
 		self.prev = [[None for _ in range(self.h)] for _ in range(self.w)]
@@ -337,43 +341,50 @@ class Pathfinder(object):
 			for v in self.neighbors(u):
 				v0, v1 = v
 
-				if v in self.obstacles:
-					self.dist[v0][v1] = float('inf')
-					self.prev[v0][v1] = None
-				else:
-					alt = self.dist[u0][u1] + self.matrix[v0][v1]
-					# A shorter path to v has been found
-					if alt < self.dist[v0][v1]:
-						self.dist[v0][v1] = alt
-						self.prev[v0][v1] = u
+				alt = self.dist[u0][u1] + self.matrix[v0][v1]
+				# A shorter path to v has been found
+				if alt < self.dist[v0][v1]:
+					self.dist[v0][v1] = alt
+					self.prev[v0][v1] = u
 
-	def set_target(self, target):
+			for obs0, obs1 in self.obstacles:
+				self.dist[obs0][obs1] = float('inf')
+				#self.prev[obs0][obs1] = None
+
+	def __set_target(self, target, max_distance=float('inf')):
 		"""
 		This method wants the second list returned by the dijkstra
 		method and a target node. The shortest path between target and
 		source previously specified when calling the dijkstra method
 		will be returned as a list.
 		"""
-
+		print("set_target(%s, %s)" % (target, max_distance))
+		self.max_distance = max_distance
 		S = []
 		u0, u1 = u = self.target = target
 
 		# Construct the shortest path with a stack S
 		while self.prev[u0][u1] is not None:
-			S.insert(0, u)  # Push the vertex onto the stack
+			if self.dist[u0][u1] <= max_distance:
+				S.insert(0, u)  # Push the vertex onto the stack
 			u0, u1 = u = self.prev[u0][u1]  # Traverse from target to source
 
 		self.shortest = S
 		return S
 
-	def shortest_path(self, source, target):
+	def shortest_path(self, source, target, max_distance=float('inf')):
 		if self.source != source:
-			self.set_source(source)
-		if self.source != source or self.target != target:
-			self.set_target(target)
+			self.__set_source(source)
+			self.__set_target(target, max_distance)
+		elif self.target != target or self.max_distance != max_distance:
+			self.__set_target(target, max_distance)
 		return self.shortest
 
-	def area(self, max_distance):
+	def area(self, source, max_distance):
+		if self.source != source:
+			self.__set_source(source)
+			self.target = None
+			self.shortest = None
 		h, w = range(self.h), range(self.w)
 		return [ (i, j) for j in h for i in w if self.dist[i][j] <= max_distance ]
 
@@ -440,7 +451,7 @@ class Map(object):
 
 	def is_obstacle(self, coord, unit):
 		for sprite in self.sprites:
-			if (sprite.x, sprite.y) == coord and sprite.unit.color != unit.color:
+			if sprite.coord == coord and sprite.unit.color != unit.color:
 				return True
 		return self.get_terrain(*coord).allowed != _('any')
 
@@ -505,12 +516,6 @@ class Map(object):
 					print(_('Unit %s moved from %s to %s') %
 					(sprite.unit.name, str(old_coord), str(new_coord)))
 
-	def find_sprite(self, unit):
-		for sprite in self.sprites:
-			if sprite.unit == unit:
-				return sprite
-		return None
-
 	def kill_unit(self, unit):
 		"""
 		Removes a unit from the map. Raises a ValueError if the unit
@@ -532,14 +537,23 @@ class Map(object):
 
 		if self.path.source != coord:
 			self.path.obstacles = self.list_obstacles(unit)
-			self.path.set_source(coord)
 
-		self.move_area = self.path.area(unit.move)
+		self.move_area = self.path.area(coord, unit.move)
 
 	def get_unit(self, coord):
 		for sprite in self.sprites:
 			if sprite.coord == coord:
 				return sprite.unit
+
+	def get_sprite(self, coord):
+		for sprite in self.sprites:
+			if sprite.coord == coord:
+				return sprite.unit
+
+	def find_sprite(self, unit):
+		for sprite in self.sprites:
+			if sprite.unit == unit:
+				return sprite
 
 	def update_attack_area(self, coord):
 		"""
@@ -558,7 +572,8 @@ class Map(object):
 
 	def update_arrow(self, target):
 		if self.curr_sel is not None and self.move_area:
-			self.arrow.update(self.path.shortest_path(self.curr_sel, target), self.curr_sel)
+			path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).move)
+			self.arrow.update(path, self.curr_sel)
 		else:
 			self.arrow.update([])
 
