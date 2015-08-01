@@ -24,8 +24,9 @@ import tmx
 import pygame
 import os.path
 import logging
-from utils import *
+import utils
 from unit import Unit
+from colors import *
 
 
 class UnitSprite(pygame.sprite.Sprite):
@@ -63,11 +64,11 @@ class UnitSprite(pygame.sprite.Sprite):
 
 		src_img = self.unit.image
 		if src_img is None:
-			self.image.blit(src_img, center(self.image.get_rect(), src_img.get_rect()))
+			self.image.blit(src_img, utils.center(self.image.get_rect(), src_img.get_rect()))
 		else:
-			image_size = resize_keep_ratio(src_img.get_size(), img_max_size)
+			image_size = utils.resize_keep_ratio(src_img.get_size(), img_max_size)
 			resized_image = pygame.transform.smoothscale(src_img, image_size).convert_alpha()
-			self.image.blit(resized_image, center(self.image.get_rect(), resized_image.get_rect()))
+			self.image.blit(resized_image, utils.center(self.image.get_rect(), resized_image.get_rect()))
 
 		hp_bar_length = int(self.unit.hp / self.unit.hp_max * self.rect.w)
 		hp_bar = pygame.Surface((hp_bar_length, 5))
@@ -118,13 +119,13 @@ class Cursor(pygame.sprite.Sprite):
 
 
 class CellHighlight(pygame.sprite.Sprite):
-	def __init__(self, tilemap, highlight_colors, *groups):
+	def __init__(self, tilemap, *groups):
 		super(CellHighlight, self).__init__(*groups)
 
 		self.w, self.h = tilemap.width, tilemap.height
 		self.tile_size = self.tw, self.th = tilemap.tile_width, tilemap.tile_height
 
-		self.highlight_colors = highlight_colors
+		self.highlight_colors = dict(selected=SELECTED, move=MOVE, attack=ATTACK, played=PLAYED)
 		self.highlight_surfaces = {}
 		for highlight, color in self.highlight_colors.items():
 			self.highlight_surfaces[highlight] = pygame.Surface(self.tile_size).convert_alpha()
@@ -305,8 +306,6 @@ class Pathfinder(object):
 		return value to find the shortest path from any node to the
 		source node.
 		"""
-
-		print("set_source(%s)" % str(source))
 		self.shortest = None
 
 		self.dist = [[None for _ in range(self.h)] for _ in range(self.w)]
@@ -358,7 +357,6 @@ class Pathfinder(object):
 		source previously specified when calling the dijkstra method
 		will be returned as a list.
 		"""
-		print("set_target(%s, %s)" % (target, max_distance))
 		self.max_distance = max_distance
 		S = []
 		u0, u1 = u = self.target = target
@@ -394,7 +392,7 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen_size, highlight_colors, units, origin=(0,0)):
+	def __init__(self, map_path, screen_size, units, origin=(0,0)):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
@@ -417,7 +415,7 @@ class Map(object):
 		self.arrow = Arrow((self.tilemap.px_width, self.tilemap.px_height), os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
 
 		highlight_layer = tmx.SpriteLayer()
-		self.highlight = CellHighlight(self.tilemap, highlight_colors, highlight_layer)
+		self.highlight = CellHighlight(self.tilemap, highlight_layer)
 
 		self.tilemap.layers.append(highlight_layer)
 		self.tilemap.layers.append(self.sprites_layer)
@@ -567,7 +565,7 @@ class Map(object):
 			for i in range(x - weapon_range, x + weapon_range + 1):
 				for j in range(y - weapon_range, y + weapon_range + 1):
 					if (i, j) not in self.move_area and (i, j) not in self.attack_area:
-						if distance((x, y), (i, j)) <= weapon_range:
+						if utils.distance((x, y), (i, j)) <= weapon_range:
 							self.attack_area.append((i, j))
 
 	def update_arrow(self, target):
@@ -594,7 +592,7 @@ class Map(object):
 
 		for i in range(x - unit_range, x + unit_range + 1):
 			for j in range(y - unit_range, y + unit_range + 1):
-				if (x, y) != (i, j) and distance((x, y), (i, j)) <= unit_range:
+				if (x, y) != (i, j) and utils.distance((x, y), (i, j)) <= unit_range:
 					try:
 						node_unit = self.get_unit((i, j))
 						if node_unit is not None:

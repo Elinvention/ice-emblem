@@ -56,6 +56,7 @@ class AI(object):
 				self.battle(attacking, defending)
 			else:
 				enemies = self.list_coord_enemies_in_area(sprite)
+				logging.debug("Units next to %s: %s" % (sprite.unit.name, enemies))
 				if len(enemies) > 1:
 					target = self.coord_best_target(enemies)
 					path = self.map.path.shortest_path(sprite.coord, target, sprite.unit.move)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  menu.py, Ice Emblem's unit class.
+#  menu.py, Ice Emblem's menu class.
 #
 #  Copyright 2015 Elia Argentieri <elia.argentieri@openmailbox.org>
 #
@@ -42,6 +42,16 @@ class GUI(object):
 	def handle_mouse_motion(self, event):
 		if event.type != MOUSEMOTION:
 			raise ValueError("Event type must be MOUSEMOTION")
+
+	def register(self, event_handler):
+		event_handler.register(MOUSEMOTION, self.handle_mouse_motion)
+		event_handler.register(MOUSEBUTTONDOWN, self.handle_click)
+		event_handler.register(KEYDOWN, self.handle_keydown)
+
+	def unregister(self, event_handler):
+		event_handler.unregister(MOUSEMOTION, self.handle_mouse_motion)
+		event_handler.unregister(MOUSEBUTTONDOWN, self.handle_click)
+		event_handler.unregister(KEYDOWN, self.handle_keydown)
 
 	def draw(self, surface):
 		raise NotImplementedError("GUI class is abstract")

@@ -41,7 +41,7 @@ class EventHandler(object):
 	"""
 
 	def __init__(self):
-		self.callbacks = {pygame.QUIT: [return_to_os]}
+		self.callbacks = [{pygame.QUIT: [return_to_os]}]
 
 	def __call__(self):
 		"""
@@ -49,8 +49,8 @@ class EventHandler(object):
 		"""
 		processed = {}
 		for event in pygame.event.get():
-			if event.type in self.callbacks:
-				for callback in self.callbacks[event.type]:
+			if event.type in self.callbacks[-1]:
+				for callback in self.callbacks[-1][event.type]:
 					ret = callback(event)
 					if processed.setdefault(event.type, [ret]) is None:
 						processed[event.type].append(ret)
@@ -61,65 +61,61 @@ class EventHandler(object):
 		if the timeout argument is positive, returns after the specified
 		number of milliseconds.
 		"""
-
 		event_types.append(QUIT)
 
 		if timeout > 0:
 			pygame.time.set_timer(USEREVENT+1, timeout)
 			event_types.append(USEREVENT+1)
 
-		pygame.event.set_allowed(None)  # only allow specified events
-		pygame.event.set_allowed(event_types)
-
 		event = pygame.event.wait()
+		while event.type not in event_types:
+			event = pygame.event.wait()
 		ret = []
-		if event.type in self.callbacks:
-			for callback in self.callbacks[event.type]:
+		if event.type in self.callbacks[-1]:
+			for callback in self.callbacks[-1][event.type]:
 				ret.append(callback(event))
-
-		# workaround to re-enable all events except SYSWMEVENT
-		pygame.event.set_allowed(list(range(NOEVENT, NUMEVENTS)))
-		pygame.event.set_blocked(SYSWMEVENT)
-
-		pygame.time.set_timer(USEREVENT+1, 0)
-
+		if timeout > 0:
+			pygame.time.set_timer(USEREVENT+1, 0)
 		return (event, ret)
 
 	def register(self, event_type, callback):
 		"""
 		Bind a callback function to a specified event type.
 		"""
-		if event_type in self.callbacks:
-			self.callbacks[event_type].insert(0, callback)
+		if event_type in self.callbacks[-1]:
+			self.callbacks[-1][event_type].append(callback)
 		else:
-			self.callbacks[event_type] = [callback]
-		logging.debug(_('%s registered') % pygame.event.event_name(event_type))
+			self.callbacks[-1][event_type] = [callback]
+		logging.debug('EventHandler: %s registered %s' % (pygame.event.event_name(event_type), callback))
 
 	def unregister(self, event_type, callback=None):
-		for key in list(self.callbacks):  # iterate over a copy of the dictionary's keys
+		for key in self.callbacks[-1]:
 			if key == event_type:
 				if callback is not None:
-					self.callbacks[key].remove(callback)
-				else:
-					self.callbacks[key].pop(0)
-				if len(self.callbacks[key]) == 0:
-					del self.callbacks[key]  # to allow dictionary modification
-				logging.debug(_('%s unregistered') % pygame.event.event_name(event_type))
+					if callback in self.callbacks[-1][key]:
+						self.callbacks[-1][key].remove(callback)
+				elif len(self.callbacks[-1][key]) > 0:
+					callback = self.callbacks[-1][key].pop()
+				logging.debug('EventHandler: %s unregistered %s' % (pygame.event.event_name(event_type), callback))
+				break
 
-	def register_menu(self, menu):
-		self.register(MOUSEMOTION, menu.handle_mouse_motion)
-		self.register(MOUSEBUTTONDOWN, menu.handle_click)
-		self.register(KEYDOWN, menu.handle_keydown)
-		logging.debug(_('Registered Menu'))
-
-	def unregister_menu(self, menu):
-		self.unregister(MOUSEMOTION, menu.handle_mouse_motion)
-		self.unregister(MOUSEBUTTONDOWN, menu.handle_click)
-		self.unregister(KEYDOWN, menu.handle_keydown)
-		logging.debug(_('Unregistered Menu'))
+	def bind_key(self, key, callback):
+		def f(event):
+			if key == event.key:
+				callback()
+		self.register(KEYDOWN, f)
 
 	def reset(self):
-		self.callbacks = {pygame.QUIT: [return_to_os]}
+		logging.debug('EventHandler: reset')
+		self.callbacks = [{pygame.QUIT: [return_to_os]}]
+
+	def new_context(self):
+		logging.debug('EventHandler: new context')
+		self.callbacks.append({pygame.QUIT: [return_to_os]})
+
+	def del_context(self):
+		logging.debug('EventHandler: deleted context')
+		self.callbacks.pop()
 
 
 class Sidebar(object):
@@ -182,6 +178,8 @@ class Sidebar(object):
 
 class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
+	TIMEOUTEVENT = USEREVENT + 1
+	INTERRUPTEVENT = USEREVENT + 2
 
 	def __init__(self, screen, units, map_path):
 		self.screen = screen
@@ -202,7 +200,6 @@ class Game(object):
 		self.teams = [team1, team2]
 		self.active_team = self.get_active_team()
 		self.units = units
-		self.colors =  dict(selected=SELECTED, move=MOVE, attack=ATTACK, played=PLAYED)
 
 		self.load_map(map_path)
 
@@ -210,12 +207,9 @@ class Game(object):
 		self.overworld_music_ch = pygame.mixer.Channel(0)
 		self.battle_music_ch = pygame.mixer.Channel(1)
 
-		music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg',
-					battle='music/The Last Encounter Short Loop.ogg',
-					menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
-		self.main_menu_music = pygame.mixer.Sound(os.path.abspath(music['menu']))
-		self.overworld_music = pygame.mixer.Sound(os.path.abspath(music['overworld']))
-		self.battle_music = pygame.mixer.Sound(os.path.abspath(music['battle']))
+		self.main_menu_music = pygame.mixer.Sound(os.path.join('music', 'Beyond The Clouds (Dungeon Plunder).ogg'))
+		self.overworld_music = pygame.mixer.Sound(os.path.join('music', 'Ireland\'s Coast - Video Game.ogg'))
+		self.battle_music = pygame.mixer.Sound(os.path.join('music', 'The Last Encounter Short Loop.ogg'))
 
 		# load every .ogg file from sounds directory
 		sounds_path = os.path.relpath('sounds')
@@ -229,10 +223,12 @@ class Game(object):
 
 		self.winner = None
 		self.done = False
+		self.resolution = self.screen.get_size()
+		self.mode = pygame.RESIZABLE
 
 	def load_map(self, map_path):
 		if map_path is not None:
-			self.map = Map(map_path, self.screen.get_size(), self.colors, self.units)
+			self.map = Map(map_path, self.screen.get_size(), self.units)
 
 			# discard unused units
 			map_units = { sprite.unit.name: self.units[sprite.unit.name] for sprite in self.map.sprites }
@@ -308,7 +304,7 @@ class Game(object):
 			screen_size = (800, screen_size[1])
 		if screen_size[1] < 600:
 			screen_size = (screen_size[0], 600)
-		self.screen = pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+		self.screen = pygame.display.set_mode(screen_size, self.mode)
 		if self.map is not None:
 			self.map.screen_resize(screen_size)
 		self.sidebar.screen_resize(screen_size)
@@ -318,32 +314,57 @@ class Game(object):
 		self.overworld_music_ch.play(self.overworld_music, -1)
 
 	def show_license(self):
+		self.event_handler.new_context()
 		path = os.path.abspath('images/GNU GPL.jpg')
 		gpl_image = pygame.image.load(path).convert()
 		gpl_image = pygame.transform.smoothscale(gpl_image, self.screen.get_size())
 		self.screen.blit(gpl_image, (0, 0))
 		pygame.display.flip()
 		self.event_handler.wait()
+		self.event_handler.del_context()
+
+	def display_update(self):
+		self.screen = pygame.display.set_mode(self.resolution, self.mode)
 
 	def set_fullscreen(self):
-		resolution = pygame.display.list_modes()[2]
-		logging.info("Detected resolution: %s" % str(resolution))
-		pygame.display.set_mode(resolution, pygame.FULLSCREEN)
-		if self.map is not None:
-			self.map.screen_resize(resolution)
-		self.sidebar.screen_resize(resolution)
+		self.mode = pygame.FULLSCREEN
+		self.display_update()
+
+	def post_interrupt(self, event=None):
+		pygame.event.post(pygame.event.Event(self.INTERRUPTEVENT, {}))
+
+	def set_resolution(self, res):
+		self.resolution = res
+		self.display_update()
+
+	def resolution_setter(self, res):
+		def set_res():
+			self.set_resolution(res)
+		return set_res
 
 	def settings_menu(self):
+		self.event_handler.new_context()
 		logging.debug("Settings menu")
-		button = Button(_("Enable Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
-		button.rect.center = self.screen.get_rect().center
-		self.event_handler.register_menu(button)
-		event = self.event_handler.wait(button.EVENT_TYPES)[0]
-		while not button.clicked and not (event.type == KEYDOWN and event.key == K_ESCAPE):
+		self.event_handler.bind_key(K_ESCAPE, self.post_interrupt)
+		back_btn = Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
+		back_btn.rect.bottomright = self.screen.get_size()
+		fullscreen_btn = Button(_("Enable Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
+		fullscreen_btn.rect.midtop = self.screen.get_rect(top=50).midtop
+		resolutions = [("{0[0]}x{0[1]}".format(res), self.resolution_setter(res)) for res in pygame.display.list_modes()]
+		resolutions_menu = Menu(resolutions, self.MAIN_FONT)
+		resolutions_menu.rect.midtop = self.screen.get_rect(top=100).midtop
+		back_btn.register(self.event_handler)
+		fullscreen_btn.register(self.event_handler)
+		resolutions_menu.register(self.event_handler)
+		event = pygame.event.Event(NOEVENT, {})
+		while event.type != self.INTERRUPTEVENT:
 			self.screen.fill(BLACK)
-			button.draw(self.screen)
+			back_btn.draw(self.screen)
+			fullscreen_btn.draw(self.screen)
+			resolutions_menu.draw(self.screen)
 			pygame.display.flip()
-			event = self.event_handler.wait(button.EVENT_TYPES)[0]
+			event = self.event_handler.wait(Button.EVENT_TYPES + [self.INTERRUPTEVENT])[0]
+		self.event_handler.del_context()
 
 	def main_menu(self):
 		self.main_menu_music.play()
@@ -366,21 +387,34 @@ class Game(object):
 		hmenu = HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], self.SMALL_FONT)
 		hmenu.rect.bottomright = self.screen.get_size()
 
-		self.event_handler.register_menu(hmenu)
+		hmenu.register(self.event_handler)
+		self.event_handler.bind_key(K_RETURN, self.post_interrupt)
+		def click_event(event):
+			if not hmenu.rect.collidepoint(event.pos):
+				pygame.event.post(pygame.event.Event(USEREVENT+2, {}))
+		self.event_handler.register(MOUSEBUTTONDOWN, click_event)
 
 		event = pygame.event.Event(NOEVENT, {})
-		while hmenu.choice is None and not (event.type == KEYDOWN and event.key == K_ENTER) and not (event.type == MOUSEBUTTONDOWN and not hmenu.rect.collidepoint(event.pos)):
+		while event.type != USEREVENT+2:
+			self.screen.fill(BLACK)
 			self.screen.blit(main_menu_image, (0, 0))
 			self.screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
 			hmenu.draw(self.screen)
 			pygame.display.flip()
-			self.clock.tick(30)
-			event = self.event_handler.wait(hmenu.EVENT_TYPES)[0]
+			event = self.event_handler.wait(hmenu.EVENT_TYPES + [self.INTERRUPTEVENT])[0]
 
-		self.event_handler.unregister_menu(hmenu)
+		self.event_handler.reset()
 		self.screen.fill(BLACK)
 		self.screen.blit(main_menu_image, (0, 0))
 
+		self.map_menu()
+
+		pygame.mixer.fadeout(2000)
+		self.fadeout(2000)
+		pygame.mixer.stop() # Make sure mixer is not busy
+		self.sidebar.start_time = pygame.time.get_ticks()
+
+	def map_menu(self):
 		if self.map is None:
 			choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
 			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_width() // 2))
@@ -389,22 +423,15 @@ class Game(object):
 			files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
 			menu = Menu(files, self.MAIN_FONT, None, (25, 25))
 			menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
-			self.event_handler.register_menu(menu)
+			menu.register(self.event_handler)
 
 			while menu.choice is None:
 				menu.draw(self.screen)
 				pygame.display.flip()
 				self.event_handler.wait(Menu.EVENT_TYPES)
 
-			self.event_handler.unregister_menu(menu)
-
+			menu.unregister(self.event_handler)
 			self.load_map(os.path.join('maps', files[menu.choice][0]))
-
-		pygame.mixer.fadeout(2000)
-		self.fadeout(2000)
-		pygame.mixer.stop() # Make sure mixer is not busy
-		self.sidebar.start_time = pygame.time.get_ticks()
-
 
 	def whose_unit(self, unit):
 		for team in self.teams:
@@ -718,22 +745,21 @@ class Game(object):
 			return None
 
 	def action_menu(self, actions, rollback, pos):
+		self.event_handler.new_context()
+
+		menu = Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
+		menu.register(self.event_handler)
+
 		self.blit_map()
 
-		self.disable_controls()
-		menu = Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
-		self.event_handler.register_menu(menu)
-
 		action = None
-
 		while action is None:
 			menu.draw(self.screen)
 			pygame.display.flip()
 			self.event_handler.wait(Menu.EVENT_TYPES)
 			action = menu.choice
 
-		self.event_handler.unregister_menu(menu)
-		self.enable_controls()
+		self.event_handler.del_context()
 
 		return action
 
@@ -756,8 +782,7 @@ class Game(object):
 	def __attack_mousebuttondown(self, event):
 		# user must click on an enemy unit
 		if event.button == 1 and self.map.is_attack_click(event.pos):
-			self.event_handler.unregister(KEYDOWN, self.__attack_keydown)
-			self.event_handler.unregister(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
+			self.event_handler.del_context()
 			self.battle_wrapper(self.get_mouse_coord())
 		elif event.button == 3:
 			self.__attack_abort()
@@ -765,16 +790,14 @@ class Game(object):
 	def __attack_keydown(self, event):
 		# user must choose an enemy unit
 		if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
-			self.event_handler.unregister(KEYDOWN, self.__attack_keydown)
-			self.event_handler.unregister(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
+			self.event_handler.del_context()
 			self.battle_wrapper(self.map.cursor.coord)
 		elif event.key == pygame.K_ESCAPE:
 			self.__attack_abort()
 		self.map.cursor.update(event)
 
 	def __attack_abort(self):
-		self.event_handler.unregister(KEYDOWN, self.__attack_keydown)
-		self.event_handler.unregister(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
+		self.event_handler.del_context()
 		self.map.move(self.map.curr_sel, self.map.prev_sel)
 		self.map.reset_selection()
 
@@ -788,14 +811,14 @@ class Game(object):
 		menu = Menu(menu_entries, self.MAIN_FONT)
 		menu.rect.center = self.screen.get_rect().center
 
-		self.event_handler.register_menu(menu)
+		menu.register(self.event_handler)
 
 		while menu.choice is None:
 			menu.draw(self.screen)
 			pygame.display.flip()
 			self.event_handler.wait(Menu.EVENT_TYPES)
 
-		self.event_handler.unregister_menu(menu)
+		menu.unregister(self.event_handler)
 
 	def check_turn(self):
 		if self.active_team.is_turn_over():
@@ -816,6 +839,7 @@ class Game(object):
 				# user choose to attack.
 				# Now he has to choose the enemy to attack
 				# so the next click must be an enemy unit
+				self.event_handler.new_context()
 				self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
 				self.event_handler.register(KEYDOWN, self.__attack_keydown)
 

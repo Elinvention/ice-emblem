@@ -155,7 +155,7 @@ Thank you!
 """) % ('~' * 80, traceback.format_exc(), '~' * 80, "elia.argentieri@openmailbox.org")
 
 		print(kind_error_message)
-		
+
 		# we're not playing anymore, go away
 		utils.return_to_os()
 
