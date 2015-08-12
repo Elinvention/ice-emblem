@@ -122,6 +122,15 @@ class Menu(GUI):
 				return self.menu_entries[self.index][1]()
 
 	def set_index(self, index):
+		if index is None:
+			if self.index is not None:
+				txt = self.menu_entries[self.index][0]
+				r = self.font.render(txt, True, self.txt_color, self.bg_color).convert_alpha()
+				self.rendered_entries[self.index] = r
+			self.prev_index = self.index
+			self.index = None
+			return
+
 		self.prev_index = self.index
 		self.index = index % self.n_entries
 
@@ -163,11 +172,15 @@ class Menu(GUI):
 
 	def handle_mouse_motion(self, event):
 		super().handle_mouse_motion(event)
+		hover = False
 		for i, entry in enumerate(self.rendered_entries):
 			rect = pygame.Rect(self.get_entry_pos(i), entry.get_size())
 
 			if rect.collidepoint(event.pos):
 				self.set_index(i)
+				hover = True
+		if not hover:
+			self.set_index(None)
 
 	def draw(self, dest):
 		tmp = pygame.Surface(self.rect.size).convert_alpha()
@@ -250,4 +263,32 @@ class Button(GUI):
 		btn = pygame.Surface(self.rect.size)
 		btn.fill(self.bg_color)
 		btn.blit(self.rendered_text, (self.padding[1], self.padding[0]))
+		surface.blit(btn, self.rect.topleft)
+
+
+class CheckBox(Button):
+	def __init__(self, text, font, on_change, checked=False, padding=(0,0,0,0), pos=(0,0), txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
+		super().__init__(text, font, on_change, padding, pos, txt_color, sel_color, bg_color)
+		self.checked = checked
+		self.rect.w += 40
+
+	def handle_click(self, event):
+		if event.button == 1:
+			if self.rect.collidepoint(event.pos):
+				self.checked = not self.checked
+				if self.callback is not None:
+					self.callback(self.checked)
+				self.clicked = True
+
+	def draw(self, surface):
+		btn = pygame.Surface(self.rect.size)
+		btn.fill(self.bg_color)
+		btn_pos = (self.padding[1] + self.rect.h, self.padding[0])
+		btn.blit(self.rendered_text, btn_pos)
+		checkbox = pygame.Surface((self.rect.h, self.rect.h))
+		if self.checked:
+			checkbox.fill(GREEN)
+		else:
+			checkbox.fill(RED)
+		btn.blit(checkbox, (self.padding[1], self.padding[0]))
 		surface.blit(btn, self.rect.topleft)

@@ -41,3 +41,16 @@ def center(rect1, rect2, xoffset=0, yoffset=0):
 def return_to_os(*args):
 	pygame.quit()
 	sys.exit(0)
+
+def videoresize_handler(event):
+	"""
+	The minum window size is 800x600.
+	On Debian Jessie there is an issue that makes the window kind of
+	"rebel" while trying to resize it.
+	"""
+	screen_size = event.size
+	if screen_size[0] < 800:
+		screen_size = (800, screen_size[1])
+	if screen_size[1] < 600:
+		screen_size = (screen_size[0], 600)
+	return pygame.display.set_mode(screen_size, pygame.RESIZABLE)

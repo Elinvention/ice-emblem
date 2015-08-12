@@ -24,11 +24,12 @@ from pygame.locals import *
 import sys
 import os
 import logging
+import time
 
 from item import Item, Weapon
 from map import Map
 from unit import Unit, Team
-from menu import Menu, HorizontalMenu, Button
+from menu import Menu, HorizontalMenu, Button, CheckBox
 from colors import *
 from utils import *
 from ai import AI
@@ -41,7 +42,7 @@ class EventHandler(object):
 	"""
 
 	def __init__(self):
-		self.callbacks = [{pygame.QUIT: [return_to_os]}]
+		self.callbacks = [{QUIT: [return_to_os], VIDEORESIZE: [videoresize_handler]}]
 
 	def __call__(self):
 		"""
@@ -49,11 +50,7 @@ class EventHandler(object):
 		"""
 		processed = {}
 		for event in pygame.event.get():
-			if event.type in self.callbacks[-1]:
-				for callback in self.callbacks[-1][event.type]:
-					ret = callback(event)
-					if processed.setdefault(event.type, [ret]) is None:
-						processed[event.type].append(ret)
+			processed[event.type] = self._process_event(event)
 		return processed
 
 	def wait(self, event_types=[MOUSEBUTTONDOWN, KEYDOWN], timeout=-1):
@@ -62,21 +59,33 @@ class EventHandler(object):
 		number of milliseconds.
 		"""
 		event_types.append(QUIT)
+		event_types.append(VIDEORESIZE)
 
 		if timeout > 0:
 			pygame.time.set_timer(USEREVENT+1, timeout)
 			event_types.append(USEREVENT+1)
 
-		event = pygame.event.wait()
-		while event.type not in event_types:
-			event = pygame.event.wait()
+		if pygame.event.peek(event_types):  # if events we are looking for are already available
+			for event in pygame.event.get(event_types):  # get them
+				self._process_event(event)
+			pygame.event.clear()  # clear queue from events we don't want
+		else:
+			event = pygame.event.wait()  # wait for an interesting event 
+			while event.type not in event_types:
+				event = pygame.event.wait()
+			self._process_event(event)
+
+		if timeout > 0:
+			pygame.time.set_timer(USEREVENT+1, 0)
+
+		return event
+
+	def _process_event(self, event):
 		ret = []
 		if event.type in self.callbacks[-1]:
 			for callback in self.callbacks[-1][event.type]:
 				ret.append(callback(event))
-		if timeout > 0:
-			pygame.time.set_timer(USEREVENT+1, 0)
-		return (event, ret)
+		return ret
 
 	def register(self, event_type, callback):
 		"""
@@ -105,17 +114,25 @@ class EventHandler(object):
 				callback()
 		self.register(KEYDOWN, f)
 
+	def bind_click(self, mouse_button, callback, area=None, inside=True):
+		def f(event):
+			if event.button == mouse_button:
+				if area is None or (inside and area.collidepoint(event.pos)) or (not inside and not area.collidepoint(event.pos)):
+					callback()
+		self.register(MOUSEBUTTONDOWN, f)
+
 	def reset(self):
 		logging.debug('EventHandler: reset')
-		self.callbacks = [{pygame.QUIT: [return_to_os]}]
+		self.callbacks = [{QUIT: [return_to_os], VIDEORESIZE: [videoresize_handler]}]
 
 	def new_context(self):
 		logging.debug('EventHandler: new context')
 		self.callbacks.append({pygame.QUIT: [return_to_os]})
 
 	def del_context(self):
-		logging.debug('EventHandler: deleted context')
-		self.callbacks.pop()
+		logging.debug('EventHandler: delete context')
+		if len(self.callbacks) > 1:
+			self.callbacks.pop()
 
 
 class Sidebar(object):
@@ -174,6 +191,36 @@ class Sidebar(object):
 		self.rect = pygame.Rect(pos, size)
 		self.surface = pygame.Surface(size).convert()
 		self.surface.fill(self.BG)
+
+
+class ResizableImage(object):
+	def __init__(self, path, size, pos, keep_ratio=True, smooth=True):
+		self.path = path
+		self.original_image = pygame.image.load(path).convert_alpha()
+		self.__size = self.original_image.get_size()
+		self.rect = self.original_image.get_rect(topleft=pos)
+		self.resize(size, keep_ratio, smooth)
+
+	def resize(self, new_size, keep_ratio=True, smooth=True):
+		try:
+			new_size = new_size.size  # might be a pygame.event.Event
+		except AttributeError:
+			pass
+		if new_size == self.__size:
+			return
+		if keep_ratio:
+			img_size = resize_keep_ratio(self.original_image.get_size(), new_size)
+		else:
+			img_size = new_size
+		if smooth:
+			self.image = pygame.transform.smoothscale(self.original_image, img_size)
+		else:
+			self.image = pygame.transform.scale(self.original_image, img_size)
+		self.rect.size = img_size
+		self.__size = new_size
+
+	def draw(self, surface):
+		surface.blit(self.image, self.rect)
 
 
 class Game(object):
@@ -250,7 +297,6 @@ class Game(object):
 			while not self.done:
 				if callable(self.active_team.ai):
 					self.active_team.ai()
-				self.event_handler()
 
 				if self.winner is not None:
 					self.victory_screen()
@@ -262,7 +308,8 @@ class Game(object):
 					self.blit_info()
 					self.blit_fps()
 					pygame.display.flip()
-					self.clock.tick(25)
+					self.clock.tick(30)
+				self.event_handler.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION])
 
 			logging.debug(_('Returning to main menu'))
 			self.map = None
@@ -292,23 +339,6 @@ class Game(object):
 		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
 		self.screen.blit(fpslabel, rec)
 
-	def screen_resize(self, event):
-		"""
-		This method takes care to resize and scale everithing to match
-		the new window's size. The minum window size is 800x600.
-		On Debian Jessie there is an issue that makes the window kind of
-		"rebel" while trying to resize it.
-		"""
-		screen_size = event.size
-		if screen_size[0] < 800:
-			screen_size = (800, screen_size[1])
-		if screen_size[1] < 600:
-			screen_size = (screen_size[0], 600)
-		self.screen = pygame.display.set_mode(screen_size, self.mode)
-		if self.map is not None:
-			self.map.screen_resize(screen_size)
-		self.sidebar.screen_resize(screen_size)
-
 	def play_overworld_music(self):
 		"""Start playing overworld music in a loop."""
 		self.overworld_music_ch.play(self.overworld_music, -1)
@@ -323,32 +353,35 @@ class Game(object):
 		self.event_handler.wait()
 		self.event_handler.del_context()
 
-	def display_update(self):
+	def update_display(self):
 		self.screen = pygame.display.set_mode(self.resolution, self.mode)
 
-	def set_fullscreen(self):
-		self.mode = pygame.FULLSCREEN
-		self.display_update()
+	def set_fullscreen(self, enable):
+		if enable:
+			self.mode = pygame.FULLSCREEN
+		else:
+			self.mode = pygame.RESIZABLE
+		self.update_display()
 
 	def post_interrupt(self, event=None):
 		pygame.event.post(pygame.event.Event(self.INTERRUPTEVENT, {}))
 
 	def set_resolution(self, res):
 		self.resolution = res
-		self.display_update()
 
 	def resolution_setter(self, res):
 		def set_res():
 			self.set_resolution(res)
+			self.update_display()
 		return set_res
 
 	def settings_menu(self):
 		self.event_handler.new_context()
-		logging.debug("Settings menu")
+		logging.debug(_("Settings menu"))
 		self.event_handler.bind_key(K_ESCAPE, self.post_interrupt)
 		back_btn = Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
 		back_btn.rect.bottomright = self.screen.get_size()
-		fullscreen_btn = Button(_("Enable Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
+		fullscreen_btn = CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
 		fullscreen_btn.rect.midtop = self.screen.get_rect(top=50).midtop
 		resolutions = [("{0[0]}x{0[1]}".format(res), self.resolution_setter(res)) for res in pygame.display.list_modes()]
 		resolutions_menu = Menu(resolutions, self.MAIN_FONT)
@@ -362,8 +395,10 @@ class Game(object):
 			back_btn.draw(self.screen)
 			fullscreen_btn.draw(self.screen)
 			resolutions_menu.draw(self.screen)
+			self.blit_fps()
 			pygame.display.flip()
-			event = self.event_handler.wait(Button.EVENT_TYPES + [self.INTERRUPTEVENT])[0]
+			self.clock.tick(30)
+			event = self.event_handler.wait(Button.EVENT_TYPES + [self.INTERRUPTEVENT])
 		self.event_handler.del_context()
 
 	def main_menu(self):
@@ -380,8 +415,8 @@ class Game(object):
 		self.event_handler.wait(timeout=6000)
 
 		path = os.path.abspath(os.path.join('images', 'Ice Emblem.png'))
-		main_menu_image = pygame.image.load(path).convert_alpha()
-		main_menu_image = pygame.transform.smoothscale(main_menu_image, (screen_w, screen_h))
+		main_menu_image = ResizableImage(path, (screen_w, screen_h), (0, 0))
+		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
 
 		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
 		hmenu = HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], self.SMALL_FONT)
@@ -389,49 +424,60 @@ class Game(object):
 
 		hmenu.register(self.event_handler)
 		self.event_handler.bind_key(K_RETURN, self.post_interrupt)
-		def click_event(event):
-			if not hmenu.rect.collidepoint(event.pos):
-				pygame.event.post(pygame.event.Event(USEREVENT+2, {}))
-		self.event_handler.register(MOUSEBUTTONDOWN, click_event)
+		self.event_handler.bind_click(1, self.post_interrupt, hmenu.rect, False)
 
 		event = pygame.event.Event(NOEVENT, {})
 		while event.type != USEREVENT+2:
 			self.screen.fill(BLACK)
-			self.screen.blit(main_menu_image, (0, 0))
-			self.screen.blit(click_to_start, center(screen_rect, click_to_start.get_rect(), yoffset=200))
+			main_menu_image.rect.center = self.screen.get_rect().center
+			main_menu_image.draw(self.screen)
+			self.screen.blit(click_to_start, center(self.screen.get_rect(), click_to_start.get_rect(), yoffset=200))
+			hmenu.rect.bottomright = self.screen.get_size()
 			hmenu.draw(self.screen)
+			self.blit_fps()
 			pygame.display.flip()
-			event = self.event_handler.wait(hmenu.EVENT_TYPES + [self.INTERRUPTEVENT])[0]
+			self.clock.tick(30)
+			event = self.event_handler.wait(hmenu.EVENT_TYPES + [self.INTERRUPTEVENT])
 
 		self.event_handler.reset()
 		self.screen.fill(BLACK)
-		self.screen.blit(main_menu_image, (0, 0))
+		self.screen.blit(main_menu_image.image, (0, 0))
 
-		self.map_menu()
+		self.map_menu(main_menu_image)
 
 		pygame.mixer.fadeout(2000)
 		self.fadeout(2000)
 		pygame.mixer.stop() # Make sure mixer is not busy
 		self.sidebar.start_time = pygame.time.get_ticks()
 
-	def map_menu(self):
-		if self.map is None:
-			choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
-			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_width() // 2))
+	def map_menu(self, main_menu_image):
+		if self.map is not None:
+			return
 
-			maps_path = os.path.abspath('maps')
-			files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
-			menu = Menu(files, self.MAIN_FONT, None, (25, 25))
-			menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
-			menu.register(self.event_handler)
+		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
+		self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_rect().centerx))
 
-			while menu.choice is None:
-				menu.draw(self.screen)
-				pygame.display.flip()
-				self.event_handler.wait(Menu.EVENT_TYPES)
+		maps_path = os.path.abspath('maps')
+		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
+		menu = Menu(files, self.MAIN_FONT, None, (25, 25))
+		menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
+		menu.register(self.event_handler)
+		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
 
-			menu.unregister(self.event_handler)
-			self.load_map(os.path.join('maps', files[menu.choice][0]))
+		while menu.choice is None:
+			self.screen.fill(BLACK)
+			main_menu_image.rect.center = self.screen.get_rect().center
+			main_menu_image.draw(self.screen)
+			menu.rect.center = self.screen.get_rect().center
+			menu.draw(self.screen)
+			self.blit_fps()
+			pygame.display.flip()
+			self.event_handler.wait(Menu.EVENT_TYPES)
+			self.clock.tick(30)
+
+		menu.unregister(self.event_handler)
+		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
+		self.load_map(os.path.join('maps', files[menu.choice][0]))
 
 	def whose_unit(self, unit):
 		for team in self.teams:
@@ -458,12 +504,7 @@ class Game(object):
 			pygame.display.flip()
 			self.clock.tick(60)
 			state_time = pygame.time.get_ticks() - start
-			self.check_quit_event()
-
-	def check_quit_event(self):
-		for event in pygame.event.get(pygame.QUIT):
-			if event.type == pygame.QUIT:  # If user clicked close
-				return_to_os()
+			self.event_handler()
 
 	def experience_animation(self, unit, bg):
 		img_pos = center(self.screen.get_rect(), unit.image.get_rect())
@@ -491,7 +532,7 @@ class Game(object):
 			curr_exp += 1
 			pygame.display.flip()
 			self.clock.tick(60)
-			self.check_quit_event()
+			self.event_handler()
 
 		self.sounds['exp'].stop()
 		self.event_handler.wait(timeout=2000)
@@ -641,7 +682,7 @@ class Game(object):
 			self.screen.blit(att_info, att_info_pos)
 			self.screen.blit(def_info, def_info_pos)
 			self.blit_fps()
-			self.check_quit_event()
+			self.event_handler()
 			pygame.display.flip()
 
 			latest_tick = self.clock.tick(60)
@@ -688,13 +729,11 @@ class Game(object):
 		self.event_handler.unregister(MOUSEBUTTONDOWN, self.handle_click)
 		self.event_handler.unregister(MOUSEMOTION, self.handle_mouse_motion)
 		self.event_handler.unregister(KEYDOWN, self.handle_keyboard)
-		self.event_handler.unregister(VIDEORESIZE, self.screen_resize)
 
 	def enable_controls(self):
 		self.event_handler.register(MOUSEBUTTONDOWN, self.handle_click)
 		self.event_handler.register(MOUSEMOTION, self.handle_mouse_motion)
 		self.event_handler.register(KEYDOWN, self.handle_keyboard)
-		self.event_handler.register(VIDEORESIZE, self.screen_resize)
 
 	def switch_turn(self):
 		for i, team in enumerate(self.teams):
@@ -768,7 +807,9 @@ class Game(object):
 		attacking = self.map.get_unit(self.map.curr_sel)
 
 		# enemy chosen by the user... let the battle begin!
+		self.event_handler.new_context()
 		self.battle(attacking, defending)
+		self.event_handler.del_context()
 
 		att_sprite = self.map.find_sprite(attacking)
 		if att_sprite is not None:
@@ -842,11 +883,11 @@ class Game(object):
 				self.event_handler.new_context()
 				self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
 				self.event_handler.register(KEYDOWN, self.__attack_keydown)
+				self.event_handler.register(MOUSEMOTION, self.map.cursor.update)
 
 	def handle_click(self, event):
 		menu_entries = self.map.handle_click(event, self.active_team)
-		pos = pygame.mouse.get_pos()
-		self.action_menu_wrapper(menu_entries, pos)
+		self.action_menu_wrapper(menu_entries, event.pos)
 
 	def handle_keyboard(self, event):
 		if event.key == pygame.K_ESCAPE:
