@@ -58,9 +58,7 @@ class Weapon(Item):
 		if self.uses <= 0:
 			self.uses = 0
 			print("%s is broken" % self.name)
-			return 0
-		else:
-			return self.uses
+		return self.uses
 
 	def __str__(self):
 		return """

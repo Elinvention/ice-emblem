@@ -70,7 +70,7 @@ class EventHandler(object):
 				self._process_event(event)
 			pygame.event.clear()  # clear queue from events we don't want
 		else:
-			event = pygame.event.wait()  # wait for an interesting event 
+			event = pygame.event.wait()  # wait for an interesting event
 			while event.type not in event_types:
 				event = pygame.event.wait()
 			self._process_event(event)
@@ -555,159 +555,163 @@ class Game(object):
 		self.overworld_music_ch.pause()  # Stop music and loop fight music
 		self.battle_music_ch.play(self.battle_music, -1)
 
-		latest_attack = start = pygame.time.get_ticks()
-
 		self.fadeout(1000, 10)  # Darker atmosphere
 
 		battle_background = self.screen.copy()
-
-		animation_duration = self.TIME_BETWEEN_ATTACKS * (at + dt + 1)
-
-		att_swap = attacking
-		def_swap = defending
 
 		life_percent_background = pygame.Surface((100, 10))
 		life_percent_background.fill(RED)
 		life_percent_background.convert()
 
-		att_life_pos = (100, 120 + attacking.image.get_height())
-		def_life_pos = (400, 120 + defending.image.get_height())
+		att_swap = attacking
+		def_swap = defending
 
 		att_name = self.MAIN_FONT.render(attacking.name, 1, attacking_team.color)
 		def_name = self.MAIN_FONT.render(defending.name, 1, defending_team.color)
-		att_name_pos = (100, 30 + att_life_pos[1])
-		def_name_pos = (400, 30 + def_life_pos[1])
 
-		att_info_pos = (100, att_name_pos[1] + att_name.get_height() + 20)
-		def_info_pos = (400, def_name_pos[1] + def_name.get_height() + 20)
+		miss_text = self.SMALL_FONT.render(_("MISS"), 1, YELLOW).convert_alpha()
+		null_text = self.SMALL_FONT.render(_("NULL"), 1, RED).convert_alpha()
+		crit_text = self.SMALL_FONT.render(_("TRIPLE"), 1, RED).convert_alpha()
+		screen_rect = self.screen.get_rect()
 
-		att_image_pos = ATT_IMAGE_POS = (100, 100)
-		def_image_pos = DEF_IMAGE_POS = (400, 100)
+		att_rect_origin = attacking.image.get_rect(centerx=screen_rect.centerx-screen_rect.centerx//2, bottom=screen_rect.centery-25)
+		def_rect_origin = defending.image.get_rect(centerx=screen_rect.centerx+screen_rect.centerx//2, bottom=screen_rect.centery-25)
+		att_rect = att_rect_origin.copy()
+		def_rect = def_rect_origin.copy()
 
-		animate_attack = True
-		animate_miss = False
-		latest_tick = 0
+		att_life_pos = (att_rect_origin.left, screen_rect.centery)
+		def_life_pos = (def_rect_origin.left, screen_rect.centery)
 
-		time_since_anim_start = pygame.time.get_ticks() - start
-		time_since_latest_attack = pygame.time.get_ticks() - latest_attack
+		att_name_pos = (att_rect_origin.left, 30 + att_life_pos[1])
+		def_name_pos = (def_rect_origin.left, 30 + def_life_pos[1])
 
-		missed_text = self.SMALL_FONT.render(_("MISSED"), 1, YELLOW).convert_alpha()
-		void_text = self.SMALL_FONT.render(_("VOID ATTACK"), 1, BLUE).convert_alpha()
-		ATT_TEXT_POS = (200, 100)
-		DEF_TEXT_POS = (300, 100)
+		att_info_pos = (att_rect_origin.left, att_name_pos[1] + att_name.get_height() + 20)
+		def_info_pos = (def_rect_origin.left, def_name_pos[1] + def_name.get_height() + 20)
 
-		while time_since_anim_start < animation_duration:
+		att_text_pos = (att_rect_origin.topright)
+		def_text_pos = (def_rect_origin.topleft)
+
+		life_block = pygame.Surface((4, 10))
+		life_block_used = pygame.Surface((4, 10))
+		life_block.fill(GREEN)
+		life_block_used.fill(RED)
+
+		collide = screen_rect.centerx, att_rect.bottom - 1
+		broken = False
+		for _round in range(at + dt + 1):
+			animate_miss = False
+			outcome = 0
 			def_text = att_text = None
-			if at > 0 or dt > 0:
-				if def_swap.hp == 0 or att_swap.hp == 0:
-					at = dt = 0
-					animation_duration = time_since_anim_start + self.TIME_BETWEEN_ATTACKS
+			if (at > 0 or dt > 0) and (def_swap.hp > 0 and att_swap.hp > 0):  # Se ci sono turni e se sono vivi
+				print(" " * 6 + "-" * 6 + "Round:" + str(_round + 1) + "-" * 6)
+			else:
+				break
+			at -= 1
+			start_animation = pygame.time.get_ticks()
+			animation_time = latest_tick = 0
+			while animation_time < self.TIME_BETWEEN_ATTACKS:
+				speed = int(100 / 250 * latest_tick)
+				if att_swap == defending:
+					speed = -speed
+				if outcome == 0:
+					att_rect = att_rect.move(speed, 0)
+				if att_rect.collidepoint(collide) and outcome == 0:
+					outcome = att_swap.attack(def_swap)
+					if outcome == 1:  # Miss
+						def_text = miss_text
+						animate_miss = True
+					elif outcome == 2:  # Null attack
+						def_text = null_text
+						self.sounds['null'].play()
+					elif outcome == 3:  # Triple hit
+						att_text = crit_text
+						self.sounds['critical'].play()
+					elif outcome == 4:  # Hit
+						self.sounds['hit'].play()
 
-				elif time_since_latest_attack > self.TIME_BETWEEN_ATTACKS:
-					if animate_attack:
-						speed = int(100 / 250 * latest_tick)
-						if att_swap == attacking:
-							att_image_pos = (att_image_pos[0] + speed, 100)
-							#print(attacking.name + str(att_image_pos))
-							if att_image_pos[0] >= 200:
-								self.sounds['hit'].play()
-								att_image_pos = ATT_IMAGE_POS
-								animate_attack = False
-						else:
-							def_image_pos = (def_image_pos[0] - speed, 100)
-							#print(defending.name + str(def_image_pos))
-							if def_image_pos[0] <= 300:
-								self.sounds['hit'].play()
-								def_image_pos = DEF_IMAGE_POS
-								animate_attack = False
-					elif animate_miss:
-						speed = int(50 / 250 * latest_tick)
-						if att_swap == defending:
-							def_text = missed_text
-							att_image_pos = (att_image_pos[0], att_image_pos[1] - speed)
-							#print(attacking.name + str(att_image_pos))
-							if att_image_pos[1] <= 50:
-								att_image_pos = ATT_IMAGE_POS
-								animate_miss = False
-						else:
-							att_text = missed_text
-							def_image_pos = (def_image_pos[0], def_image_pos[1] - speed)
-							#print(defending.name + str(def_image_pos))
-							if def_image_pos[1] <= 50:
-								def_image_pos = DEF_IMAGE_POS
-								animate_miss = False
-						if not animate_miss:
-							latest_attack = pygame.time.get_ticks()
-							at -= 1
+					att_rect = att_rect_origin.copy()
+					def_rect = def_rect_origin.copy()
+					miss_target = def_rect_origin.y - 50
 
-							if dt > 0:
-								att_swap, def_swap = def_swap, att_swap
-								at, dt = dt, at
-							animate_attack = True
+				if animate_miss:
+					speed = -int(60 / 200 * latest_tick)
+					def_rect = def_rect.move(0, speed)
+					if def_rect.y <= miss_target:
+						self.sounds['miss'].play()
+						def_rect.bottom = def_rect_origin.bottom
+						animate_miss = False
+
+				animation_time = pygame.time.get_ticks() - start_animation
+
+				att_info = attacking.render_info(self.SMALL_FONT)
+				def_info = defending.render_info(self.SMALL_FONT)
+
+				self.screen.blit(battle_background, (0, 0))
+				self.screen.blit(att_swap.image, att_rect.topleft)
+				self.screen.blit(def_swap.image, def_rect.topleft)
+				if att_text is not None:
+					self.screen.blit(att_text, att_text_pos)
+				if def_text is not None:
+					self.screen.blit(def_text, def_text_pos)
+				self.screen.blit(att_name, att_name_pos)
+				self.screen.blit(def_name, def_name_pos)
+				for i in range(attacking.hp_max):
+					x = att_life_pos[0] + (i % 30 * 5)
+					y = att_life_pos[1] + i // 30 * 11
+					if i < attacking.hp:
+						self.screen.blit(life_block, (x , y))
 					else:
-						outcome = att_swap.attack(def_swap)
+						self.screen.blit(life_block_used, (x , y))
+				for i in range(defending.hp_max):
+					x = def_life_pos[0] + (i % 30 * 5)
+					y = def_life_pos[1] + i // 30 * 11
+					if i < defending.hp:
+						self.screen.blit(life_block, (x , y))
+					else:
+						self.screen.blit(life_block_used, (x , y))
+				self.screen.blit(att_info, att_info_pos)
+				self.screen.blit(def_info, def_info_pos)
+				self.blit_fps()
+				self.event_handler()
+				pygame.display.flip()
+				latest_tick = self.clock.tick(60)
 
-						if outcome == 0:  # Missed
-							animate_miss = True
-						elif outcome == 1:
-							latest_attack = pygame.time.get_ticks()
-							at -= 1
-
-							if dt > 0:
-								att_swap, def_swap = def_swap, att_swap
-								at, dt = dt, at
-
-							animate_attack = True
-
-			att_life_percent = pygame.Surface((attacking.life_percent(), 10))
-			att_life_percent.fill(GREEN)
-			def_life_percent = pygame.Surface((defending.life_percent(), 10))
-			def_life_percent.fill(GREEN)
-			att_info = attacking.render_info(self.SMALL_FONT)
-			def_info = defending.render_info(self.SMALL_FONT)
-
-			self.screen.blit(battle_background, (0, 0))
-			if att_text is not None:
-				self.screen.blit(att_text, DEF_TEXT_POS)
-			if def_text is not None:
-				self.screen.blit(def_text, ATT_TEXT_POS)
-			self.screen.blit(attacking.image, att_image_pos)
-			self.screen.blit(defending.image, def_image_pos)
-			self.screen.blit(att_name, att_name_pos)
-			self.screen.blit(def_name, def_name_pos)
-			self.screen.blit(life_percent_background, att_life_pos)
-			self.screen.blit(life_percent_background, def_life_pos)
-			self.screen.blit(att_life_percent, att_life_pos)
-			self.screen.blit(def_life_percent, def_life_pos)
-			self.screen.blit(att_info, att_info_pos)
-			self.screen.blit(def_info, def_info_pos)
-			self.blit_fps()
-			self.event_handler()
-			pygame.display.flip()
-
-			latest_tick = self.clock.tick(60)
-
-			time_since_anim_start = pygame.time.get_ticks() - start
-			time_since_latest_attack = pygame.time.get_ticks() - latest_attack
-
+			if dt > 0:
+				att_swap, def_swap = def_swap, att_swap
+				at, dt = dt, at
+				att_rect, def_rect = def_rect, att_rect
+				att_rect_origin, def_rect_origin = def_rect_origin, att_rect_origin
+				att_text_pos, def_text_pos = def_text_pos, att_text_pos
 		if attacking.hp > 0:
 			attacking.experience(defending)
 			self.experience_animation(attacking, battle_background)
+		else:
+			self.kill(attacking)
 
 		if defending.hp > 0:
 			defending.experience(attacking)
 			self.experience_animation(defending, battle_background)
+		else:
+			self.kill(defending)
+
+		if attacking.get_active_weapon().uses == 0:
+			self.sounds['broke'].play()
+			broken_text = self.SMALL_FONT.render("%s is broken" % attacking.get_active_weapon().name, True, RED)
+			self.screen.blit(broken_text, center(screen_rect, broken_text.get_rect()))
+			pygame.display.flip()
+			self.event_handler.wait(timeout=3000)
+		if defending.get_active_weapon().uses == 0:
+			self.sounds['broke'].play()
+			broken_text = self.SMALL_FONT.render("%s is broken" % defending.get_active_weapon().name, True, RED)
+			self.screen.blit(broken_text, center(screen_rect, broken_text.get_rect()))
+			pygame.display.flip()
+			self.event_handler.wait(timeout=3000)
 
 		self.battle_music_ch.fadeout(500)
 		pygame.time.wait(500)
 		self.battle_music_ch.stop()
 		self.overworld_music_ch.unpause()
 		attacking.played = True
-
-		if defending.hp == 0:
-			self.kill(defending)
-		elif attacking.hp == 0:
-			self.kill(attacking)
 
 		if defending_team.is_defeated():
 			self.winner = attacking_team

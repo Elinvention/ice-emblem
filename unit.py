@@ -179,45 +179,47 @@ Unit: "%s"
 
 	def attack(self, enemy):
 		"""
-		This unit attacks another.
-		0 -> miss
-		1 -> hit
-		2 -> broken weapon
+		1 -> miss
+		2 -> null damage
+		3 -> triple hit
+		4 -> hit
 		"""
 
 		active_weapon = self.get_active_weapon()
 
 		if active_weapon is None or active_weapon.uses == 0:
-			dmg = self.strength - enemy.defence
-			if dmg < 0:
-				dmg = 0
-			hit = self.skill * 2 + self.luck / 2
 			print(_("%s attacks %s with his bare hands") % (self.name, enemy.name))
-			print("Dmg: %d  Hit: %d" % (dmg, hit))
-			if random.randrange(0, 100) > hit:
-				print(_("%s misses %s") % (self.name, enemy.name))
-				ret = 0
-			else:
-				print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
-				enemy.inflict_damage(dmg)
-				ret = 1
+			hit_probability = self.skill * 2 + self.luck / 2
+			dmg = self.strength - enemy.defence
+			critical_probability = self.skill // 2 - enemy.luck
 		else:
-			dmg = (self.strength + active_weapon.might) - enemy.defence # TODO
-			if dmg < 0:
-				dmg = 0
-			hit = (self.skill * 2) + active_weapon.hit + (self.luck / 2)
 			print(_("%s attacks %s with %s") % (self.name, enemy.name, active_weapon.name))
-			print("Dmg: %d  Hit: %d" % (dmg, hit))
-			if random.randrange(0, 100) > hit:
-				print(_("%s misses %s") % (self.name, enemy.name))
-				ret = 0
-			else:
-				print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
-				enemy.inflict_damage(dmg)
-				if active_weapon.use() == 0:
-					ret = 2
-				else:
-					ret = 1
+			hit_probability = (self.skill * 2) + active_weapon.hit + (self.luck / 2)
+			dmg = (self.strength + active_weapon.might) - enemy.defence # TODO
+			critical_probability = self.skill // 2 + active_weapon.crit - enemy.luck
+
+		print("Dmg: %d  Hit: %d" % (dmg, hit_probability))
+		hit = random.randrange(0, 100) < hit_probability
+		critical = random.randrange(0, 100) < critical_probability
+
+		if not hit:
+			print("Misses")
+			ret = 1
+		elif dmg <= 0:
+			print("Null attack")
+			ret = 2
+		elif critical:
+			print("Triple attack")
+			enemy.inflict_damage(dmg*3)
+			if active_weapon is not None:
+				active_weapon.use()
+			ret = 3
+		else:
+			print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
+			enemy.inflict_damage(dmg)
+			if active_weapon is not None:
+				active_weapon.use()
+			ret = 4
 		return ret
 
 	def value(self):

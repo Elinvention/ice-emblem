@@ -139,14 +139,10 @@ class CellHighlight(pygame.sprite.Sprite):
 		self.image = pygame.Surface((tilemap.px_width, tilemap.px_height)).convert_alpha()
 		self.image.fill((0, 0, 0, 0))
 
-		for i in range(self.w):
-			self.image.blit(self.vertical_line, (i * self.tw - 1, 0))
-		for j in range(self.h):
-			self.image.blit(self.horizontal_line, (0, j * self.th - 1))
-
 		self.rect = pygame.Rect((0, 0), (tilemap.px_width, tilemap.px_height))
+		self.update()
 
-	def update(self, selected, move, attack, played):
+	def update(self, selected=None, move=[], attack=[], played=[]):
 		self.image.fill((0, 0, 0, 0))
 
 		blit = self.image.blit
@@ -169,10 +165,8 @@ class CellHighlight(pygame.sprite.Sprite):
 		for j in range(self.h):
 			self.image.blit(self.horizontal_line, (0, j * self.th - 1))
 
-class Arrow(pygame.sprite.Sprite):
-	"""
 
-	"""
+class Arrow(pygame.sprite.Sprite):
 	def __init__(self, screen_size, image_path, tilesize, *groups):
 		super(Arrow, self).__init__(*groups)
 		self.source_image = pygame.image.load(image_path)
