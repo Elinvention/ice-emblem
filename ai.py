@@ -103,10 +103,10 @@ class AI(object):
 
 	def refresh(self):
 		for sprite in self.own_sprite:
-			if sprite is None:
+			if sprite.unit.hp <= 0:
 				self.own_sprite.remove(sprite)
 		for sprite in self.enemy_sprite:
-			if sprite is None:
+			if sprite.unit.hp <= 0:
 				self.enemy_sprite.remove(sprite)
 		random.shuffle(self.own_sprite)
 		random.shuffle(self.enemy_sprite)
