@@ -397,28 +397,27 @@ class UnitsManager(object):
 		enemies = []
 		for enemy in self.units:
 			if enemy not in enemies:
-				enemy_team = self.get_team_of_unit(enemy)
+				enemy_team = self.get_team(enemy.color)
 				if enemy_team.is_enemy(team):
 					enemies += enemy_team.units
 		return enemies
 				
 
 	def are_enemies(self, unit1, unit2):
-		team1 = self.get_team_of_unit(unit1)
-		team2 = self.get_team_of_unit(unit2)
+		team1 = self.get_team(unit1.color)
+		team2 = self.get_team(unit2.color)
 		return team1.is_enemy(team2)
 
 	def are_neutrals(self, unit1, unit2):
-		team1 = self.get_team_of_unit(unit1)
-		team2 = self.get_team_of_unit(unit2)
+		team1 = self.get_team(unit1.color)
+		team2 = self.get_team(unit2.color)
 		return team1.is_neutral(team2)
 
 	def are_allied(self, unit1, unit2):
-		team1 = self.get_team_of_unit(unit1)
-		team2 = self.get_team_of_unit(unit2)
+		team1 = self.get_team(unit1.color)
+		team2 = self.get_team(unit2.color)
 		return team1.is_allied(team2)
 
 	def kill_unit(self, unit):
 		self.units.remove(unit)
 		self.get_team(unit.color).units.remove(unit)
-
