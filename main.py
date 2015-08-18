@@ -48,29 +48,15 @@ if sys.platform.startswith('win'):
 		os.environ['LANG'] = lang
 gettext.install('ice-emblem', 'locale')  # load translations
 
-def load_units():
-	units = {}
-	with open(os.path.join('data', 'characters.txt'), 'r') as f:
+def csv_to_objects_dict(path, _class):
+	objects = {}
+	with open(path, 'r') as f:
 		reader = csv.reader(f, delimiter='\t')
 		reader.__next__()
 		for row in reader:
-			units[row[0]] = (Unit(row[0], row[1], row[2], row[3],
-				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
-				row[11], row[12], row[13], row[14], row[15], row[16],
-				row[17]))
+			objects[row[0]] = (_class(*row))
 			logging.debug(_("%s loaded") % row[0])
-	return units
-
-def load_weapons():
-	weapons = {}
-	with open(os.path.join('data', 'weapons.txt'), 'r') as f:
-		reader = csv.reader(f, delimiter='\t')
-		fields = reader.__next__()
-		for row in reader:
-			weapons[row[0]] = (Weapon(row[0], row[1], row[2], row[3],
-				row[4], row[5], row[6], row[7], row[8], row[9], None))
-			logging.debug(_('%s loaded') % row[0])
-	return weapons
+	return objects
 
 
 def main(screen):
@@ -88,8 +74,8 @@ def main(screen):
 		logging.warning(_('You are running a version of Pygame that might be outdated.'))
 		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	units = load_units()
-	weapons = load_weapons()
+	units = csv_to_objects_dict(os.path.join('data', 'characters.txt'), Unit)
+	weapons = csv_to_objects_dict(os.path.join('data', 'weapons.txt'), Weapon)
 
 	# TODO: units inventory to file
 	units['Boss'].give_weapon(weapons['Biga Feroce'])

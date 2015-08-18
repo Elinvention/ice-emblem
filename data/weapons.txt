@@ -1,7 +1,7 @@
-name	Rank	Might	Weight	Hit	Crit	Range	Uses	Worth	Exp
-Biga Feroce	E	5	10	75	3	2	20	100	20
-Stuzzicadenti	E	2	1	100	20	1	5	50	1
-Bronze Sword	E	8	12	90	5	1	50	150	15
-Bronze Bow	E	6	5	100	2	2	30	100	5
-Knife	E	3	6	80	15	1	40	100	5
-Nosferatu	D	15	8	40	1	2	20	800	5
+name	Rank	Might	Weight	Hit	Crit	Range	Uses	Worth	Exp	Effective
+Biga Feroce	E	5	10	75	3	2	20	100	20	None
+Stuzzicadenti	E	2	1	100	20	1	5	50	1	None
+Bronze Sword	E	8	12	90	5	1	50	150	15	None
+Bronze Bow	E	6	5	100	2	2	30	100	5	None
+Knife	E	3	6	80	15	1	40	100	5	None
+Nosferatu	D	15	8	40	1	2	20	800	5	None

@@ -28,7 +28,7 @@ import time
 
 from item import Item, Weapon
 from map import Map
-from unit import Unit, Team
+from unit import Unit, Team, UnitsManager
 from menu import Menu, HorizontalMenu, Button, CheckBox
 from colors import *
 from utils import *
@@ -92,7 +92,11 @@ class EventHandler(object):
 		Bind a callback function to a specified event type.
 		"""
 		if event_type in self.callbacks[-1]:
-			self.callbacks[-1][event_type].append(callback)
+			try:
+				self.callbacks[-1][event_type].index(callback)
+				return
+			except ValueError:
+				self.callbacks[-1][event_type].append(callback)
 		else:
 			self.callbacks[-1][event_type] = [callback]
 		logging.debug('EventHandler: %s registered %s' % (pygame.event.event_name(event_type), callback))
@@ -241,12 +245,10 @@ class Game(object):
 		team1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
 		team2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
-		team1 = Team(name=_("Blue Team"), color=BLUE, relation=10, ai=None, my_turn=True, units=team1_units)
-		team2 = Team(name=_("Red Team"), color=RED, relation=20, ai=None, my_turn=False, units=team2_units)
+		team1 = Team(name=_("Blue Team"), color=BLUE, relation=10, ai=None, units=team1_units, boss=units['Boss'])
+		team2 = Team(name=_("Red Team"), color=RED, relation=20, ai=None, units=team2_units, boss=units['Pirate Tux'])
 
-		self.teams = [team1, team2]
-		self.active_team = self.get_active_team()
-		self.units = units
+		self.units_manager = UnitsManager([team1, team2])
 
 		self.load_map(map_path)
 
@@ -275,13 +277,8 @@ class Game(object):
 
 	def load_map(self, map_path):
 		if map_path is not None:
-			self.map = Map(map_path, self.screen.get_size(), self.units)
-
-			# discard unused units
-			map_units = { sprite.unit.name: self.units[sprite.unit.name] for sprite in self.map.sprites }
-			for team in self.teams:
-				team.units = [ u for u in team.units if u in map_units.values() ]
-			self.teams[1].ai = AI(self.map, self.teams[1].color, self.battle)
+			self.map = Map(map_path, self.screen.get_size(), self.units_manager)
+			self.units_manager.teams[1].ai = AI(self.map, RED, self.battle)
 		else:
 			self.map = None
 
@@ -291,12 +288,12 @@ class Game(object):
 
 			self.play_overworld_music()
 
-			if self.active_team.ai is None:
+			if self.units_manager.active_team.ai is None:
 				self.enable_controls()
 
 			while not self.done:
-				if callable(self.active_team.ai):
-					self.active_team.ai()
+				if callable(self.units_manager.active_team.ai):
+					self.units_manager.active_team.ai()
 
 				if self.winner is not None:
 					self.victory_screen()
@@ -328,7 +325,7 @@ class Game(object):
 		coord = self.map.cursor.coord
 		unit = self.map.get_unit(coord)
 		terrain = self.map.get_terrain(*coord)
-		turn = self.whose_turn()
+		turn = self.units_manager.active_team
 		self.sidebar.update(unit, terrain, coord, turn)
 		self.screen.blit(self.sidebar.surface, self.sidebar.rect)
 
@@ -453,10 +450,7 @@ class Game(object):
 	def map_menu(self, main_menu_image):
 		if self.map is not None:
 			return
-
 		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
-		self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_rect().centerx))
-
 		maps_path = os.path.abspath('maps')
 		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
 		menu = Menu(files, self.MAIN_FONT, None, (25, 25))
@@ -468,6 +462,7 @@ class Game(object):
 			self.screen.fill(BLACK)
 			main_menu_image.rect.center = self.screen.get_rect().center
 			main_menu_image.draw(self.screen)
+			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_rect().centerx))
 			menu.rect.center = self.screen.get_rect().center
 			menu.draw(self.screen)
 			self.blit_fps()
@@ -478,17 +473,6 @@ class Game(object):
 		menu.unregister(self.event_handler)
 		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
 		self.load_map(os.path.join('maps', files[menu.choice][0]))
-
-	def whose_unit(self, unit):
-		for team in self.teams:
-			for team_unit in team.units:
-				if team_unit == unit:
-					return team
-
-	def whose_turn(self):
-		for team in self.teams:
-			if team.my_turn:
-				return team
 
 	def fadeout(self, fadeout_time, percent=0):
 		start = pygame.time.get_ticks()
@@ -538,8 +522,8 @@ class Game(object):
 		self.event_handler.wait(timeout=2000)
 
 	def battle(self, attacking, defending):
-		attacking_team = self.whose_unit(attacking)
-		defending_team = self.whose_unit(defending)
+		attacking_team = self.units_manager.get_team(attacking.color)
+		defending_team = self.units_manager.get_team(defending.color)
 
 		attacking.prepare_battle()
 		defending.prepare_battle()
@@ -555,6 +539,7 @@ class Game(object):
 		self.overworld_music_ch.pause()  # Stop music and loop fight music
 		self.battle_music_ch.play(self.battle_music, -1)
 
+		self.blit_map()
 		self.fadeout(1000, 10)  # Darker atmosphere
 
 		battle_background = self.screen.copy()
@@ -619,7 +604,8 @@ class Game(object):
 					outcome = att_swap.attack(def_swap)
 					if outcome == 1:  # Miss
 						def_text = miss_text
-						animate_miss = True
+						animate_miss = animation_time
+						self.sounds['miss'].play()
 					elif outcome == 2:  # Null attack
 						def_text = null_text
 						self.sounds['null'].play()
@@ -634,12 +620,12 @@ class Game(object):
 					miss_target = def_rect_origin.y - 50
 
 				if animate_miss:
-					speed = -int(60 / 200 * latest_tick)
-					def_rect = def_rect.move(0, speed)
-					if def_rect.y <= miss_target:
-						self.sounds['miss'].play()
-						def_rect.bottom = def_rect_origin.bottom
+					t = (animation_time - animate_miss) / 1000
+					def_rect.bottom = int(att_rect.bottom - 400 * t + 800 * t * t)
+					print(animation_time, def_rect.bottom)
+					if def_rect.bottom > att_rect.bottom:
 						animate_miss = False
+						def_rect.bottom = att_rect.bottom
 
 				animation_time = pygame.time.get_ticks() - start_animation
 
@@ -722,7 +708,7 @@ class Game(object):
 
 	def kill(self, unit):
 		self.map.kill_unit(unit)
-		self.whose_unit(unit).units.remove(unit)
+		self.units_manager.kill_unit(unit)
 
 	def get_active_team(self):
 		for team in self.teams:
@@ -740,22 +726,16 @@ class Game(object):
 		self.event_handler.register(KEYDOWN, self.handle_keyboard)
 
 	def switch_turn(self):
-		for i, team in enumerate(self.teams):
-			if team.my_turn:
-				team.end_turn()
-				active_team_index = (i + 1) % len(self.teams)
-				self.active_team = self.teams[active_team_index]
-				self.active_team.begin_turn()
-				if self.active_team.ai is None:
-					self.enable_controls()
-				else:
-					self.disable_controls()
-				break
+		active_team = self.units_manager.switch_turn()
+		if active_team.ai is None:
+			self.enable_controls()
+		else:
+			self.disable_controls()
 		self.map.reset_selection()
 		self.blit_map()
 		self.blit_info()
-		phase_str = _('%s phase') % self.active_team.name
-		phase = self.MAIN_MENU_FONT.render(phase_str, 1, self.active_team.color)
+		phase_str = _('%s phase') % active_team.name
+		phase = self.MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
 		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
 		pygame.display.flip()
 		self.event_handler.wait(timeout=5000)
@@ -866,7 +846,7 @@ class Game(object):
 		menu.unregister(self.event_handler)
 
 	def check_turn(self):
-		if self.active_team.is_turn_over():
+		if self.units_manager.active_team.is_turn_over():
 			self.switch_turn()
 
 	def handle_mouse_motion(self, event):
@@ -890,14 +870,14 @@ class Game(object):
 				self.event_handler.register(MOUSEMOTION, self.map.cursor.update)
 
 	def handle_click(self, event):
-		menu_entries = self.map.handle_click(event, self.active_team)
+		menu_entries = self.map.handle_click(event)
 		self.action_menu_wrapper(menu_entries, event.pos)
 
 	def handle_keyboard(self, event):
 		if event.key == pygame.K_ESCAPE:
 			self.pause_menu()
 		else:
-			menu_entries = self.map.handle_keyboard(event, self.active_team)
+			menu_entries = self.map.handle_keyboard(event)
 			pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
 			pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
 

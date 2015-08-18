@@ -30,7 +30,7 @@ from colors import *
 
 
 class UnitSprite(pygame.sprite.Sprite):
-	def __init__(self, size, obj, unit, *groups):
+	def __init__(self, size, obj, unit, team, *groups):
 		"""
 		size: sprite size in pixels
 		obj: unit data from tmx
@@ -40,6 +40,7 @@ class UnitSprite(pygame.sprite.Sprite):
 		super(UnitSprite, self).__init__(*groups)
 
 		self.unit = unit
+		self.team = team
 		w, h = size
 		self.x, self.y = self.coord = (obj.px // w), (obj.py // h)
 		pos = self.x * w, self.y * h
@@ -74,6 +75,10 @@ class UnitSprite(pygame.sprite.Sprite):
 		hp_bar = pygame.Surface((hp_bar_length, 5))
 		hp_bar.fill((0, 255, 0))
 		self.image.blit(hp_bar, (0, self.rect.h - 5))
+		if self.team.is_boss(self.unit):
+			icon = pygame.Surface((3, 3))
+			icon.fill(BLUE)
+			self.image.blit(icon, (0, self.rect.h - 4))
 
 
 class Terrain(object):
@@ -296,9 +301,6 @@ class Pathfinder(object):
 		reference.
 		This method computes the distance of every node of the map from
 		a given source node.
-		You can then feed the shortest_path method with this method's
-		return value to find the shortest path from any node to the
-		source node.
 		"""
 		self.shortest = None
 
@@ -346,10 +348,10 @@ class Pathfinder(object):
 
 	def __set_target(self, target, max_distance=float('inf')):
 		"""
-		This method wants the second list returned by the dijkstra
-		method and a target node. The shortest path between target and
-		source previously specified when calling the dijkstra method
-		will be returned as a list.
+		This method sets the target node and the maximum distance. The
+		computed path total cost will not exceed the maximim distance.
+		The shortest path between target and source previously specified
+		with __set_source is returned as a list.
 		"""
 		self.max_distance = max_distance
 		S = []
@@ -386,7 +388,7 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen_size, units, origin=(0,0)):
+	def __init__(self, map_path, screen_size, units_manager):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
@@ -395,12 +397,18 @@ class Map(object):
 		self.tilemap = tmx.load(map_path, (screen_size[0] - 200, screen_size[1]))
 		self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 
-		self.sprites_layer = tmx.SpriteLayer()
-		self.sprites = []
+		self.sprites = tmx.SpriteLayer()
 
 		for obj in self.tilemap.layers['Sprites'].objects:
-			if obj.type == 'unit' and obj.name in units:
-				self.sprites.append(UnitSprite(self.tile_size, obj, units[obj.name], self.sprites_layer))
+			if obj.type == 'unit':
+				try:
+					unit = units_manager.get_units(name=obj.name)[0]
+				except IndexError:
+					pass
+				else:
+					team = units_manager.get_team(unit.color)
+					UnitSprite(self.tile_size, obj, unit, team, self.sprites)
+		self.units_manager = units_manager
 
 		cursor_layer = tmx.SpriteLayer()
 		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), cursor_layer)
@@ -412,7 +420,7 @@ class Map(object):
 		self.highlight = CellHighlight(self.tilemap, highlight_layer)
 
 		self.tilemap.layers.append(highlight_layer)
-		self.tilemap.layers.append(self.sprites_layer)
+		self.tilemap.layers.append(self.sprites)
 		self.tilemap.layers.append(arrow_layer)
 		self.tilemap.layers.append(cursor_layer)
 
@@ -515,8 +523,7 @@ class Map(object):
 		"""
 		sprite = self.find_sprite(unit)
 		if sprite is not None:
-			self.sprites_layer.remove(sprite)  # invisible
-			self.sprites.remove(sprite)  # dead
+			self.sprites.remove(sprite)
 		else:
 			raise ValueError("Unit not found")
 
@@ -605,34 +612,35 @@ class Map(object):
 		self.arrow.update([])
 		self.update_highlight()
 
-	def can_selection_move(self, active_player):
+	def can_selection_move(self):
 		prev_unit = self.get_unit(self.prev_sel)
 		curr_unit = self.get_unit(self.curr_sel)
 
 		return (prev_unit is not None and not prev_unit.played and
-			active_player.is_mine(prev_unit) and
+			self.units_manager.active_team.is_mine(prev_unit) and
 			self.curr_sel in self.move_area)
 
 	def sel_distance(self):
 		return distance(self.curr_sel, self.prev_sel)
 
-	def can_selection_attack(self, active_player):
+	def can_selection_attack(self):
 		prev_unit = self.get_unit(self.prev_sel)
 		curr_unit = self.get_unit(self.curr_sel)
+		active_team = self.units_manager.active_team
 
 		return (prev_unit is not None and not prev_unit.played and
-			active_player.is_mine(prev_unit) and
+			active_team.is_mine(prev_unit) and
 			curr_unit is not None and
-			not active_player.is_mine(curr_unit) and
+			not active_team.is_mine(curr_unit) and
 			self.sel_distance() <= prev_unit.get_weapon_range())
 
-	def handle_click(self, event, active_player):
+	def handle_click(self, event):
 		if event.button == 1:
 			try:
 				coord = self.mouse2cell(event.pos)
 			except ValueError:
 				return []
-			ret = self.select(coord, active_player)
+			ret = self.select(coord)
 			self.update_highlight()
 			return ret
 		elif event.button == 3:
@@ -681,7 +689,7 @@ class Map(object):
 		self.tilemap.draw(surf)
 		return surf
 
-	def handle_keyboard(self, event, active_player):
+	def handle_keyboard(self, event):
 		self.cursor.update(event)
 		self.tilemap.set_focus(self.cursor.rect.x, self.cursor.rect.y)
 
@@ -689,11 +697,12 @@ class Map(object):
 			self.update_arrow(self.cursor.coord)
 
 		if event.key == pygame.K_SPACE:
-			ret = self.select(self.cursor.coord, active_player)
+			ret = self.select(self.cursor.coord)
 			self.update_highlight()
 			return ret
 
-	def select(self, coord, active_player):
+	def select(self, coord):
+		active_team = self.units_manager.active_team
 		self.curr_sel = coord
 		self.arrow.path = []
 
@@ -711,7 +720,7 @@ class Map(object):
 			curr_unit = self.get_unit(self.curr_sel)
 
 			if prev_unit is not None and curr_unit is not None:
-				if prev_unit == curr_unit and not prev_unit.played and active_player.is_mine(prev_unit):
+				if prev_unit == curr_unit and not prev_unit.played and active_team.is_mine(prev_unit):
 					enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
 					if enemies_nearby > 0:
 						return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
@@ -721,7 +730,7 @@ class Map(object):
 					self.prev_sel = self.curr_sel
 					self.update_move_area(self.curr_sel)
 					self.update_attack_area(self.curr_sel)
-			elif self.can_selection_move(active_player):
+			elif self.can_selection_move():
 
 				self.move(self.prev_sel, self.curr_sel)
 				self.arrow.update([])

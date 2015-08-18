@@ -56,6 +56,7 @@ class Unit(object):
 		self.items	=	[]          	# list of items
 		self.played	=	False       	# wether unit was used or not in a turn
 		self.color	=	None        	# team color
+		self.coord	=	None
 		path = os.path.relpath(os.path.join('sprites', self.name + '.png'))
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
@@ -273,15 +274,18 @@ Unit: "%s"
 		"""Returns True if the latest attack caused a level-up"""
 		return self.lv > self.prev_lv
 
+	def is_dead(self):
+		return self.hp == 0
+
 
 class Flying(Unit):
-	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
-		super().__init__(name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank)
+	def __init__(self, *args):
+		super().__init__(*args)
 
 
 class Water(Unit):
-	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
-		super().__init__(name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank)
+	def __init__(self, *args):
+		super().__init__(name, *args)
 
 
 class Team(object):
@@ -289,7 +293,7 @@ class Team(object):
 
 	number_of_teams = 0
 
-	def __init__(self, name, color, relation, ai, my_turn, units):
+	def __init__(self, name, color, relation, ai, units, boss):
 		"""
 		name [str]: name of the Team
 		color [tuple of 3 ints]: color of the Team
@@ -306,10 +310,10 @@ class Team(object):
 		self.color = color
 		self.relation = relation
 		self.ai = ai
-		self.my_turn = my_turn
 		for unit in units:
 			unit.color = color
 		self.units = units
+		self.boss = boss
 
 	def __del__(self):
 		self.number_of_teams -= 1
@@ -357,3 +361,64 @@ class Team(object):
 
 	def is_allied(self, team):
 		return team.relation == self.relation
+
+	def is_boss(self, unit):
+		return unit == self.boss
+
+
+class UnitsManager(object):
+	def __init__(self, teams):
+		self.teams = teams
+		self.active_team = self.teams[0]
+		self.units = [u for t in teams for u in t.units]
+
+	def get_team(self, color):
+		for team in self.teams:
+			if team.color == color:
+				return team
+
+	def switch_turn(self):
+		self.active_team.end_turn()
+		active_team_index = (self.teams.index(self.active_team) + 1) % len(self.teams)
+		self.active_team = self.teams[active_team_index]
+		self.active_team.begin_turn()
+		return self.active_team
+
+	def get_units(self, **kwargs):
+		found = []
+		for unit in self.units:
+			for attr in kwargs:
+				if getattr(unit, attr) == kwargs[attr]:
+					if unit not in found:
+						found.append(unit)
+		return found
+
+	def get_enemies(self, team):
+		enemies = []
+		for enemy in self.units:
+			if enemy not in enemies:
+				enemy_team = self.get_team_of_unit(enemy)
+				if enemy_team.is_enemy(team):
+					enemies += enemy_team.units
+		return enemies
+				
+
+	def are_enemies(self, unit1, unit2):
+		team1 = self.get_team_of_unit(unit1)
+		team2 = self.get_team_of_unit(unit2)
+		return team1.is_enemy(team2)
+
+	def are_neutrals(self, unit1, unit2):
+		team1 = self.get_team_of_unit(unit1)
+		team2 = self.get_team_of_unit(unit2)
+		return team1.is_neutral(team2)
+
+	def are_allied(self, unit1, unit2):
+		team1 = self.get_team_of_unit(unit1)
+		team2 = self.get_team_of_unit(unit2)
+		return team1.is_allied(team2)
+
+	def kill_unit(self, unit):
+		self.units.remove(unit)
+		self.get_team(unit.color).units.remove(unit)
+
