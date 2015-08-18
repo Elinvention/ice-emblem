@@ -710,11 +710,6 @@ class Game(object):
 		self.map.kill_unit(unit)
 		self.units_manager.kill_unit(unit)
 
-	def get_active_team(self):
-		for team in self.teams:
-			if team.my_turn:
-				return team
-
 	def disable_controls(self):
 		self.event_handler.unregister(MOUSEBUTTONDOWN, self.handle_click)
 		self.event_handler.unregister(MOUSEMOTION, self.handle_mouse_motion)
