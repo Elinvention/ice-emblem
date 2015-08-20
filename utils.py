@@ -24,6 +24,17 @@
 import pygame
 import sys
 
+def timeit(f):
+
+	def timed(*args, **kw):
+		ts = pygame.time.get_ticks()
+		result = f(*args, **kw)
+		te = pygame.time.get_ticks()
+		print('func:%r args:[%r, %r] took: %d millis' % \
+			(f.__name__, args, kw, te-ts))
+		return result
+
+	return timed
 
 def distance(p0, p1):
 	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
