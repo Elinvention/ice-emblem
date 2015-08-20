@@ -570,9 +570,10 @@ class Map(object):
 							self.attack_area.append((i, j))
 
 	def update_arrow(self, target):
-		if self.curr_sel is not None and self.move_area:
-			path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).move)
-			self.arrow.update(path, self.curr_sel)
+		if self.curr_sel is not None:
+			if target in self.move_area:
+				path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).move)
+				self.arrow.update(path, self.curr_sel)
 		else:
 			self.arrow.update([])
 
