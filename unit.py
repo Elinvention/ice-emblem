@@ -57,6 +57,7 @@ class Unit(object):
 		self.played	=	False       	# wether unit was used or not in a turn
 		self.color	=	None        	# team color
 		self.coord	=	None
+		self.modified = False
 		path = os.path.relpath(os.path.join('sprites', self.name + '.png'))
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
@@ -139,6 +140,7 @@ Unit: "%s"
 		"""Gives a weapon to the unit. The weapon becomes active by default."""
 		weapon.active = active
 		self.items.append(weapon)
+		self.modified = True
 
 	def inflict_damage(self, dmg):
 		"""Inflicts damages to the unit."""
@@ -146,6 +148,7 @@ Unit: "%s"
 		if self.hp <= 0:
 			self.hp = 0
 			print(_("%s died") % self.name)
+		self.modified = True
 
 	def get_weapon_range(self):
 		active_weapon = self.get_active_weapon()
@@ -256,7 +259,7 @@ Unit: "%s"
 		if self.exp >= 100:
 			self.exp %= 100
 			self.level_up()
-
+		self.modified = True
 		print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.exp))
 
 	def gained_exp(self):
@@ -276,6 +279,15 @@ Unit: "%s"
 
 	def is_dead(self):
 		return self.hp == 0
+
+	def get_allowed_terrains(self):
+		return [_('any')]
+
+	def was_modified(self):
+		"""Tells wether the unit was modified since last call"""
+		m = self.modified
+		self.modified = False
+		return m
 
 
 class Flying(Unit):
@@ -364,6 +376,9 @@ class Team(object):
 
 	def is_boss(self, unit):
 		return unit == self.boss
+
+	def list_played(self):
+		return [u for u in self.units if u.played]
 
 
 class UnitsManager(object):

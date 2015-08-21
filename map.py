@@ -37,13 +37,13 @@ class UnitSprite(pygame.sprite.Sprite):
 		unit: unit object
 		groups: sprites layer
 		"""
-		super(UnitSprite, self).__init__(*groups)
+		super().__init__(*groups)
 
 		self.unit = unit
 		self.team = team
 		w, h = size
-		self.x, self.y = self.coord = (obj.px // w), (obj.py // h)
-		pos = self.x * w, self.y * h
+		x, y = self.coord = (obj.px // w), (obj.py // h)
+		pos = x * w, y * h
 
 		self.image = pygame.Surface(size).convert_alpha()
 		self.rect = rect = pygame.Rect(pos, size)
@@ -51,9 +51,12 @@ class UnitSprite(pygame.sprite.Sprite):
 		self.update()
 
 	def update(self, new_coord=None):
-		if new_coord is not None:
-			self.x, self.y = self.coord = new_coord
-			self.rect.topleft = self.x * self.rect.w, self.y * self.rect.h
+		if not self.unit.was_modified() and (not new_coord or new_coord == self.coord):
+			return
+		logginf.debug("Sprite update: ", self.unit.name)
+		if new_coord:
+			self.coord = new_coord
+			self.rect.topleft = self.coord[0] * self.rect.w, self.coord[1] * self.rect.h
 
 		w, h = self.rect.size
 		w2, h2 = w // 2, h // 2
@@ -188,6 +191,8 @@ class Arrow(pygame.sprite.Sprite):
 		self.rect = pygame.Rect((0, 0), screen_size)
 
 	def update(self, path, source=None):
+		if self.path == path:
+			return
 		if source is not None:
 			self.source = source
 		self.path = path
@@ -380,7 +385,7 @@ class Pathfinder(object):
 			self.target = None
 			self.shortest = None
 		h, w = range(self.h), range(self.w)
-		return [ (i, j) for j in h for i in w if self.dist[i][j] <= max_distance ]
+		return [(i, j) for j in h for i in w if self.dist[(i, j)] <= max_distance]
 
 
 class Map(object):
@@ -570,7 +575,7 @@ class Map(object):
 							self.attack_area.append((i, j))
 
 	def update_arrow(self, target):
-		if self.curr_sel is not None:
+		if self.curr_sel and target:
 			if target in self.move_area:
 				path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).move)
 				self.arrow.update(path, self.curr_sel)
@@ -705,7 +710,7 @@ class Map(object):
 	def select(self, coord):
 		active_team = self.units_manager.active_team
 		self.curr_sel = coord
-		self.arrow.path = []
+		self.arrow.update([])
 
 		if self.prev_sel is None:
 			unit = self.get_unit(coord)
@@ -749,7 +754,6 @@ class Map(object):
 				if curr_unit is not None and not curr_unit.played:
 					self.update_move_area(coord)
 					self.update_attack_area(coord)
-					self.update_arrow(coord)
 		return []
 
 	def wait_callback(self):
