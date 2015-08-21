@@ -528,7 +528,7 @@ class Game(object):
 		attacking.prepare_battle()
 		defending.prepare_battle()
 
-		dist = distance(self.map.where_is(attacking), self.map.where_is(defending))
+		dist = distance(attacking.coord, defending.coord)
 		at, dt = attacking.number_of_attacks(defending, dist)
 
 		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
@@ -622,7 +622,6 @@ class Game(object):
 				if animate_miss:
 					t = (animation_time - animate_miss) / 1000
 					def_rect.bottom = int(att_rect.bottom - 400 * t + 800 * t * t)
-					print(animation_time, def_rect.bottom)
 					if def_rect.bottom > att_rect.bottom:
 						animate_miss = False
 						def_rect.bottom = att_rect.bottom
@@ -753,6 +752,9 @@ class Game(object):
 
 		pygame.event.clear()
 		self.event_handler.wait()
+		pygame.mixer.fadeout(2000)
+		self.fadeout(2000)
+		pygame.mixer.stop()
 
 	def get_mouse_coord(self, pos=None):
 		if pos is None:
