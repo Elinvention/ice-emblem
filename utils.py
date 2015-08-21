@@ -23,6 +23,8 @@
 
 import pygame
 import sys
+import csv
+import logging
 
 def timeit(f):
 
@@ -35,6 +37,16 @@ def timeit(f):
 		return result
 
 	return timed
+
+def csv_to_objects_dict(path, _class):
+	objects = {}
+	with open(path, 'r') as f:
+		reader = csv.reader(f, delimiter='\t')
+		reader.__next__()
+		for row in reader:
+			objects[row[0]] = (_class(*row))
+			logging.debug(_("%s loaded") % row[0])
+	return objects
 
 def distance(p0, p1):
 	return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])

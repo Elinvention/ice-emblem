@@ -22,7 +22,6 @@
 
 
 import pygame
-import csv
 import argparse
 import traceback
 import logging
@@ -30,15 +29,16 @@ import os
 import sys
 import gettext
 import utils
-from item import Item, Weapon
-from map import Map
-from unit import Unit
-from game import Game
+
+import item
+import map
+import unit
+import game
 
 from colors import *
 
 
-# Work around for Windows
+# Gettext work around for Windows
 if sys.platform.startswith('win'):
 	logging.debug('Windows detected')
 	import locale
@@ -48,18 +48,8 @@ if sys.platform.startswith('win'):
 		os.environ['LANG'] = lang
 gettext.install('ice-emblem', 'locale')  # load translations
 
-def csv_to_objects_dict(path, _class):
-	objects = {}
-	with open(path, 'r') as f:
-		reader = csv.reader(f, delimiter='\t')
-		reader.__next__()
-		for row in reader:
-			objects[row[0]] = (_class(*row))
-			logging.debug(_("%s loaded") % row[0])
-	return objects
 
-
-def main(screen):
+def main():
 	# command-line argument parsing
 	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
 	parser.add_argument('-s','--skip', action='store_true', help=_('Skip main menu'), required=False)
@@ -74,8 +64,16 @@ def main(screen):
 		logging.warning(_('You are running a version of Pygame that might be outdated.'))
 		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	units = csv_to_objects_dict(os.path.join('data', 'characters.txt'), Unit)
-	weapons = csv_to_objects_dict(os.path.join('data', 'weapons.txt'), Weapon)
+	pygame.init()
+	pygame.display.set_icon(pygame.image.load(os.path.join('images', 'icon.png')))
+	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
+	pygame.display.set_caption("Ice Emblem")
+	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
+	# event will be generated every 50 ms
+	pygame.key.set_repeat(200, 50)
+
+	units = utils.csv_to_objects_dict(os.path.join('data', 'characters.txt'), unit.Unit)
+	weapons = utils.csv_to_objects_dict(os.path.join('data', 'weapons.txt'), item.Weapon)
 
 	# TODO: units inventory to file
 	units['Boss'].give_weapon(weapons['Biga Feroce'])
@@ -95,11 +93,7 @@ def main(screen):
 	else:
 		logging.debug(_('No map on command line: choose the map via the main menu'))
 
-	MAIN_GAME = Game(screen, units, map_file)
-
-	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
-	# event will be generated every 50 ms
-	pygame.key.set_repeat(200, 50)
+	MAIN_GAME = game.Game(screen, units, map_file)
 
 	if not args.skip:
 		MAIN_GAME.main_menu()
@@ -109,12 +103,7 @@ def main(screen):
 
 if __name__ == '__main__':
 	try:
-		pygame.init()
-		pygame.display.set_icon(pygame.image.load(os.path.join('images', 'icon.png')))
-		screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-		pygame.display.set_caption("Ice Emblem")
-		main(screen)
-
+		main()
 	except (KeyboardInterrupt, SystemExit):
 		# game was interrupted by the user
 		print(_("Interrupted by user, exiting."))
@@ -131,14 +120,14 @@ Oops, something went wrong. Dumping brain contents:
 %s
 %s
 
-Please mail this stack trace to %s
+Please open a report on our issue tracker lacated at %s
 along with a short description of what you did when this crash happened
 so that the error can be fixed.
 
 Thank you!
 -- the Ice Emblem team
 
-""") % ('~' * 80, traceback.format_exc(), '~' * 80, "elia.argentieri@openmailbox.org")
+""") % ('~' * 80, traceback.format_exc(), '~' * 80, "https://gitlab.com/Elinvention/ice-emblem/issues")
 
 		print(kind_error_message)
 
