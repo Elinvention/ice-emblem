@@ -278,7 +278,8 @@ class Game(object):
 	def load_map(self, map_path):
 		if map_path is not None:
 			self.map = Map(map_path, self.screen.get_size(), self.units_manager)
-			self.units_manager.teams[1].ai = AI(self.map, RED, self.battle)
+			enemy_team = self.units_manager.teams[1]
+			enemy_team.ai = AI(self.map, self.units_manager, enemy_team, self.battle)
 		else:
 			self.map = None
 
@@ -319,12 +320,12 @@ class Game(object):
 		"""
 		This method renders and blits the map on the screen.
 		"""
-		self.screen.blit(self.map.render(), (0, 0))
+		self.map.draw(self.screen)
 
 	def blit_info(self):
 		coord = self.map.cursor.coord
 		unit = self.map.get_unit(coord)
-		terrain = self.map.get_terrain(*coord)
+		terrain = self.map[coord]
 		turn = self.units_manager.active_team
 		self.sidebar.update(unit, terrain, coord, turn)
 		self.screen.blit(self.sidebar.surface, self.sidebar.rect)
@@ -706,7 +707,7 @@ class Game(object):
 		print("#" * 12 + " Battle ends " + "#" * 12 + "\r\n")
 
 	def kill(self, unit):
-		self.map.kill_unit(unit)
+		self.map.kill_unit(unit=unit)
 		self.units_manager.kill_unit(unit)
 
 	def disable_controls(self):
@@ -791,13 +792,6 @@ class Game(object):
 		self.event_handler.new_context()
 		self.battle(attacking, defending)
 		self.event_handler.del_context()
-
-		att_sprite = self.map.find_sprite(attacking)
-		if att_sprite is not None:
-			att_sprite.update()
-		def_sprite = self.map.find_sprite(defending)
-		if def_sprite is not None:
-			def_sprite.update()
 
 		self.map.reset_selection()
 

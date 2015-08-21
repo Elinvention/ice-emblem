@@ -25,6 +25,7 @@ import pygame
 import os.path
 import logging
 import utils
+import heapq
 from unit import Unit
 from colors import *
 
@@ -53,7 +54,7 @@ class UnitSprite(pygame.sprite.Sprite):
 	def update(self, new_coord=None):
 		if not self.unit.was_modified() and (not new_coord or new_coord == self.coord):
 			return
-		logginf.debug("Sprite update: ", self.unit.name)
+		logging.debug("Sprite update: ", self.unit.name)
 		if new_coord:
 			self.coord = new_coord
 			self.rect.topleft = self.coord[0] * self.rect.w, self.coord[1] * self.rect.h
@@ -85,13 +86,14 @@ class UnitSprite(pygame.sprite.Sprite):
 
 
 class Terrain(object):
-	def __init__(self, tile):
+	def __init__(self, tile, unit):
 		self.name = tile.properties.get('name', _('Unknown'))
 		self.moves = float(tile.properties.get('moves', 1))  # how many moves are required to move a unit through
 		self.defense = int(tile.properties.get('defense', 0))  # bonus defense
 		self.avoid = int(tile.properties.get('avoid', 0))  # bonus avoid
-		self.allowed = tile.properties.get('allowed', _('any'))
+		self.allowed = tile.properties.get('allowed', _('any')).split(',')
 		self.surface = tile.surface
+		self.unit = unit
 
 
 class Cursor(pygame.sprite.Sprite):
@@ -272,32 +274,19 @@ class Arrow(pygame.sprite.Sprite):
 
 
 class Pathfinder(object):
-	def __init__(self, matrix):
-		self.matrix = matrix
-		self.w, self.h = len(self.matrix), len(self.matrix[0])
+	"""Cached pathfinder"""
+	def __init__(self, _map):
+		self.map = _map
+		self.w, self.h = self.map.w, self.map.h
 		self.reset()
 
 	def reset(self):
-		self.obstacles = []  # additional obstacles (depends on selected unit)
 		self.source = None  # dijkstra executed with this node as source
 		self.target = None  # shortest path target
 		self.shortest = None  # shortest path output
 		self.max_distance = None
 		self.dist = None  # results of dijkstra
 		self.prev = None
-
-	def check_coord(self, coord):
-		x, y = coord
-		return 0 <= x < self.w and 0 <= y < self.h
-
-	def neighbors(self, coord):
-		x, y = coord
-
-		if not self.check_coord(coord):
-			raise ValueError("Invalid coordinates")
-
-		n = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-		return [ x for x in n if self.check_coord(x) ]
 
 	def __set_source(self, source):
 		"""
@@ -308,48 +297,47 @@ class Pathfinder(object):
 		a given source node.
 		"""
 		self.shortest = None
+		self.source = source
 
-		self.dist = [[None for _ in range(self.h)] for _ in range(self.w)]
-		self.prev = [[None for _ in range(self.h)] for _ in range(self.w)]
+		# Unknown distance function from source to v
+		self.dist = {(x, y): float('inf') for y in range(self.h) for x in range(self.w)}
+		# Previous node in optimal path from source initialization
+		self.prev = {(x, y): None for y in range(self.h) for x in range(self.w)}
 
-		sx, sy = self.source = source
-		self.dist[sx][sy] = 0     # Distance from source to source
-		self.prev[sx][sy] = None  # Previous node in optimal path initialization
+		self.dist[source] = 0  # Distance from source to source
 
-		Q = []
-		for i in range(self.w):  # Initialization
-			for j in range(self.h):
-				if (i, j) != source:  # Where v has not yet been removed from Q (unvisited nodes)
-					self.dist[i][j] = float('inf')  # Unknown distance function from source to v
-					self.prev[i][j] = None  # Previous node in optimal path from source
-				Q.append((i, j))  # All nodes initially in Q (unvisited nodes)
+		# All nodes initially in Q (unvisited nodes)
+		Q = [v for v in self.dist]
+
+		source_unit = self.map[source].unit
 
 		while Q:
-			u0, u1 = Q[0]
-			min_dist = self.dist[u0][u1]
-			u = (u0, u1)
+			min_dist = self.dist[Q[0]]
+			u = Q[0]
 
 			for el in Q:
-				i, j = el
-				if self.dist[i][j] < min_dist:
-					min_dist = self.dist[i][j]
-					u0, u1 = u = el  #  Source node in first case
+				if self.dist[el] < min_dist:
+					min_dist = self.dist[el]
+					u = el  #  Source node in first case
 
 			Q.remove(u)
 
 			# where v has not yet been removed from Q.
-			for v in self.neighbors(u):
-				v0, v1 = v
-
-				alt = self.dist[u0][u1] + self.matrix[v0][v1]
-				# A shorter path to v has been found
-				if alt < self.dist[v0][v1]:
-					self.dist[v0][v1] = alt
-					self.prev[v0][v1] = u
-
-			for obs0, obs1 in self.obstacles:
-				self.dist[obs0][obs1] = float('inf')
-				#self.prev[obs0][obs1] = None
+			for v in self.map.neighbors(u):
+				alt = self.dist[u] + self.map[v].moves
+				if alt < self.dist[v]:
+					# A shorter path to v has been found
+					if self.map.is_obstacle(v, source_unit):
+						# v is an obstacle set infinite distance (unreachable)
+						self.dist[v] = float('inf')
+						# we still want to be able to find a path
+						if not self.prev[v]:
+							self.prev[v] = [(alt, u)]
+						else:  # keep the shortest first
+							heapq.heappush(self.prev[v], (alt, u))
+					else:
+						self.dist[v] = alt
+						self.prev[v] = u
 
 	def __set_target(self, target, max_distance=float('inf')):
 		"""
@@ -360,13 +348,19 @@ class Pathfinder(object):
 		"""
 		self.max_distance = max_distance
 		S = []
-		u0, u1 = u = self.target = target
+		u = self.target = target
 
 		# Construct the shortest path with a stack S
-		while self.prev[u0][u1] is not None:
-			if self.dist[u0][u1] <= max_distance:
+		while self.prev[u] is not None:
+			if self.dist[u] <= max_distance:
 				S.insert(0, u)  # Push the vertex onto the stack
-			u0, u1 = u = self.prev[u0][u1]  # Traverse from target to source
+			try:
+				u = self.prev[u][0][1]  # get the shorter path
+			except TypeError:
+				u = self.prev[u]  # Traverse from target to source
+
+		if S and self.map[target].unit and not self.map.is_obstacle(target, self.map[self.source].unit):
+			del S[-1]
 
 		self.shortest = S
 		return S
@@ -400,19 +394,38 @@ class Map(object):
 		the Path class.
 		"""
 		self.tilemap = tmx.load(map_path, (screen_size[0] - 200, screen_size[1]))
-		self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
+		self.tw, self.th = self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
+		self.w, self.h = self.tilemap.width, self.tilemap.height
 
+		self.terrains = {}
 		self.sprites = tmx.SpriteLayer()
 
 		for obj in self.tilemap.layers['Sprites'].objects:
 			if obj.type == 'unit':
 				try:
 					unit = units_manager.get_units(name=obj.name)[0]
+					unit.coord = obj.px // self.tw, obj.py // self.th
 				except IndexError:
 					pass
 				else:
 					team = units_manager.get_team(unit.color)
 					UnitSprite(self.tile_size, obj, unit, team, self.sprites)
+
+		for layer in reversed(self.tilemap.layers):
+			try:
+				print(layer)
+				for cell in layer:
+					try:
+						coord = cell.px // self.tw, cell.py // self.th
+						units = units_manager.get_units(coord=coord)
+						unit = units[0] if units else None
+						if coord not in self.terrains:
+							self.terrains[coord] = Terrain(cell.tile, unit)
+					except AttributeError:
+						pass
+			except TypeError:
+				pass
+
 		self.units_manager = units_manager
 
 		cursor_layer = tmx.SpriteLayer()
@@ -437,53 +450,44 @@ class Map(object):
 		self.attack_area = []
 
 		self.move_x, self.move_y = 0, 0
+		self.path = Pathfinder(self)
 
-		# This matrix is used by dijkstra
-		w, h = range(self.tilemap.width), range(self.tilemap.height)
-		matrix = [[ self.get_terrain(x, y).moves for y in h ] for x in w]
-		self.path = Pathfinder(matrix)
-
-	def list_obstacles(self, unit=None):
-		"""
-		Provides a list of coordinates that are an obstacle for the unit
-		"""
-		w, h = range(self.tilemap.width), range(self.tilemap.height)
-		return [ (x, y) for y in h for x in w if self.is_obstacle((x, y), unit) ]
-
-	def __getitem__(self, pos):
-		(x, y) = pos
-		return self.nodes[x][y]
+	def __getitem__(self, coord):
+		return self.terrains[coord]
 
 	def is_obstacle(self, coord, unit):
-		for sprite in self.sprites:
-			if sprite.coord == coord and sprite.unit.color != unit.color:
-				return True
-		return self.get_terrain(*coord).allowed != _('any')
+		terrain = self.terrains[coord]
+		try:
+			return self.units_manager.are_enemies(unit, terrain.unit)
+		except AttributeError:
+			unit_allowed = unit.get_allowed_terrains()
+			for allowed in terrain.allowed:
+				if allowed == _('any'):
+					return False
+				elif allowed == _('none'):
+					return True
+				if allowed in unit_allowed:
+					return False
+			return True
 
 	def check_coord(self, coord):
 		x, y = coord
-		return 0 <= x < self.tilemap.width and 0 <= y < self.tilemap.height
+		return 0 <= x < self.w and 0 <= y < self.h
 
 	def neighbors(self, coord):
 		"""
 		Returns a list containing all existing neighbors of a node.
 		coord must be a valid coordinate i.e. self.check_coord(coord).
 		"""
-		x, y = coord
-
 		if not self.check_coord(coord):
 			raise ValueError("Invalid coordinates")
-
+		x, y = coord
 		n = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-		ret = [tuple(y for y in x) for x in n if self.check_coord(x)]
+		ret = [c for c in n if self.check_coord(c)]
 
 		return ret
 
 	def screen_resize(self, screen_size):
-		"""
-		On screen resize this method has to be called to resize every
-		tile.
-		"""
 		viewport_size = (screen_size[0] - 200, screen_size[1])
 		self.tilemap.viewport = pygame.Rect(self.tilemap.viewport.topleft, viewport_size)
 		self.tilemap.view_w, self.tilemap.view_h = viewport_size
@@ -497,40 +501,25 @@ class Map(object):
 		else:
 			raise ValueError('(%d:%d) Cursor out of map')
 
-	def where_is(self, unit):
-		"""
-		This method finds a unit and returns its position.
-		"""
-		for sprite in self.sprites:
-			if sprite.unit == unit:
-				return sprite.coord
-
-		raise ValueError("Couldn't find " + str(unit))
-
-	def move(self, old_coord, new_coord):
+	def move(self, unit, new_coord):
 		"""
 		This method moves a unit from a node to another one. If the two
 		coordinates are the same no action is performed.
 		"""
-		if old_coord != new_coord:
+		if unit.coord != new_coord:
 			if self.get_unit(new_coord) is not None:
 				raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
-			for sprite in self.sprites:
-				if sprite.coord == old_coord:
-					sprite.update(new_coord)
-					print(_('Unit %s moved from %s to %s') %
-					(sprite.unit.name, str(old_coord), str(new_coord)))
+			self.terrains[unit.coord].unit = None
+			self.terrains[new_coord].unit = unit
+			self.find_sprite(unit=unit).update(new_coord)
+			print(_('Unit %s moved from %s to %s') % (unit.name, unit.coord, new_coord))
+			unit.coord = new_coord
 
-	def kill_unit(self, unit):
-		"""
-		Removes a unit from the map. Raises a ValueError if the unit
-		couldn't be found.
-		"""
-		sprite = self.find_sprite(unit)
-		if sprite is not None:
-			self.sprites.remove(sprite)
-		else:
-			raise ValueError("Unit not found")
+	def kill_unit(self, **kwargs):
+		coord = kwargs['coord'] if 'coord' in kwargs else kwargs['unit'].coord
+		self.terrains[coord].unit = None
+		sprite = self.find_sprite(**kwargs)
+		self.sprites.remove(sprite)
 
 	def update_move_area(self, coord):
 		"""
@@ -538,26 +527,16 @@ class Map(object):
 		which nodes can be reached by the selected unit.
 		"""
 		unit = self.get_unit(coord)
-
-		if self.path.source != coord:
-			self.path.obstacles = self.list_obstacles(unit)
-
 		self.move_area = self.path.area(coord, unit.move)
 
 	def get_unit(self, coord):
-		for sprite in self.sprites:
-			if sprite.coord == coord:
-				return sprite.unit
+		return self.terrains[coord].unit
 
-	def get_sprite(self, coord):
+	def find_sprite(self, **kwargs):
 		for sprite in self.sprites:
-			if sprite.coord == coord:
-				return sprite.unit
-
-	def find_sprite(self, unit):
-		for sprite in self.sprites:
-			if sprite.unit == unit:
-				return sprite
+			for attr in kwargs:
+				if getattr(sprite, attr) == kwargs[attr]:
+					return sprite
 
 	def update_attack_area(self, coord):
 		"""
@@ -583,30 +562,27 @@ class Map(object):
 			self.arrow.update([])
 
 	def update_highlight(self):
-		self.highlight.update(self.curr_sel, self.move_area, self.attack_area, self.list_played())
+		played = [u.coord for u in self.units_manager.active_team.list_played()]
+		self.highlight.update(self.curr_sel, self.move_area, self.attack_area, played)
 
-	def nearby_units(self, coord, colors=[]):
-		"""
-		Returns a list of coordinates that can be reached by the
-		attacking unit to attack. If colors is empty the list will also
-		contain same team units. Otherwise only units with a different
-		color will be included.
-		"""
-		(x, y) = coord
-		unit = self.get_unit(coord)
-		unit_range = unit.get_weapon_range()
-		nearby_list = []
+	def area(self, c, r):
+		x, y = c
+		a = [(i, j) for i in range(x - r, x + r + 1)
+					for j in range(y - r, y + r + 1)
+					if self.check_coord((i, j))
+					and utils.distance((x, y), (i, j)) <= r]
+		return a
 
-		for i in range(x - unit_range, x + unit_range + 1):
-			for j in range(y - unit_range, y + unit_range + 1):
-				if (x, y) != (i, j) and utils.distance((x, y), (i, j)) <= unit_range:
-					try:
-						node_unit = self.get_unit((i, j))
-						if node_unit is not None:
-							if (not colors) or (node_unit.color not in colors):
-								nearby_list.append((i, j))
-					except IndexError:
-						pass
+	def nearby_enemies(self, unit):
+		"""
+		Returns a list of coordinates of near enemies that can be
+		attacked without having to move.
+		"""
+		area = self.area(unit.coord, unit.get_weapon_range())
+		def f(c):
+			c_unit = self.get_unit(c)
+			return c_unit and self.units_manager.are_enemies(c_unit, unit)
+		nearby_list = [c for c in area if f(c)]
 		return nearby_list
 
 	def reset_selection(self):
@@ -653,13 +629,6 @@ class Map(object):
 			self.reset_selection()
 			return []
 
-	def list_played(self):
-		r = []
-		for sprite in self.sprites:
-			if sprite.unit.played:
-				r.append(sprite.coord)
-		return r
-
 	def handle_mouse_motion(self, event):
 		try:
 			coord = self.mouse2cell(event.pos)
@@ -685,22 +654,19 @@ class Map(object):
 		else:
 			self.move_y = 0
 
-	def render(self):
+	def draw(self, surf):
+		self.sprites.update()
 		fx = self.tilemap.fx + self.move_x
 		fy = self.tilemap.fy + self.move_y
 		if fx != self.tilemap.fx or fy != self.tilemap.fy:
 			self.tilemap.set_focus(fx, fy)
 
-		surf = pygame.Surface((self.tilemap.view_w, self.tilemap.view_h))
 		self.tilemap.draw(surf)
-		return surf
 
 	def handle_keyboard(self, event):
 		self.cursor.update(event)
+		self.update_arrow(self.cursor.coord)
 		self.tilemap.set_focus(self.cursor.rect.x, self.cursor.rect.y)
-
-		if self.move_area:
-			self.update_arrow(self.cursor.coord)
 
 		if event.key == pygame.K_SPACE:
 			ret = self.select(self.cursor.coord)
@@ -727,7 +693,7 @@ class Map(object):
 
 			if prev_unit is not None and curr_unit is not None:
 				if prev_unit == curr_unit and not prev_unit.played and active_team.is_mine(prev_unit):
-					enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
+					enemies_nearby = len(self.nearby_enemies(self.get_unit(self.curr_sel)))
 					if enemies_nearby > 0:
 						return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
 					else:
@@ -737,16 +703,12 @@ class Map(object):
 					self.update_move_area(self.curr_sel)
 					self.update_attack_area(self.curr_sel)
 			elif self.can_selection_move():
-
-				self.move(self.prev_sel, self.curr_sel)
-				self.arrow.update([])
-				enemies_nearby = len(self.nearby_units(self.curr_sel, [prev_unit.color]))
-
+				self.move(self.get_unit(self.prev_sel), self.curr_sel)
+				enemies_nearby = len(self.nearby_enemies(self.get_unit(self.curr_sel)))
 				if enemies_nearby > 0:
 					return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
 				else:
 					return[(_("Wait"), self.wait_callback)]
-
 			else:
 				self.reset_selection()
 				self.curr_sel = self.prev_sel = coord
@@ -764,11 +726,11 @@ class Map(object):
 	def attack_callback(self):
 		unit = self.get_unit(self.curr_sel)
 		self.move_area = []
-		self.attack_area = self.nearby_units(self.curr_sel, [unit.color])
+		self.attack_area = self.nearby_enemies(self.get_unit(self.curr_sel))
 		self.update_highlight()
 
 	def rollback_callback(self):
-		self.move(self.curr_sel, self.prev_sel)
+		self.move(self.get_unit(self.curr_sel), self.prev_sel)
 		self.reset_selection()
 
 	def is_attack_click(self, mouse_pos):
@@ -781,11 +743,3 @@ class Map(object):
 
 	def is_enemy_cursor(self):
 		return self.cursor.coord in self.attack_area
-
-	def get_terrain(self, x, y):
-		for layer in reversed(self.tilemap.layers):
-			try:
-				return Terrain(layer[x, y].tile)
-			except (TypeError, AttributeError):
-				continue
-

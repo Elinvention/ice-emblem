@@ -30,66 +30,62 @@ from operator import itemgetter
 
 
 class AI(object):
-	def __init__(self, map, color, battle):
-		self.map    = map
-		self.color  = color
+	def __init__(self, _map, units_manager, team, battle):
+		self.map = _map
+		self.path = _map.path
+		self.units_manager = units_manager
 		self.battle = battle
-		self.enemy_sprite = []
-		self.own_sprite   = []
-		for sprite in self.map.sprites:
-			if sprite.unit.color != color:
-				self.enemy_sprite.append(sprite)
-			else:
-				self.own_sprite.append(sprite)
+		self.own_units = team.units
+		self.enemy_units = units_manager.get_enemies(team)
+		self.logger = logging.getLogger('AI')
 
 	def __call__(self):
 		self.refresh()
-		for sprite in self.own_sprite:
-			logging.info("AI: Thinking what to do with %s..." % sprite.unit.name)
-			self.map.path.obstacles = self.map.list_obstacles(sprite.unit)
-			attackable_enemies_coord = self.map.nearby_units(sprite.coord, [self.color])
+		for unit in self.own_units:
+			self.logger.info("Thinking what to do with %s..." % unit.name)
+			attackable_enemies_coord = self.map.nearby_enemies(unit)
 			if len(attackable_enemies_coord) > 0:
 				target = self.coord_best_target(attackable_enemies_coord)
-				attacking = sprite.unit
+				attacking = unit
 				defending = self.map.get_unit(target)
-				logging.debug("AI: %s attack %s." % (attacking.name, defending.name))
+				self.logger.debug("%s attack %s." % (attacking.name, defending.name))
 				self.battle(attacking, defending)
 			else:
-				enemies = self.list_coord_enemies_in_area(sprite)
-				logging.debug("Units next to %s: %s" % (sprite.unit.name, enemies))
+				enemies = self.list_coord_enemies_in_area(unit)
+				self.logger.debug("Units next to %s: %s" % (unit.name, enemies))
 				if len(enemies) > 1:
 					target = self.coord_best_target(enemies)
-					path = self.map.path.shortest_path(sprite.coord, target, sprite.unit.move)
-					if len(path) > sprite.unit.move:
+					path = self.path.shortest_path(unit.coord, target, unit.move)
+					if len(path) > unit.move:
 						dest = path[-1]
 					else:
 						dest = path[-2]
-					attacking = sprite.unit
+					attacking = unit
 					defending = self.map.get_unit(target)
 					logging.debug("AI: %s can reach %s from %s." % (attacking.name, defending.name, dest))
-					self.map.move(sprite.coord, dest)
+					self.map.move(unit, dest)
 					self.battle(attacking, defending)
 				else:
-					target = self.coord_nearest_enemy(sprite.coord)
-					path = self.map.path.shortest_path(sprite.coord, target, sprite.unit.move)
-					logging.debug("AI: Unit %s can't reach any enemy. Target is %s, path is %s." % (sprite.unit.name, target, path))
+					target = self.coord_nearest_enemy(unit.coord)
+					path = self.path.shortest_path(unit.coord, target, unit.move)
+					self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target, path))
 					dest = path[-1]  # furthest reachable location
-					self.map.move(sprite.coord, dest)
-					sprite.unit.played = True
+					self.map.move(unit, dest)
+					unit.played = True
 
 	def coord_nearest_enemy(self, own_coord):
-		l = [ (len(self.map.path.shortest_path(own_coord, enemy_sprite.coord)), enemy_sprite.coord) for enemy_sprite in self.enemy_sprite ]
+		l = [(len(self.path.shortest_path(own_coord, enemy.coord)), enemy.coord) for enemy in self.enemy_units]
 		l.sort(key=itemgetter(0))
 		nearest_enemy = l[0][1]
 		return nearest_enemy
 
-	def list_coord_enemies_in_area(self, sprite):
-		radius = sprite.unit.move + sprite.unit.get_weapon_range()
-		attack_area = self.map.path.area(sprite.coord, radius)
+	def list_coord_enemies_in_area(self, unit):
+		radius = unit.move + unit.get_weapon_range()
+		attack_area = self.path.area(unit.coord, radius)
 		enemies_coord = []
 		for coord in attack_area:
-			unit = self.map.get_unit(coord)
-			if unit is not None and unit.color != sprite.unit.color:
+			unit_attack = self.map.get_unit(coord)
+			if unit_attack is not None and self.units_manager.are_enemies(unit_attack, unit):
 				enemies_coord.append(coord)
 		return enemies_coord
 
@@ -102,14 +98,7 @@ class AI(object):
 		return best
 
 	def refresh(self):
-		for sprite in self.own_sprite:
-			if sprite.unit.hp <= 0:
-				self.own_sprite.remove(sprite)
-		for sprite in self.enemy_sprite:
-			if sprite.unit.hp <= 0:
-				self.enemy_sprite.remove(sprite)
-		random.shuffle(self.own_sprite)
-		random.shuffle(self.enemy_sprite)
-		self.map.path.reset()
+		random.shuffle(self.own_units)
+		random.shuffle(self.enemy_units)
 
 
