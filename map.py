@@ -54,7 +54,7 @@ class UnitSprite(pygame.sprite.Sprite):
 	def update(self, new_coord=None):
 		if not self.unit.was_modified() and (not new_coord or new_coord == self.coord):
 			return
-		logging.debug("Sprite update: ", self.unit.name)
+		logging.debug("Sprite update: %s" % self.unit.name)
 		if new_coord:
 			self.coord = new_coord
 			self.rect.topleft = self.coord[0] * self.rect.w, self.coord[1] * self.rect.h
