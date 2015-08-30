@@ -57,6 +57,7 @@ class Weapon(Item):
 		self.uses -= 1
 		if self.uses <= 0:
 			self.uses = 0
+			self.active = False
 			print("%s is broken" % self.name)
 		return self.uses
 

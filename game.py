@@ -526,6 +526,9 @@ class Game(object):
 		attacking_team = self.units_manager.get_team(attacking.color)
 		defending_team = self.units_manager.get_team(defending.color)
 
+		att_weapon = attacking.get_active_weapon()
+		def_weapon = defending.get_active_weapon()
+
 		attacking.prepare_battle()
 		defending.prepare_battle()
 
@@ -680,15 +683,15 @@ class Game(object):
 		else:
 			self.kill(defending)
 
-		if attacking.get_active_weapon().uses == 0:
+		if att_weapon and att_weapon.uses == 0:
 			self.sounds['broke'].play()
-			broken_text = self.SMALL_FONT.render("%s is broken" % attacking.get_active_weapon().name, True, RED)
+			broken_text = self.SMALL_FONT.render("%s is broken" % att_weapon.name, True, RED)
 			self.screen.blit(broken_text, center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
 			self.event_handler.wait(timeout=3000)
-		if defending.get_active_weapon().uses == 0:
+		if def_weapon and def_weapon.uses == 0:
 			self.sounds['broke'].play()
-			broken_text = self.SMALL_FONT.render("%s is broken" % defending.get_active_weapon().name, True, RED)
+			broken_text = self.SMALL_FONT.render("%s is broken" % def_weapon.name, True, RED)
 			self.screen.blit(broken_text, center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
 			self.event_handler.wait(timeout=3000)
@@ -814,7 +817,7 @@ class Game(object):
 
 	def __attack_abort(self):
 		self.event_handler.del_context()
-		self.map.move(self.map.curr_sel, self.map.prev_sel)
+		self.map.move(self.map.get_unit(self.map.curr_sel), self.map.prev_sel)
 		self.map.reset_selection()
 
 	def reset(self):
