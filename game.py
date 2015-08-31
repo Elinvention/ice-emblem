@@ -26,13 +26,12 @@ import os
 import logging
 import time
 
-from item import Item, Weapon
-from map import Map
-from unit import Unit, Team, UnitsManager
-from menu import Menu, HorizontalMenu, Button, CheckBox
+import map
+import unit
+import gui
+import utils
+import ai
 from colors import *
-from utils import *
-from ai import AI
 
 
 class EventHandler(object):
@@ -42,7 +41,7 @@ class EventHandler(object):
 	"""
 
 	def __init__(self):
-		self.callbacks = [{QUIT: [return_to_os], VIDEORESIZE: [videoresize_handler]}]
+		self.callbacks = [{QUIT: [utils.return_to_os], VIDEORESIZE: [utils.videoresize_handler]}]
 
 	def __call__(self):
 		"""
@@ -127,11 +126,11 @@ class EventHandler(object):
 
 	def reset(self):
 		logging.debug('EventHandler: reset')
-		self.callbacks = [{QUIT: [return_to_os], VIDEORESIZE: [videoresize_handler]}]
+		self.callbacks = [{QUIT: [utils.return_to_os], VIDEORESIZE: [utils.videoresize_handler]}]
 
 	def new_context(self):
 		logging.debug('EventHandler: new context')
-		self.callbacks.append({pygame.QUIT: [return_to_os]})
+		self.callbacks.append({pygame.QUIT: [utils.return_to_os]})
 
 	def del_context(self):
 		logging.debug('EventHandler: delete context')
@@ -213,7 +212,7 @@ class ResizableImage(object):
 		if new_size == self.__size:
 			return
 		if keep_ratio:
-			img_size = resize_keep_ratio(self.original_image.get_size(), new_size)
+			img_size = utils.resize_keep_ratio(self.original_image.get_size(), new_size)
 		else:
 			img_size = new_size
 		if smooth:
@@ -245,10 +244,10 @@ class Game(object):
 		team1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
 		team2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
 
-		team1 = Team(name=_("Blue Team"), color=BLUE, relation=10, ai=None, units=team1_units, boss=units['Boss'])
-		team2 = Team(name=_("Red Team"), color=RED, relation=20, ai=None, units=team2_units, boss=units['Pirate Tux'])
+		team1 = unit.Team(name=_("Blue Team"), color=BLUE, relation=10, ai=None, units=team1_units, boss=units['Boss'])
+		team2 = unit.Team(name=_("Red Team"), color=RED, relation=20, ai=None, units=team2_units, boss=units['Pirate Tux'])
 
-		self.units_manager = UnitsManager([team1, team2])
+		self.units_manager = unit.UnitsManager([team1, team2])
 
 		self.load_map(map_path)
 
@@ -277,9 +276,9 @@ class Game(object):
 
 	def load_map(self, map_path):
 		if map_path is not None:
-			self.map = Map(map_path, self.screen.get_size(), self.units_manager)
+			self.map = map.Map(map_path, self.screen.get_size(), self.units_manager)
 			enemy_team = self.units_manager.teams[1]
-			enemy_team.ai = AI(self.map, self.units_manager, enemy_team, self.battle)
+			enemy_team.ai = ai.AI(self.map, self.units_manager, enemy_team, self.battle)
 		else:
 			self.map = None
 
@@ -379,10 +378,10 @@ class Game(object):
 		self.event_handler.bind_key(K_ESCAPE, self.post_interrupt)
 		back_btn = Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
 		back_btn.rect.bottomright = self.screen.get_size()
-		fullscreen_btn = CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
+		fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
 		fullscreen_btn.rect.midtop = self.screen.get_rect(top=50).midtop
 		resolutions = [("{0[0]}x{0[1]}".format(res), self.resolution_setter(res)) for res in pygame.display.list_modes()]
-		resolutions_menu = Menu(resolutions, self.MAIN_FONT)
+		resolutions_menu = gui.Menu(resolutions, self.MAIN_FONT)
 		resolutions_menu.rect.midtop = self.screen.get_rect(top=100).midtop
 		back_btn.register(self.event_handler)
 		fullscreen_btn.register(self.event_handler)
@@ -407,8 +406,8 @@ class Game(object):
 		self.screen.fill(BLACK)
 		elinvention = self.MAIN_MENU_FONT.render("Elinvention", 1, WHITE)
 		presents = self.MAIN_MENU_FONT.render(_("PRESENTS"), 1, WHITE)
-		self.screen.blit(elinvention, center(screen_rect, elinvention.get_rect()))
-		self.screen.blit(presents, center(screen_rect, presents.get_rect(), yoffset=self.MAIN_MENU_FONT.get_linesize()))
+		self.screen.blit(elinvention, utils.center(screen_rect, elinvention.get_rect()))
+		self.screen.blit(presents, utils.center(screen_rect, presents.get_rect(), yoffset=self.MAIN_MENU_FONT.get_linesize()))
 		pygame.display.flip()
 		self.event_handler.wait(timeout=6000)
 
@@ -417,7 +416,7 @@ class Game(object):
 		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
 
 		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
-		hmenu = HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], self.SMALL_FONT)
+		hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], self.SMALL_FONT)
 		hmenu.rect.bottomright = self.screen.get_size()
 
 		hmenu.register(self.event_handler)
@@ -429,7 +428,7 @@ class Game(object):
 			self.screen.fill(BLACK)
 			main_menu_image.rect.center = self.screen.get_rect().center
 			main_menu_image.draw(self.screen)
-			self.screen.blit(click_to_start, center(self.screen.get_rect(), click_to_start.get_rect(), yoffset=200))
+			self.screen.blit(click_to_start, utils.center(self.screen.get_rect(), click_to_start.get_rect(), yoffset=200))
 			hmenu.rect.bottomright = self.screen.get_size()
 			hmenu.draw(self.screen)
 			self.blit_fps()
@@ -454,7 +453,7 @@ class Game(object):
 		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
 		maps_path = os.path.abspath('maps')
 		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
-		menu = Menu(files, self.MAIN_FONT, None, (25, 25))
+		menu = gui.Menu(files, self.MAIN_FONT, None, (25, 25))
 		menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
 		menu.register(self.event_handler)
 		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
@@ -468,7 +467,7 @@ class Game(object):
 			menu.draw(self.screen)
 			self.blit_fps()
 			pygame.display.flip()
-			self.event_handler.wait(Menu.EVENT_TYPES)
+			self.event_handler.wait(gui.Menu.EVENT_TYPES)
 			self.clock.tick(30)
 
 		menu.unregister(self.event_handler)
@@ -492,7 +491,7 @@ class Game(object):
 			self.event_handler()
 
 	def experience_animation(self, unit, bg):
-		img_pos = center(self.screen.get_rect(), unit.image.get_rect())
+		img_pos = utils.center(self.screen.get_rect(), unit.image.get_rect())
 		exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
 
 		self.sounds['exp'].play(-1)
@@ -532,7 +531,7 @@ class Game(object):
 		attacking.prepare_battle()
 		defending.prepare_battle()
 
-		dist = distance(attacking.coord, defending.coord)
+		dist = utils.distance(attacking.coord, defending.coord)
 		at, dt = attacking.number_of_attacks(defending, dist)
 
 		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
@@ -686,13 +685,13 @@ class Game(object):
 		if att_weapon and att_weapon.uses == 0:
 			self.sounds['broke'].play()
 			broken_text = self.SMALL_FONT.render("%s is broken" % att_weapon.name, True, RED)
-			self.screen.blit(broken_text, center(screen_rect, broken_text.get_rect()))
+			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
 			self.event_handler.wait(timeout=3000)
 		if def_weapon and def_weapon.uses == 0:
 			self.sounds['broke'].play()
 			broken_text = self.SMALL_FONT.render("%s is broken" % def_weapon.name, True, RED)
-			self.screen.blit(broken_text, center(screen_rect, broken_text.get_rect()))
+			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
 			self.event_handler.wait(timeout=3000)
 
@@ -734,7 +733,7 @@ class Game(object):
 		self.blit_info()
 		phase_str = _('%s phase') % active_team.name
 		phase = self.MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
-		self.screen.blit(phase, center(self.screen.get_rect(), phase.get_rect()))
+		self.screen.blit(phase, utils.center(self.screen.get_rect(), phase.get_rect()))
 		pygame.display.flip()
 		self.event_handler.wait(timeout=5000)
 
@@ -749,8 +748,8 @@ class Game(object):
 		thank_you = self.MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
 
 		self.screen.fill(BLACK)
-		self.screen.blit(victory, center(self.screen.get_rect(), victory.get_rect(), yoffset=-50))
-		self.screen.blit(thank_you, center(self.screen.get_rect(), thank_you.get_rect(), yoffset=50))
+		self.screen.blit(victory, utils.center(self.screen.get_rect(), victory.get_rect(), yoffset=-50))
+		self.screen.blit(thank_you, utils.center(self.screen.get_rect(), thank_you.get_rect(), yoffset=50))
 
 		pygame.display.flip()
 
@@ -771,7 +770,7 @@ class Game(object):
 	def action_menu(self, actions, rollback, pos):
 		self.event_handler.new_context()
 
-		menu = Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
+		menu = gui.Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
 		menu.register(self.event_handler)
 
 		self.blit_map()
@@ -780,7 +779,7 @@ class Game(object):
 		while action is None:
 			menu.draw(self.screen)
 			pygame.display.flip()
-			self.event_handler.wait(Menu.EVENT_TYPES)
+			self.event_handler.wait(gui.Menu.EVENT_TYPES)
 			action = menu.choice
 
 		self.event_handler.del_context()
@@ -826,8 +825,8 @@ class Game(object):
 		self.done = True
 
 	def pause_menu(self):
-		menu_entries = [('Return to Game', None), ('Return to Main Menu', self.reset), ('Return to O.S.', return_to_os)]
-		menu = Menu(menu_entries, self.MAIN_FONT)
+		menu_entries = [('Return to Game', None), ('Return to Main Menu', self.reset), ('Return to O.S.', utils.return_to_os)]
+		menu = gui.Menu(menu_entries, self.MAIN_FONT)
 		menu.rect.center = self.screen.get_rect().center
 
 		menu.register(self.event_handler)
@@ -835,7 +834,7 @@ class Game(object):
 		while menu.choice is None:
 			menu.draw(self.screen)
 			pygame.display.flip()
-			self.event_handler.wait(Menu.EVENT_TYPES)
+			self.event_handler.wait(gui.Menu.EVENT_TYPES)
 
 		menu.unregister(self.event_handler)
 
