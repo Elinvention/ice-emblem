@@ -208,16 +208,22 @@ class HorizontalMenu(Menu):
 	def get_height(self):
 		return self.font.get_linesize() + self.padding[0] + self.padding[2]
 
-	def get_entry_pos(self, i):
-		return (self.padding[3] + self.rect.x + i * (self.rendered_entries[i].get_width() + 10),
-				self.padding[0] + self.rect.y)
+	def get_entry_pos(self, index):
+		x = self.padding[3] + self.rect.x
+		i = 0
+		while i < index:
+			x += self.rendered_entries[i].get_width() + 10
+			i += 1
+		return x, self.padding[0] + self.rect.y
 
 	def draw(self, dest):
 		tmp = pygame.Surface(self.rect.size)
 		tmp.fill(self.bg_color)
 
+		x = self.padding[3]
 		for i, entry in enumerate(self.rendered_entries):
-			tmp.blit(entry, (self.padding[3] + i * (entry.get_width() + 10), self.padding[0]))
+			tmp.blit(entry, (x, self.padding[0]))
+			x += entry.get_width() + 10
 
 		dest.blit(tmp, self.rect)
 

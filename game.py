@@ -376,7 +376,7 @@ class Game(object):
 		self.event_handler.new_context()
 		logging.debug(_("Settings menu"))
 		self.event_handler.bind_key(K_ESCAPE, self.post_interrupt)
-		back_btn = Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
+		back_btn = gui.Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
 		back_btn.rect.bottomright = self.screen.get_size()
 		fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
 		fullscreen_btn.rect.midtop = self.screen.get_rect(top=50).midtop
@@ -395,7 +395,7 @@ class Game(object):
 			self.blit_fps()
 			pygame.display.flip()
 			self.clock.tick(30)
-			event = self.event_handler.wait(Button.EVENT_TYPES + [self.INTERRUPTEVENT])
+			event = self.event_handler.wait(gui.Button.EVENT_TYPES + [self.INTERRUPTEVENT])
 		self.event_handler.del_context()
 
 	def main_menu(self):
