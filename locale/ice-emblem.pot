@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2015-07-07 01:23+CEST\n"
+"POT-Creation-Date: 2015-08-21 21:29+CEST\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,155 +15,167 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
-#: game.py:101
-msgid "%s registered"
-msgstr ""
-
-#: game.py:112
-msgid "%s unregistered"
-msgstr ""
-
-#: game.py:118
-msgid "Registered Menu"
-msgstr ""
-
-#: game.py:124
-msgid "Unregistered Menu"
-msgstr ""
-
-#: game.py:140
+#: game.py:152 game.py:732
 msgid "%s phase"
 msgstr ""
 
-#: game.py:146
+#: game.py:158
 msgid "Def: %d"
 msgstr ""
 
-#: game.py:147
+#: game.py:159
 msgid "Avoid: %d"
 msgstr ""
 
-#: game.py:148
+#: game.py:160
 msgid "Allowed: %s"
 msgstr ""
 
-#: game.py:163
+#: game.py:175
 msgid "No units"
 msgstr ""
 
-#: game.py:235
-msgid "Main game loop started"
-msgstr ""
-
-#: game.py:258
-msgid "Returning to main menu"
-msgstr ""
-
-#: game.py:314
-msgid "PRESENTS"
-msgstr ""
-
-#: game.py:329
-msgid "Click to Start"
-msgstr ""
-
-#: game.py:330
-msgid "License"
-msgstr ""
-
-#: game.py:350
-msgid "Choose a map!"
-msgstr ""
-
-#: game.py:420
-msgid "EXP: %d"
-msgstr ""
-
-#: game.py:421
-msgid "LV: %d"
-msgstr ""
-
-#: game.py:446
-msgid "%s is going to attack %d %s"
-msgstr ""
-
-#: game.py:447 game.py:448
-msgid "time"
-msgstr ""
-
-#: game.py:447 game.py:448
-msgid "times"
-msgstr ""
-
-#: game.py:489
-msgid "MISSED"
-msgstr ""
-
-#: game.py:490
-msgid "VOID ATTACK"
-msgstr ""
-
-#: game.py:639
-msgid "%s wins"
-msgstr ""
-
-#: game.py:646
-msgid "Thank you for playing Ice Emblem!"
-msgstr ""
-
-#: game.py:755 game.py:775 map.py:728 map.py:742
-msgid "Attack"
-msgstr ""
-
-#: item.py:192
-msgid "%s is broken"
-msgstr ""
-
-#: main.py:61 main.py:72
-msgid "%s loaded"
-msgstr ""
-
-#: main.py:78
-msgid "Ice Emblem, the free software clone of Fire Emblem"
-msgstr ""
-
-#: main.py:79
-msgid "Skip main menu"
-msgstr ""
-
-#: main.py:80
-msgid "Which map to load"
-msgstr ""
-
-#: main.py:85
-msgid "Welcome to %s!"
-msgstr ""
-
-#: main.py:104
+#: game.py:248
 msgid "Blue Team"
 msgstr ""
 
-#: main.py:105
+#: game.py:249
 msgid "Red Team"
 msgstr ""
 
-#: main.py:110
+#: game.py:288
+msgid "Main game loop started"
+msgstr ""
+
+#: game.py:312
+msgid "Returning to main menu"
+msgstr ""
+
+#: game.py:378
+msgid "Settings menu"
+msgstr ""
+
+#: game.py:380
+msgid "Go Back"
+msgstr ""
+
+#: game.py:382
+msgid "Toggle Fullscreen"
+msgstr ""
+
+#: game.py:409
+msgid "PRESENTS"
+msgstr ""
+
+#: game.py:419
+msgid "Click to Start"
+msgstr ""
+
+#: game.py:420
+msgid "License"
+msgstr ""
+
+#: game.py:420
+msgid "Settings"
+msgstr ""
+
+#: game.py:454
+msgid "Choose a map!"
+msgstr ""
+
+#: game.py:508
+msgid "EXP: %d"
+msgstr ""
+
+#: game.py:509
+msgid "LV: %d"
+msgstr ""
+
+#: game.py:536
+msgid "%s is going to attack %d %s"
+msgstr ""
+
+#: game.py:537 game.py:538
+msgid "time"
+msgstr ""
+
+#: game.py:537 game.py:538
+msgid "times"
+msgstr ""
+
+#: game.py:558
+msgid "MISS"
+msgstr ""
+
+#: game.py:559
+msgid "NULL"
+msgstr ""
+
+#: game.py:560
+msgid "TRIPLE"
+msgstr ""
+
+#: game.py:739
+msgid "%s wins"
+msgstr ""
+
+#: game.py:746
+msgid "Thank you for playing Ice Emblem!"
+msgstr ""
+
+#: game.py:854 map.py:698 map.py:709
+msgid "Attack"
+msgstr ""
+
+#: item.py:190
+msgid "%s is broken"
+msgstr ""
+
+#: main.py:54
+msgid "Ice Emblem, the free software clone of Fire Emblem"
+msgstr ""
+
+#: main.py:55
+msgid "Skip main menu"
+msgstr ""
+
+#: main.py:56
+msgid "Which map to load"
+msgstr ""
+
+#: main.py:61
+msgid "Welcome to %s!"
+msgstr ""
+
+#: main.py:62
+msgid "You are using Pygame version %s."
+msgstr ""
+
+#: main.py:64
+msgid "You are running a version of Pygame that might be outdated."
+msgstr ""
+
+#: main.py:65
+msgid "Ice Emblem is tested only with Pygame 1.9.2+."
+msgstr ""
+
+#: main.py:89
 msgid "Loading map: %s"
 msgstr ""
 
-#: main.py:113
+#: main.py:92
 msgid "Loading default map: %s"
 msgstr ""
 
-#: main.py:115
+#: main.py:94
 msgid "No map on command line: choose the map via the main menu"
 msgstr ""
 
-#: main.py:138
+#: main.py:109
 msgid "Interrupted by user, exiting."
 msgstr ""
 
-#: main.py:146
+#: main.py:116
 msgid ""
 "\n"
 "Oops, something went wrong. Dumping brain contents:\n"
@@ -172,7 +184,7 @@ msgid ""
 "%s\n"
 "%s\n"
 "\n"
-"Please mail this stack trace to %s\n"
+"Please open a report on our issue tracker lacated at %s\n"
 "along with a short description of what you did when this crash happened\n"
 "so that the error can be fixed.\n"
 "\n"
@@ -181,67 +193,71 @@ msgid ""
 "\n"
 msgstr ""
 
-#: main.py:171
+#: main.py:140
 msgid "Game terminated normally."
 msgstr ""
 
-#: map.py:87
+#: map.py:90
 msgid "Unknown"
 msgstr ""
 
-#: map.py:91 map.py:445
+#: map.py:94 map.py:465 unit.py:284
 msgid "any"
 msgstr ""
 
-#: map.py:509
-msgid "Unit %s moved from %d:%d to %d:%d"
+#: map.py:467
+msgid "none"
 msgstr ""
 
-#: map.py:605
+#: map.py:515
+msgid "Unit %s moved from %s to %s"
+msgstr ""
+
+#: map.py:589
 msgid "Selection reset"
 msgstr ""
 
-#: map.py:728 map.py:730 map.py:742 map.py:744
+#: map.py:698 map.py:700 map.py:709 map.py:711
 msgid "Wait"
 msgstr ""
 
-#: unit.py:61
-msgid "Couldn't load %s"
+#: unit.py:67
+msgid "Couldn't load %s! Loading default image"
 msgstr ""
 
-#: unit.py:143
+#: unit.py:150
 msgid "%s died"
 msgstr ""
 
-#: unit.py:191
+#: unit.py:195
 msgid "%s attacks %s with his bare hands"
 msgstr ""
 
-#: unit.py:194 unit.py:208
-msgid "%s misses %s"
-msgstr ""
-
-#: unit.py:197 unit.py:211
-msgid "%s inflicts %s %d damages"
-msgstr ""
-
-#: unit.py:205
+#: unit.py:200
 msgid "%s attacks %s with %s"
 msgstr ""
 
-#: unit.py:251
-msgid "%s levelled up!"
+#: unit.py:222
+msgid "%s inflicts %s %d damages"
 msgstr ""
 
-#: unit.py:253
+#: unit.py:263
 msgid "%s gained %d experience points! EXP: %d"
 msgstr ""
 
-#: unit.py:303
-msgid "Player %s ends its turn"
+#: unit.py:274
+msgid "%s levelled up!"
 msgstr ""
 
-#: unit.py:309
-msgid "Player %s begins its turn"
+#: unit.py:353
+msgid "Team %s ends its turn"
+msgstr ""
+
+#: unit.py:359
+msgid "Team %s begins its turn"
+msgstr ""
+
+#: utils.py:48
+msgid "%s loaded"
 msgstr ""
 
