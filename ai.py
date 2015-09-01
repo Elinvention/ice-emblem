@@ -19,13 +19,10 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-"""
-http://www.checkmarkgames.com/2012/03/building-strategy-game-ai.html
-"""
-
 
 import logging
 import random
+import utils
 from operator import itemgetter
 
 
@@ -42,57 +39,70 @@ class AI(object):
 	def __call__(self):
 		self.refresh()
 		for unit in self.own_units:
-			self.logger.info("Thinking what to do with %s..." % unit.name)
-			attackable_enemies_coord = self.map.nearby_enemies(unit)
-			if len(attackable_enemies_coord) > 0:
-				target = self.coord_best_target(attackable_enemies_coord)
-				attacking = unit
-				defending = self.map.get_unit(target)
-				self.logger.debug("%s attack %s." % (attacking.name, defending.name))
-				self.battle(attacking, defending)
+			self.logger.info(" Thinking what to do with %s..." % unit.name)
+			attackable_enemies = self.map.nearby_enemies(unit)
+			self.logger.info(" Nearby attackable enemies: %s" % attackable_enemies )
+			if len(attackable_enemies) > 0:
+				target = self.best_target(attackable_enemies)
+				self.logger.debug(" %s attack %s." % (unit.name, target.name))
+				self.battle(unit, target)
 			else:
-				enemies = self.list_coord_enemies_in_area(unit)
+				enemies = self.enemies_in_walkable_area(unit)
 				self.logger.debug("Units next to %s: %s" % (unit.name, enemies))
-				if len(enemies) > 1:
-					target = self.coord_best_target(enemies)
-					path = self.path.shortest_path(unit.coord, target, unit.move)
-					if len(path) > unit.move:
+				if len(enemies) > 0:
+					target = self.best_target(enemies)
+					path = self.path.shortest_path(unit.coord, target.coord, unit.move)
+					if path:
 						dest = path[-1]
+						self.logger.debug("%s can reach %s from %s." % (unit.name, target.name, dest))
+						self.map.move(unit, dest)
+						self.battle(unit, target)
 					else:
-						dest = path[-2]
-					attacking = unit
-					defending = self.map.get_unit(target)
-					logging.debug("AI: %s can reach %s from %s." % (attacking.name, defending.name, dest))
-					self.map.move(unit, dest)
-					self.battle(attacking, defending)
+						self.logger.debug("%s can't reach %s. Wait." % (unit.name, target.name))
+						unit.played = True
 				else:
-					target = self.coord_nearest_enemy(unit.coord)
-					path = self.path.shortest_path(unit.coord, target, unit.move)
-					self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target, path))
-					dest = path[-1]  # furthest reachable location
-					self.map.move(unit, dest)
+					target = self.nearest_enemy(unit)
+					path = self.path.shortest_path(unit.coord, target.coord, unit.move)
+					self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target.name, path))
+					if path:
+						dest = path[-1]
+						self.map.move(unit, dest)
 					unit.played = True
 
-	def coord_nearest_enemy(self, own_coord):
-		l = [(len(self.path.shortest_path(own_coord, enemy.coord)), enemy.coord) for enemy in self.enemy_units]
+	def nearest_enemy(self, unit):
+		"""
+		Return the closest enemy outside his area
+		"""
+		l = [(len(self.path.shortest_path(unit.coord, enemy.coord)), enemy) for enemy in self.enemy_units]
 		l.sort(key=itemgetter(0))
 		nearest_enemy = l[0][1]
 		return nearest_enemy
 
-	def list_coord_enemies_in_area(self, unit):
-		radius = unit.move + unit.get_weapon_range()
-		attack_area = self.path.area(unit.coord, radius)
-		enemies_coord = []
-		for coord in attack_area:
-			unit_attack = self.map.get_unit(coord)
-			if unit_attack is not None and self.units_manager.are_enemies(unit_attack, unit):
-				enemies_coord.append(coord)
-		return enemies_coord
+	def enemies_in_walkable_area(self, unit):
+		"""
+		Return the enemies in his area
+		"""
+		move_area = self.path.area(unit.coord, unit.move, False)
+		weapon_range = unit.get_weapon_range()
+		enemies = []
+		for (x, y) in move_area:
+			for i in range(x - weapon_range, x + weapon_range + 1):
+				for j in range(y - weapon_range, y + weapon_range + 1):
+					if utils.distance((x, y), (i, j)) <= weapon_range:
+						try:
+							enemy = self.map.get_unit((i, j))
+							if enemy and self.units_manager.are_enemies(enemy, unit):
+								enemies.append(enemy)
+						except KeyError:
+							pass
+		return enemies
 
-	def coord_best_target(self, enemies_coord):
-		enemies_unit = [self.map.get_unit(coord) for coord in enemies_coord]
-		enemies_values = [ u.value() for u in enemies_unit ]
-		ranking = list(zip(enemies_values, enemies_coord))
+	def best_target(self, enemies):
+		"""
+		Return the best enemy frome one list of enemies
+		"""
+		enemies_values = [ u.value() for u in enemies ]
+		ranking = list(zip(enemies_values, enemies))
 		ranking.sort(key=itemgetter(0))
 		best = ranking[0][1]
 		return best

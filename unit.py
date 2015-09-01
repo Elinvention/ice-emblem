@@ -68,6 +68,9 @@ class Unit(object):
 			no_image_path = os.path.relpath(os.path.join('sprites', 'no_image.png'))
 			self.image = pygame.image.load(no_image_path).convert_alpha()
 
+	def __repr__(self):
+		return "<Unit %s at %s>" % (self.name, self.coord)
+
 	def __str__(self):
 		return """
 Unit: "%s"
@@ -416,7 +419,7 @@ class UnitsManager(object):
 				if enemy_team.is_enemy(team):
 					enemies += enemy_team.units
 		return enemies
-				
+
 
 	def are_enemies(self, unit1, unit2):
 		team1 = self.get_team(unit1.color)

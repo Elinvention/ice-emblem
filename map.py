@@ -281,14 +281,15 @@ class Pathfinder(object):
 		self.reset()
 
 	def reset(self):
-		self.source = None  # dijkstra executed with this node as source
-		self.target = None  # shortest path target
-		self.shortest = None  # shortest path output
-		self.max_distance = None
-		self.dist = None  # results of dijkstra
+		self.source = None  # int tuple: dijkstra executed with this node as source
+		self.target = None  # int tuple: shortest path target
+		self.shortest = None  # list: shortest path output
+		self.max_distance = None  # float
+		self.dist = None  # dict: results of dijkstra
 		self.prev = None
+		self.enemies = None  # bool: treat enemies as obstacles
 
-	def __set_source(self, source):
+	def __set_source(self, source, enemies=True):
 		"""
 		Implementation of Dijkstra's Algorithm.
 		See https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm for
@@ -298,6 +299,7 @@ class Pathfinder(object):
 		"""
 		self.shortest = None
 		self.source = source
+		self.enemies = enemies
 
 		# Unknown distance function from source to v
 		self.dist = {(x, y): float('inf') for y in range(self.h) for x in range(self.w)}
@@ -309,7 +311,7 @@ class Pathfinder(object):
 		# All nodes initially in Q (unvisited nodes)
 		Q = [v for v in self.dist]
 
-		source_unit = self.map[source].unit
+		source_unit = self.map[source].unit if enemies else None
 
 		while Q:
 			min_dist = self.dist[Q[0]]
@@ -339,7 +341,7 @@ class Pathfinder(object):
 						self.dist[v] = alt
 						self.prev[v] = u
 
-	def __set_target(self, target, max_distance=float('inf')):
+	def __set_target(self, target, max_distance=float('inf'), enemies=True):
 		"""
 		This method sets the target node and the maximum distance. The
 		computed path total cost will not exceed the maximim distance.
@@ -349,6 +351,7 @@ class Pathfinder(object):
 		self.max_distance = max_distance
 		S = []
 		u = self.target = target
+		self.enemies = enemies
 
 		# Construct the shortest path with a stack S
 		while self.prev[u] is not None:
@@ -359,23 +362,31 @@ class Pathfinder(object):
 			except TypeError:
 				u = self.prev[u]  # Traverse from target to source
 
-		if S and self.map[target].unit and not self.map.is_obstacle(target, self.map[self.source].unit):
-			del S[-1]
+		s_unit = self.map[self.source].unit if enemies else None
+		for coord in reversed(S):
+			unit = self.map[coord].unit
+			if unit or self.map.is_obstacle(coord, s_unit):
+				del S[-1]
+			else:
+				break
 
 		self.shortest = S
 		return S
 
-	def shortest_path(self, source, target, max_distance=float('inf')):
-		if self.source != source:
-			self.__set_source(source)
-			self.__set_target(target, max_distance)
-		elif self.target != target or self.max_distance != max_distance:
-			self.__set_target(target, max_distance)
+	def shortest_path(self, source, target, max_distance=float('inf'), enemies=True):
+		if self.source != source or self.enemies != enemies:
+			self.__set_source(source, enemies)
+			self.__set_target(target, max_distance, enemies)
+		elif self.target != target or self.max_distance != max_distance or self.enemies != enemies:
+			self.__set_target(target, max_distance, enemies)
 		return self.shortest
 
-	def area(self, source, max_distance):
-		if self.source != source:
-			self.__set_source(source)
+	def area(self, source, max_distance, enemies=True):
+		"""
+		Returns a list of coords
+		"""
+		if self.source != source or self.enemies != enemies:
+			self.__set_source(source, enemies)
 			self.target = None
 			self.shortest = None
 		h, w = range(self.h), range(self.w)
@@ -455,11 +466,13 @@ class Map(object):
 	def __getitem__(self, coord):
 		return self.terrains[coord]
 
-	def is_obstacle(self, coord, unit):
+	def is_obstacle(self, coord, unit=None):
 		terrain = self.terrains[coord]
 		try:
 			return self.units_manager.are_enemies(unit, terrain.unit)
 		except AttributeError:
+			if unit is None:
+				return False
 			unit_allowed = unit.get_allowed_terrains()
 			for allowed in terrain.allowed:
 				if allowed == _('any'):
@@ -575,14 +588,15 @@ class Map(object):
 
 	def nearby_enemies(self, unit):
 		"""
-		Returns a list of coordinates of near enemies that can be
+		Returns a list of near enemies that can be
 		attacked without having to move.
 		"""
 		area = self.area(unit.coord, unit.get_weapon_range())
-		def f(c):
+		nearby_list = []
+		for c in area:
 			c_unit = self.get_unit(c)
-			return c_unit and self.units_manager.are_enemies(c_unit, unit)
-		nearby_list = [c for c in area if f(c)]
+			if c_unit and self.units_manager.are_enemies(c_unit, unit):
+				nearby_list.append(c_unit)
 		return nearby_list
 
 	def reset_selection(self):
@@ -726,7 +740,7 @@ class Map(object):
 	def attack_callback(self):
 		unit = self.get_unit(self.curr_sel)
 		self.move_area = []
-		self.attack_area = self.nearby_enemies(self.get_unit(self.curr_sel))
+		self.attack_area = [u.coord for u in self.nearby_enemies(self.get_unit(self.curr_sel))]
 		self.update_highlight()
 
 	def rollback_callback(self):
