@@ -130,18 +130,23 @@ class EventHandler(object):
 
 
 class Sidebar(object):
-	BG = (100, 100, 100)
-	def __init__(self, screen_size, font):
+	def __init__(self, screen, font, unit_manager, event_handler):
+		self.screen = screen
+		screen_size = screen.get_size()
 		self.screen_resize(screen_size)
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
+		self.endturn_btn = gui.Button(_("End Turn"), self.font, unit_manager.switch_turn)
+		self.endturn_btn.rect.bottomright = screen_size
+		self.endturn_btn.register(event_handler)
 
 	def update(self, unit, terrain, coord, team):
-		self.surface.fill(self.BG)
+		sidebar = pygame.Surface(self.rect.size)
+		sidebar.fill((100, 100, 100))
 
 		turn_s = self.font.render(_('%s phase') % team.name, True, team.color)
 		pos = turn_s.get_rect(top=40, left=5)
-		self.surface.blit(turn_s, pos)
+		sidebar.blit(turn_s, pos)
 
 		if terrain is not None:
 			t_name = self.font.render(terrain.name, True, WHITE)
@@ -149,26 +154,26 @@ class Sidebar(object):
 			t_avoid = self.font.render(_("Avoid: %d") % terrain.avoid, True, WHITE)
 			t_allowed = self.font.render(_("Allowed: %s") % terrain.allowed, True, WHITE)
 			pos = t_name.get_rect(top=pos.y + 40, left=5)
-			self.surface.blit(t_name, pos)
+			sidebar.blit(t_name, pos)
 			pos.left += pos.w + 5
-			self.surface.blit(terrain.surface, pos)
+			sidebar.blit(terrain.surface, pos)
 			pos = t_def.get_rect(top=pos.y + 40, left=5)
-			self.surface.blit(t_def, pos)
+			sidebar.blit(t_def, pos)
 			pos = t_avoid.get_rect(top=pos.y + 40, left=5)
-			self.surface.blit(t_avoid, pos)
+			sidebar.blit(t_avoid, pos)
 			pos = t_allowed.get_rect(top=pos.y + 40, left=5)
-			self.surface.blit(t_allowed, pos)
+			sidebar.blit(t_allowed, pos)
 
 		if unit is not None:
 			unit_name = self.font.render(unit.name, True, unit.color)
 		else:
 			unit_name = self.font.render(_("No units"), True, WHITE)
 		pos = unit_name.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(unit_name, pos)
+		sidebar.blit(unit_name, pos)
 
 		cell_label = self.font.render('X: %d Y: %d' % coord, True, WHITE)
 		pos = cell_label.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(cell_label, pos)
+		sidebar.blit(cell_label, pos)
 
 		time = pygame.time.get_ticks() - self.start_time
 		time //= 1000
@@ -177,14 +182,16 @@ class Sidebar(object):
 		hours = time / 3600 % 24
 		time_s = self.font.render("%02d:%02d:%02d" % (hours, minutes, sec), True, WHITE)
 		pos = time_s.get_rect(top=pos.y + 40, left=5)
-		self.surface.blit(time_s, pos)
+		sidebar.blit(time_s, pos)
+
+		self.screen.blit(sidebar, self.rect)
+		self.endturn_btn.draw(self.screen)
 
 	def screen_resize(self, screen_size):
 		pos = (screen_size[0] - 200, 0)
 		size = (200, screen_size[1])
 		self.rect = pygame.Rect(pos, size)
-		self.surface = pygame.Surface(size).convert()
-		self.surface.fill(self.BG)
+
 
 
 class ResizableImage(object):
@@ -257,8 +264,8 @@ class Game(object):
 		# filename without extension : sound object
 		self.sounds = { f[:-4] : pygame.mixer.Sound(os.path.relpath(os.path.join('sounds', f))) for f in sound_files}
 
-		self.sidebar = Sidebar(self.screen.get_size(), self.SMALL_FONT)
 		self.event_handler = EventHandler("Main")
+		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.units_manager, self.event_handler)
 
 		self.winner = None
 		self.done = False
@@ -283,9 +290,6 @@ class Game(object):
 				self.enable_controls()
 
 			while not self.done:
-				if callable(self.units_manager.active_team.ai):
-					self.units_manager.active_team.ai()
-
 				if self.winner is not None:
 					self.victory_screen()
 					self.done = True
@@ -297,7 +301,11 @@ class Game(object):
 					self.blit_fps()
 					pygame.display.flip()
 					self.clock.tick(30)
-				self.event_handler.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION])
+
+				if callable(self.units_manager.active_team.ai):
+					self.units_manager.active_team.ai()
+				else:
+					self.event_handler.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION])
 
 			logging.debug(_('Returning to main menu'))
 			self.map = None
@@ -318,7 +326,6 @@ class Game(object):
 		terrain = self.map[coord]
 		turn = self.units_manager.active_team
 		self.sidebar.update(unit, terrain, coord, turn)
-		self.screen.blit(self.sidebar.surface, self.sidebar.rect)
 
 	def blit_fps(self):
 		screen_w, screen_h = self.screen.get_size()
