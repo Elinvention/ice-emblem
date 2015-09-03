@@ -276,6 +276,7 @@ class Game(object):
 	def load_map(self, map_path):
 		if map_path is not None:
 			self.map = map.Map(map_path, self.screen.get_size(), self.units_manager)
+			self.event_handler.register(VIDEORESIZE, self.map.handle_videoresize)
 			enemy_team = self.units_manager.teams[1]
 			enemy_team.ai = ai.AI(self.map, self.units_manager, enemy_team, self.battle)
 		else:

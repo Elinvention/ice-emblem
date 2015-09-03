@@ -424,7 +424,7 @@ class Map(object):
 
 		for layer in reversed(self.tilemap.layers):
 			try:
-				print(layer)
+				logging.debug("Loading %s", repr(layer))
 				for cell in layer:
 					try:
 						coord = cell.px // self.tw, cell.py // self.th
@@ -499,11 +499,6 @@ class Map(object):
 		ret = [c for c in n if self.check_coord(c)]
 
 		return ret
-
-	def screen_resize(self, screen_size):
-		viewport_size = (screen_size[0] - 200, screen_size[1])
-		self.tilemap.viewport = pygame.Rect(self.tilemap.viewport.topleft, viewport_size)
-		self.tilemap.view_w, self.tilemap.view_h = viewport_size
 
 	def mouse2cell(self, cursor_coord):
 		"""mouse position to map index."""
@@ -668,15 +663,6 @@ class Map(object):
 		else:
 			self.move_y = 0
 
-	def draw(self, surf):
-		self.sprites.update()
-		fx = self.tilemap.fx + self.move_x
-		fy = self.tilemap.fy + self.move_y
-		if fx != self.tilemap.fx or fy != self.tilemap.fy:
-			self.tilemap.set_focus(fx, fy)
-
-		self.tilemap.draw(surf)
-
 	def handle_keyboard(self, event):
 		self.cursor.update(event)
 		self.update_arrow(self.cursor.coord)
@@ -686,6 +672,21 @@ class Map(object):
 			ret = self.select(self.cursor.coord)
 			self.update_highlight()
 			return ret
+
+	def handle_videoresize(self, event):
+		w, h = event.size
+		viewport_size = (w - 200, h)
+		self.tilemap.viewport = pygame.Rect(self.tilemap.viewport.topleft, viewport_size)
+		self.tilemap.view_w, self.tilemap.view_h = viewport_size
+
+	def draw(self, surf):
+		self.sprites.update()
+		fx = self.tilemap.fx + self.move_x
+		fy = self.tilemap.fy + self.move_y
+		if fx != self.tilemap.fx or fy != self.tilemap.fy:
+			self.tilemap.set_focus(fx, fy)
+
+		self.tilemap.draw(surf)
 
 	def select(self, coord):
 		active_team = self.units_manager.active_team
