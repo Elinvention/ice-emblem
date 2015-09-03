@@ -469,7 +469,11 @@ class Game(object):
 			event_handler.wait(gui.Menu.EVENT_TYPES)
 			self.clock.tick(30)
 
-		self.load_map(os.path.join('maps', files[menu.choice][0]))
+		try:
+			self.load_map(os.path.join('maps', files[menu.choice][0]))
+		except:
+			print("Error loading map! Wrong format. " + sys.exc_info()[0])
+			self.map_menu(main_menu_image)
 
 	def fadeout(self, fadeout_time, percent=0):
 		start = pygame.time.get_ticks()
