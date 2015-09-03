@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Ice Emblem 0.1\n"
 "POT-Creation-Date: 2015-08-21 21:29+0200\n"
-"PO-Revision-Date: 2015-08-21 21:37+0200\n"
+"PO-Revision-Date: 2015-09-03 13:05+0200\n"
 "Last-Translator: Elia Argentieri <elia.argentieri@openmailbox.org>\n"
 "Language-Team: \n"
 "Language: it_IT\n"
@@ -50,7 +50,7 @@ msgstr "Squadra Rossa"
 
 #: game.py:288
 msgid "Main game loop started"
-msgstr "Il ciclo del principale del gioco è stato avviato"
+msgstr "Il ciclo principale del gioco è stato avviato"
 
 #: game.py:312
 msgid "Returning to main menu"
