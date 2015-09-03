@@ -41,7 +41,10 @@ class EventHandler(object):
 	"""
 
 	def __init__(self, name=""):
-		self._callbacks = {QUIT: [utils.return_to_os], VIDEORESIZE: [utils.videoresize_handler]}
+		self._callbacks = {
+			QUIT: [utils.return_to_os],
+			VIDEORESIZE: [utils.videoresize_handler],
+		}
 		self.name = ""
 		self.logger = logging.getLogger('EventHandler' + name)
 
@@ -126,21 +129,25 @@ class EventHandler(object):
 
 	def reset(self):
 		self.logger.debug('Reset')
-		self._callbacks = {QUIT: [utils.return_to_os], VIDEORESIZE: [utils.videoresize_handler]}
+		self._callbacks = {
+			QUIT: [utils.return_to_os],
+			VIDEORESIZE: [utils.videoresize_handler],
+		}
 
 
 class Sidebar(object):
-	def __init__(self, screen, font, unit_manager, event_handler):
+	def __init__(self, screen, font, unit_manager):
 		self.screen = screen
-		screen_size = screen.get_size()
-		self.screen_resize(screen_size)
+		self.rect = pygame.Rect((screen.get_width() - 200, 0), (200, screen.get_height()))
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
 		self.endturn_btn = gui.Button(_("End Turn"), self.font, unit_manager.switch_turn)
-		self.endturn_btn.rect.bottomright = screen_size
-		self.endturn_btn.register(event_handler)
 
 	def update(self, unit, terrain, coord, team):
+		self.rect.h = self.screen.get_height()
+		self.rect.x = self.screen.get_width() - self.rect.w
+		self.endturn_btn.rect.bottomright = self.rect.bottomright
+
 		sidebar = pygame.Surface(self.rect.size)
 		sidebar.fill((100, 100, 100))
 
@@ -186,12 +193,6 @@ class Sidebar(object):
 
 		self.screen.blit(sidebar, self.rect)
 		self.endturn_btn.draw(self.screen)
-
-	def screen_resize(self, screen_size):
-		pos = (screen_size[0] - 200, 0)
-		size = (200, screen_size[1])
-		self.rect = pygame.Rect(pos, size)
-
 
 
 class ResizableImage(object):
@@ -265,7 +266,7 @@ class Game(object):
 		self.sounds = { f[:-4] : pygame.mixer.Sound(os.path.relpath(os.path.join('sounds', f))) for f in sound_files}
 
 		self.event_handler = EventHandler("Main")
-		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.units_manager, self.event_handler)
+		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.units_manager)
 
 		self.winner = None
 		self.done = False
@@ -712,11 +713,13 @@ class Game(object):
 		self.event_handler.unregister(MOUSEBUTTONDOWN, self.handle_click)
 		self.event_handler.unregister(MOUSEMOTION, self.handle_mouse_motion)
 		self.event_handler.unregister(KEYDOWN, self.handle_keyboard)
+		self.sidebar.endturn_btn.unregister(self.event_handler)
 
 	def enable_controls(self):
 		self.event_handler.register(MOUSEBUTTONDOWN, self.handle_click)
 		self.event_handler.register(MOUSEMOTION, self.handle_mouse_motion)
 		self.event_handler.register(KEYDOWN, self.handle_keyboard)
+		self.sidebar.endturn_btn.register(self.event_handler)
 
 	def switch_turn(self):
 		active_team = self.units_manager.switch_turn()
