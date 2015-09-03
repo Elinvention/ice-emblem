@@ -701,6 +701,7 @@ class Game(object):
 		pygame.time.wait(500)
 		self.battle_music_ch.stop()
 		self.overworld_music_ch.unpause()
+		self.screen.blit(battle_background, (0, 0))
 		attacking.played = True
 
 		if defending_team.is_defeated():
