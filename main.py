@@ -38,27 +38,33 @@ import game
 from colors import *
 
 
+VERSION = utils.read('VERSION').strip('\n')
+
 # Gettext work around for Windows
 if sys.platform.startswith('win'):
 	logging.debug('Windows detected')
 	import locale
 	if os.getenv('LANG') is None:
-		logging.debug('Windows did not provide the LANG environment variable')
+		logging.debug('Windows did not provide the LANG environment variable.')
 		lang, enc = locale.getdefaultlocale()
 		os.environ['LANG'] = lang
+		logging.debug('Language: %s' % lang)
 gettext.install('ice-emblem', 'locale')  # load translations
 
 
 def main():
 	# command-line argument parsing
 	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
-	parser.add_argument('-s','--skip', action='store_true', help=_('Skip main menu'), required=False)
-	parser.add_argument('-m','--map', action='store', help=_('Which map to load'), default=None, required=False)
+	parser.add_argument('--version', action='version', version='Ice Emblem '+VERSION)
+	parser.add_argument('-s', '--skip', action='store_true', help=_('Skip main menu'), required=False)
+	parser.add_argument('-m', '--map', action='store', help=_('Which map to load'), default=None, required=False)
+	parser.add_argument('-l', '--logging', action='store', help=_('Choose logging level'), default=20, type=int, required=False)
+	parser.add_argument('-f', '--file', action='store', help=_('Log file'), default=None, required=False)
 	args = parser.parse_args()
 
 	# log to screen
-	logging.basicConfig(level=logging.DEBUG)
-	logging.info(_('Welcome to %s!') % 'Ice Emblem 0.1')
+	logging.basicConfig(level=args.logging, filename=args.file, filemode='a')
+	logging.info(_('Welcome to %s!') % ('Ice Emblem ' + VERSION))
 	logging.info(_('You are using Pygame version %s.') % pygame.version.ver)
 	if pygame.version.vernum < (1, 9, 2):
 		logging.warning(_('You are running a version of Pygame that might be outdated.'))
@@ -67,7 +73,7 @@ def main():
 	pygame.init()
 	pygame.display.set_icon(pygame.image.load(os.path.join('images', 'icon.png')))
 	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-	pygame.display.set_caption("Ice Emblem")
+	pygame.display.set_caption("Ice Emblem " + VERSION)
 	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
 	# event will be generated every 50 ms
 	pygame.key.set_repeat(200, 50)

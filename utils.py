@@ -25,6 +25,8 @@ import pygame
 import sys
 import csv
 import logging
+import os.path
+
 
 def timeit(f):
 
@@ -77,3 +79,6 @@ def videoresize_handler(event):
 	if screen_size[1] < 600:
 		screen_size = (screen_size[0], 600)
 	return pygame.display.set_mode(screen_size, pygame.RESIZABLE)
+
+def read(fname):
+	return open(os.path.join(os.path.dirname(__file__), fname)).read()
