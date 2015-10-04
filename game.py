@@ -252,6 +252,13 @@ class Sounds(object):
 			for s in self.sounds[sound]:
 				s.stop()
 
+	def set_volume(self, sound, volume):
+		try:
+			self.sounds[sound].set_volume(volume)
+		except AttributeError:
+			for s in self.sounds[sound]:
+				s.set_volume(volume)
+
 
 class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
@@ -281,6 +288,7 @@ class Game(object):
 
 		# load every .ogg file from sounds directory
 		self.sounds = Sounds(os.path.relpath('sounds'))
+		self.sounds.set_volume('cursor', 0.1)
 
 		self.event_handler = EventHandler("Main")
 
@@ -295,7 +303,7 @@ class Game(object):
 
 	def load_map(self, map_path):
 		if map_path is not None:
-			self.map = map.Map(map_path, self.screen.get_size())
+			self.map = map.Map(map_path, self.screen.get_size(), self.sounds)
 			self.units_manager = self.map.units_manager
 			for team in self.units_manager.teams:
 				if team.ai:
@@ -570,7 +578,7 @@ class Game(object):
 		dist = utils.distance(attacking.coord, defending.coord)
 		at, dt = attacking.number_of_attacks(defending, dist)
 
-		print("\r\n" + "#" * 12 + " Fight!!! " + "#" * 12)
+		print("\r\n" + "#" * 12 + " " + _("Fight!!!") + " " + "#" * 12)
 		att_str = _("%s is going to attack %d %s")
 		print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
 		print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))
@@ -743,7 +751,7 @@ class Game(object):
 		elif attacking_team.is_defeated():
 			self.winner = defending_team
 
-		print("#" * 12 + " Battle ends " + "#" * 12 + "\r\n")
+		print("#" * 12 + " " + _("Battle ends") + " " + "#" * 12 + "\r\n")
 
 	def kill(self, unit):
 		self.map.kill_unit(unit=unit)

@@ -98,13 +98,14 @@ class Terrain(object):
 
 
 class Cursor(pygame.sprite.Sprite):
-	def __init__(self, tilemap, img_path, *groups):
+	def __init__(self, tilemap, img_path, sounds, *groups):
 		super(Cursor, self).__init__(*groups)
 		self.image = pygame.image.load(img_path).convert_alpha()
 		self.tilesize = tilemap.tile_width, tilemap.tile_height
 		self.rect = pygame.Rect((0, 0), self.tilesize)
 		self.coord = (0, 0)
 		self.tilemap = tilemap
+		self.sounds = sounds
 
 	def update(self, event):
 		if event.type == pygame.KEYDOWN:
@@ -121,12 +122,16 @@ class Cursor(pygame.sprite.Sprite):
 			self.rect.x = cx * self.tilemap.tile_width
 			self.rect.y = cy * self.tilemap.tile_height
 			self.coord = cx, cy
+
+			self.sounds.play('cursor')
 		elif event.type == pygame.MOUSEMOTION:
 			cx, cy = self.tilemap.index_at(*event.pos)
 			if 0 <= cx < self.tilemap.width and 0 <= cy < self.tilemap.height:
 				self.rect.x = cx * self.tilemap.tile_width
 				self.rect.y = cy * self.tilemap.tile_height
-				self.coord = cx, cy
+				if (cx, cy) != self.coord:
+					self.sounds.play('cursor')
+					self.coord = cx, cy
 
 
 class CellHighlight(pygame.sprite.Sprite):
@@ -399,7 +404,7 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen_size):
+	def __init__(self, map_path, screen_size, sounds):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
@@ -468,7 +473,7 @@ class Map(object):
 				pass
 
 		cursor_layer = tmx.SpriteLayer()
-		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), cursor_layer)
+		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), sounds, cursor_layer)
 
 		arrow_layer = tmx.SpriteLayer()
 		self.arrow = Arrow((self.tilemap.px_width, self.tilemap.px_height), os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
