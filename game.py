@@ -24,6 +24,7 @@ from pygame.locals import *
 import sys
 import os
 import logging
+import traceback
 import time
 
 import map
@@ -495,7 +496,9 @@ class Game(object):
 		try:
 			self.load_map(os.path.join('maps', files[menu.choice][0]))
 		except:
-			print("Error loading map! Wrong format. " + sys.exc_info()[0])
+			logging.error("Can't load map %s! Probabily the format is not ok.", files[menu.choice][0])
+			traceback.print_exc()
+			self.map = None
 			self.map_menu(main_menu_image)
 
 	def fadeout(self, fadeout_time, percent=0):
