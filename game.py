@@ -354,6 +354,8 @@ class Game(object):
 			self.map = None
 			self.winner = None
 			self.done = False
+			self.sidebar = None
+			self.units_manager = None
 			self.event_handler.reset()
 			self.main_menu()
 
@@ -805,9 +807,9 @@ class Game(object):
 
 		pygame.event.clear()
 		self.event_handler.wait()
-		pygame.mixer.fadeout(2000)
+		pygame.mixer.music.fadeout(2000)
 		self.fadeout(2000)
-		pygame.mixer.stop()
+		pygame.mixer.music.stop()
 
 	def get_mouse_coord(self, pos=None):
 		if pos is None:
