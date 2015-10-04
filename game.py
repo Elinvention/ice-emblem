@@ -244,6 +244,8 @@ class Sounds(object):
 			self.sounds[sound].play(*args)
 		except AttributeError:
 			random.choice(self.sounds[sound]).play(*args)
+		except KeyError:
+			logging.error("Could not play sound %s: file not found.", sound)
 
 	def stop(self, sound):
 		try:
