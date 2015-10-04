@@ -563,7 +563,7 @@ class ObjectLayer(object):
 			int(tag.attrib.get('visible', 1)))
 		for object in tag.findall('object'):
 			layer.objects.append(Object.fromxml(object, map))
-		for c in tag.findall('property'):
+		for c in tag.find('properties').findall('property'):
 			# store additional properties.
 			name = c.attrib['name']
 			value = c.attrib['value']
