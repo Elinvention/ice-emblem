@@ -138,12 +138,12 @@ class EventHandler(object):
 
 
 class Sidebar(object):
-	def __init__(self, screen, font, unit_manager):
+	def __init__(self, screen, font, switch_turn):
 		self.screen = screen
 		self.rect = pygame.Rect((screen.get_width() - 200, 0), (200, screen.get_height()))
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
-		self.endturn_btn = gui.Button(_("End Turn"), self.font, unit_manager.switch_turn)
+		self.endturn_btn = gui.Button(_("End Turn"), self.font, switch_turn)
 
 	def update(self, unit, terrain, coord, team):
 		self.rect.h = self.screen.get_height()
@@ -290,12 +290,14 @@ class Game(object):
 		self.sounds = Sounds(os.path.relpath('sounds'))
 
 		self.event_handler = EventHandler("Main")
-		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.units_manager)
 
 		self.winner = None
 		self.done = False
 		self.resolution = self.screen.get_size()
 		self.mode = pygame.RESIZABLE
+
+		# late init
+		self.sidebar = None
 
 	def load_map(self, map_path):
 		if map_path is not None:
@@ -467,7 +469,7 @@ class Game(object):
 		pygame.mixer.fadeout(2000)
 		self.fadeout(2000)
 		pygame.mixer.stop() # Make sure mixer is not busy
-		self.sidebar.start_time = pygame.time.get_ticks()
+		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.switch_turn)
 
 	def map_menu(self, main_menu_image):
 		if self.map is not None:
