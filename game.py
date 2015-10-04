@@ -31,6 +31,7 @@ import unit
 import gui
 import utils
 import ai
+import random
 from colors import *
 
 
@@ -225,6 +226,32 @@ class ResizableImage(object):
 		surface.blit(self.image, self.rect)
 
 
+class Sounds(object):
+	def __init__(self, sounds_dir):
+		ls = os.listdir(sounds_dir)
+		self.sounds = {}
+		for f in ls:
+			p = os.path.join(sounds_dir, f)
+			if os.path.isfile(p) and f.endswith('.ogg'):
+				self.sounds[f[:-4]] = pygame.mixer.Sound(p)
+			elif os.path.isdir(p):
+				lsdir = os.listdir(p)
+				self.sounds[f] = [pygame.mixer.Sound(os.path.join(p, f)) for f in lsdir if f.endswith('.ogg')]
+
+	def play(self, sound, *args):
+		try:
+			self.sounds[sound].play(*args)
+		except AttributeError:
+			random.choice(self.sounds[sound]).play(*args)
+
+	def stop(self, sound):
+		try:
+			self.sounds[sound].stop()
+		except AttributeError:
+			for s in self.sounds[sound]:
+				s.stop()
+
+
 class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
 	TIMEOUTEVENT = USEREVENT + 1
@@ -259,11 +286,7 @@ class Game(object):
 		self.battle_music = pygame.mixer.Sound(os.path.join('music', 'The Last Encounter Short Loop.ogg'))
 
 		# load every .ogg file from sounds directory
-		sounds_path = os.path.relpath('sounds')
-		sounds_dir = os.listdir(sounds_path)
-		sound_files = [ f for f in sounds_dir if os.path.isfile(os.path.join(sounds_path, f)) and f.endswith('.ogg')]
-		# filename without extension : sound object
-		self.sounds = { f[:-4] : pygame.mixer.Sound(os.path.relpath(os.path.join('sounds', f))) for f in sound_files}
+		self.sounds = Sounds(os.path.relpath('sounds'))
 
 		self.event_handler = EventHandler("Main")
 		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.units_manager)
@@ -495,13 +518,13 @@ class Game(object):
 		img_pos = utils.center(self.screen.get_rect(), unit.image.get_rect())
 		exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
 
-		self.sounds['exp'].play(-1)
+		self.sounds.play('exp', -1)
 
 		gained_exp = unit.gained_exp()
 		curr_exp = unit.prev_exp
 		while curr_exp <= gained_exp + unit.prev_exp:
 			if unit.levelled_up() and curr_exp == 100:
-				self.sounds['levelup'].play()
+				self.sounds.play('levelup')
 			exp = pygame.Surface((curr_exp % 100, 20))
 			exp.fill(YELLOW)
 
@@ -519,7 +542,7 @@ class Game(object):
 			self.clock.tick(60)
 			self.event_handler()
 
-		self.sounds['exp'].stop()
+		self.sounds.stop('exp')
 		self.event_handler.wait(timeout=2000)
 
 	def battle(self, attacking, defending):
@@ -610,15 +633,15 @@ class Game(object):
 					if outcome == 1:  # Miss
 						def_text = miss_text
 						animate_miss = animation_time
-						self.sounds['miss'].play()
+						self.sounds.play('miss')
 					elif outcome == 2:  # Null attack
 						def_text = null_text
-						self.sounds['null'].play()
+						self.sounds.play('null')
 					elif outcome == 3:  # Triple hit
 						att_text = crit_text
-						self.sounds['critical'].play()
+						self.sounds.play('critical')
 					elif outcome == 4:  # Hit
-						self.sounds['hit'].play()
+						self.sounds.play('hit')
 
 					att_rect = att_rect_origin.copy()
 					def_rect = def_rect_origin.copy()
@@ -685,13 +708,13 @@ class Game(object):
 			self.kill(defending)
 
 		if att_weapon and att_weapon.uses == 0:
-			self.sounds['broke'].play()
+			self.sounds.play('broke')
 			broken_text = self.SMALL_FONT.render("%s is broken" % att_weapon.name, True, RED)
 			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
 			event_handler.wait(timeout=3000)
 		if def_weapon and def_weapon.uses == 0:
-			self.sounds['broke'].play()
+			self.sounds.play('broke')
 			broken_text = self.SMALL_FONT.render("%s is broken" % def_weapon.name, True, RED)
 			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
