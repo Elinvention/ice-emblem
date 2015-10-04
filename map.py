@@ -481,7 +481,7 @@ class Map(object):
 		self.tilemap.layers.append(arrow_layer)
 		self.tilemap.layers.append(cursor_layer)
 
-		self.tilemap.set_focus(0, 0)
+		self.tilemap.set_focus(self.tilemap.view_w // 2, self.tilemap.view_h // 2)
 
 		self.prev_sel = None
 		self.curr_sel = None
@@ -676,7 +676,7 @@ class Map(object):
 
 		x, y = event.pos
 		border = 50
-		speed = 5
+		speed = 10
 		if x < border:
 			self.move_x = -speed
 		elif x > self.tilemap.view_w - border:
@@ -711,8 +711,20 @@ class Map(object):
 		self.sprites.update()
 		fx = self.tilemap.fx + self.move_x
 		fy = self.tilemap.fy + self.move_y
-		if fx != self.tilemap.fx or fy != self.tilemap.fy:
-			self.tilemap.set_focus(fx, fy)
+		min_x = self.tilemap.view_w // 2
+		min_y = self.tilemap.view_h // 2
+		max_x = self.tilemap.px_width - min_x
+		max_y = self.tilemap.px_height - min_y
+
+		if not min_x <= fx <= max_x:
+			fx = self.tilemap.fx
+			self.move_x = 0
+
+		if not min_y <= fy <= max_y:
+			fy = self.tilemap.fy
+			self.move_y = 0
+
+		self.tilemap.set_focus(fx, fy)
 
 		self.tilemap.draw(surf)
 

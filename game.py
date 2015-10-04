@@ -329,8 +329,16 @@ class Game(object):
 
 				if callable(self.units_manager.active_team.ai):
 					self.units_manager.active_team.ai()
+				elif self.map.move_x != 0 or self.map.move_y != 0:
+					self.event_handler()
 				else:
-					self.event_handler.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION])
+					# we want to wait but update the clock!
+					time = pygame.time.get_ticks() - self.sidebar.start_time
+					pygame.time.set_timer(self.CLOCKEVENT, (1000 - time % 1000))
+					event = self.event_handler.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, self.CLOCKEVENT])
+					if event.type != self.CLOCKEVENT:
+						# something happened before CLOCKEVENT so we don't want it anymore
+						pygame.time.set_timer(self.CLOCKEVENT, 0)
 
 			logging.debug(_('Returning to main menu'))
 			self.map = None
