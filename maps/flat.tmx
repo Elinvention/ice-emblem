@@ -1,13 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-up" width="30" height="25" tilewidth="32" tileheight="32">
+<map version="1.0" orientation="orthogonal" renderorder="right-up" width="30" height="25" tilewidth="32" tileheight="32" nextobjectid="3">
  <tileset firstgid="1" source="Terrain.tsx"/>
  <layer name="Tile Layer 1" width="30" height="25">
   <data encoding="base64" compression="gzip">
    H4sIAAAAAAAAA+3DMQ0AAAwDoM5K/YusjR2Q0Euqqqq+PjejLz64CwAA
   </data>
  </layer>
- <objectgroup name="Sprites" visible="0">
-  <object name="Pirate Tux" type="unit" x="37" y="39" width="18" height="18"/>
-  <object name="Skeleton" type="unit" x="936" y="777" width="18" height="18"/>
+ <objectgroup color="#0000ff" name="Squadra Blu">
+  <properties>
+   <property name="boss" value="Skeleton"/>
+   <property name="relation" value="10"/>
+  </properties>
+  <object id="2" name="Skeleton" type="unit" x="902" y="743" width="18" height="18"/>
+ </objectgroup>
+ <objectgroup color="#ff0000" name="Squadra Rossa">
+  <properties>
+   <property name="AI" value=""/>
+   <property name="boss" value="Pirate Tux"/>
+   <property name="relation" value="20"/>
+  </properties>
+  <object id="1" name="Pirate Tux" type="unit" x="37" y="39" width="18" height="18"/>
  </objectgroup>
 </map>

@@ -32,7 +32,7 @@ class Unit(object):
 	This class is a unit with stats
 	"""
 	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
-		self.name	=	str(name)   	# name of the character
+		self.name	=	str(name)   	# name of the Unit
 		self.hp_max	=	int(hp_max) 	# maximum hp
 		self.hp 	=	int(hp)     	# current hp
 		self.prev_hp=	self.hp     	# HP before an attack
@@ -57,7 +57,7 @@ class Unit(object):
 		self.played	=	False       	# wether unit was used or not in a turn
 		self.color	=	None        	# team color
 		self.coord	=	None
-		self.modified = False
+		self.modified = True
 		path = os.path.relpath(os.path.join('sprites', self.name + '.png'))
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
@@ -95,7 +95,7 @@ Unit: "%s"
 		"""
 		Returns a Surface containing all informations about a unit.
 		The specified font will be used to render the text and will
-		determine the width and haight of the Surface
+		determine the width and height of the Surface
 		"""
 
 		font_linesize = font.get_linesize()

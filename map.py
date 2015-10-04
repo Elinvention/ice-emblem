@@ -26,7 +26,8 @@ import os.path
 import logging
 import utils
 import heapq
-from unit import Unit
+import unit
+import item
 from colors import *
 
 
@@ -398,7 +399,7 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen_size, units_manager):
+	def __init__(self, map_path, screen_size):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
@@ -411,33 +412,60 @@ class Map(object):
 		self.terrains = {}
 		self.sprites = tmx.SpriteLayer()
 
-		for obj in self.tilemap.layers['Sprites'].objects:
-			if obj.type == 'unit':
-				try:
-					unit = units_manager.get_units(name=obj.name)[0]
-					unit.coord = obj.px // self.tw, obj.py // self.th
-				except IndexError:
-					pass
-				else:
-					team = units_manager.get_team(unit.color)
-					UnitSprite(self.tile_size, obj, unit, team, self.sprites)
+		csv_units = utils.csv_to_objects_dict(os.path.join('data', 'units.txt'), unit.Unit)
+		csv_weapons = utils.csv_to_objects_dict(os.path.join('data', 'weapons.txt'), item.Weapon)
+
+		teams = {}
+
+		for layer in self.tilemap.layers:
+			try:  # layer can be an ObjectLayer or a Layer
+				c = layer.color
+				layer.visible = False  # don't draw squares
+				color = (int(c[1:3], base=16), int(c[3:5], base=16),
+						int(c[5:7], base=16))  # from '#RGB' to (R,G,B)
+				units = {}
+				for obj in layer.objects:
+					if obj.type == 'unit':
+						units[obj.name] = csv_units[obj.name]
+						units[obj.name].coord = obj.px // self.tw, obj.py // self.th
+						weapon = obj.properties.get('weapon', None)
+						if weapon:
+							try:
+								units[obj.name].give_weapon(csv_weapons[weapon])
+							except KeyError:
+								logging.warning("Weapon %s not found", weapon)
+				relation = layer.properties['relation']
+				ai = 'AI' in layer.properties
+				boss = csv_units[layer.properties['boss']]
+			except AttributeError:
+				pass
+			else:
+				teams[color] = unit.Team(layer.name, color, relation, ai, list(units.values()), boss)
+
+		for layer in self.tilemap.layers:
+			try:
+				for obj in layer.objects:
+					u = csv_units[obj.name]
+					team = teams[u.color]
+					UnitSprite(self.tile_size, obj, u, team, self.sprites)
+			except (AttributeError):
+				pass
+
+		self.units_manager = unit.UnitsManager(list(teams.values()))
 
 		for layer in reversed(self.tilemap.layers):
 			try:
-				logging.debug("Loading %s", repr(layer))
 				for cell in layer:
 					try:
 						coord = cell.px // self.tw, cell.py // self.th
-						units = units_manager.get_units(coord=coord)
-						unit = units[0] if units else None
+						units = self.units_manager.get_units(coord=coord)
+						_unit = units[0] if units else None
 						if coord not in self.terrains:
-							self.terrains[coord] = Terrain(cell.tile, unit)
+							self.terrains[coord] = Terrain(cell.tile, _unit)
 					except AttributeError:
 						pass
 			except TypeError:
 				pass
-
-		self.units_manager = units_manager
 
 		cursor_layer = tmx.SpriteLayer()
 		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), cursor_layer)

@@ -257,8 +257,9 @@ class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
 	TIMEOUTEVENT = USEREVENT + 1
 	INTERRUPTEVENT = USEREVENT + 2
+	CLOCKEVENT = USEREVENT + 3
 
-	def __init__(self, screen, units, map_path):
+	def __init__(self, screen, map_path):
 		self.screen = screen
 		self.clock = pygame.time.Clock()
 
@@ -267,14 +268,6 @@ class Game(object):
 		self.MAIN_FONT = pygame.font.Font(font_path, 36)
 		self.SMALL_FONT = pygame.font.Font(font_path, 24)
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
-
-		team1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
-		team2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
-
-		team1 = unit.Team(name=_("Blue Team"), color=BLUE, relation=10, ai=None, units=team1_units, boss=units['Boss'])
-		team2 = unit.Team(name=_("Red Team"), color=RED, relation=20, ai=None, units=team2_units, boss=units['Pirate Tux'])
-
-		self.units_manager = unit.UnitsManager([team1, team2])
 
 		self.load_map(map_path)
 
@@ -298,15 +291,19 @@ class Game(object):
 
 		# late init
 		self.sidebar = None
+		self.units_manager = None
 
 	def load_map(self, map_path):
 		if map_path is not None:
-			self.map = map.Map(map_path, self.screen.get_size(), self.units_manager)
+			self.map = map.Map(map_path, self.screen.get_size())
+			self.units_manager = self.map.units_manager
+			for team in self.units_manager.teams:
+				if team.ai:
+					team.ai = ai.AI(self.map, self.units_manager, team, self.battle)
 			self.event_handler.register(VIDEORESIZE, self.map.handle_videoresize)
-			enemy_team = self.units_manager.teams[1]
-			enemy_team.ai = ai.AI(self.map, self.units_manager, enemy_team, self.battle)
 		else:
 			self.map = None
+			self.units_manager = None
 
 	def play(self):
 		while True:
@@ -314,7 +311,7 @@ class Game(object):
 
 			self.play_overworld_music()
 
-			if self.units_manager.active_team.ai is None:
+			if not self.units_manager.active_team.ai:
 				self.enable_controls()
 
 			while not self.done:
@@ -501,6 +498,7 @@ class Game(object):
 			logging.error("Can't load map %s! Probabily the format is not ok.", files[menu.choice][0])
 			traceback.print_exc()
 			self.map = None
+			self.units_manager = None
 			self.map_menu(main_menu_image)
 
 	def fadeout(self, fadeout_time, percent=0):
@@ -757,7 +755,7 @@ class Game(object):
 
 	def switch_turn(self):
 		active_team = self.units_manager.switch_turn()
-		if active_team.ai is None:
+		if not active_team.ai:
 			self.enable_controls()
 		else:
 			self.disable_controls()

@@ -30,9 +30,7 @@ import sys
 import gettext
 import utils
 
-import item
 import map
-import unit
 import game
 
 from colors import *
@@ -78,17 +76,6 @@ def main():
 	# event will be generated every 50 ms
 	pygame.key.set_repeat(200, 50)
 
-	units = utils.csv_to_objects_dict(os.path.join('data', 'characters.txt'), unit.Unit)
-	weapons = utils.csv_to_objects_dict(os.path.join('data', 'weapons.txt'), item.Weapon)
-
-	# TODO: units inventory to file
-	units['Boss'].give_weapon(weapons['Biga Feroce'])
-	units['Pirate Tux'].give_weapon(weapons['Stuzzicadenti'])
-	units['Soldier'].give_weapon(weapons['Bronze Sword'])
-	units['Pirate'].give_weapon(weapons['Bronze Bow'])
-	units['Ninja'].give_weapon(weapons['Knife'])
-	units['Skeleton'].give_weapon(weapons['Nosferatu'])
-
 	map_file = None
 	if args.map is not None:
 		map_file = os.path.join('maps', args.map + '.tmx')
@@ -99,7 +86,7 @@ def main():
 	else:
 		logging.debug(_('No map on command line: choose the map via the main menu'))
 
-	MAIN_GAME = game.Game(screen, units, map_file)
+	MAIN_GAME = game.Game(screen, map_file)
 
 	if not args.skip:
 		MAIN_GAME.main_menu()
