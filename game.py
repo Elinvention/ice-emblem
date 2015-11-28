@@ -124,9 +124,16 @@ class EventHandler(object):
 	def bind_click(self, mouse_button, callback, area=None, inside=True):
 		def f(event):
 			if event.button == mouse_button:
-				if (area is None or (inside and area.collidepoint(event.pos)) or
-						(not inside and not area.collidepoint(event.pos))):
+				if area is None:
 					callback()
+				else:
+					collide = area.collidepoint(event.pos)
+					if inside:
+						if collide:
+							callback()
+					else:
+						if not collide:
+							callback()
 		self.register(MOUSEBUTTONDOWN, f)
 
 	def reset(self):
