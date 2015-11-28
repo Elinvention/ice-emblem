@@ -21,18 +21,15 @@
 
 import pygame
 from pygame.locals import *
-import sys
 import os
 import logging
 import traceback
-import time
+import random
 
 import map
-import unit
 import gui
 import utils
 import ai
-import random
 from colors import *
 
 
