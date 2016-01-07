@@ -58,8 +58,8 @@ class GUI(object):
 
 
 class Menu(GUI):
-	K_INDEX_INCREASE = K_UP
-	K_INDEX_DECREASE = K_DOWN
+	K_INDEX_INCREASE = K_DOWN
+	K_INDEX_DECREASE = K_UP
 
 	def __init__(self, menu_entries, font, callback=None,
 			padding=(0, 0, 0, 0), pos=(0, 0),
