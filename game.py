@@ -112,25 +112,27 @@ class EventHandler(object):
 				self.logger.debug('%s unregistered %s' % (pygame.event.event_name(event_type), callback))
 				break
 
-	def bind_key(self, key, callback):
+	def bind_keys(self, keys, callback):
 		def f(event):
-			if key == event.key:
-				callback()
+			for key in keys:
+				if event.key == key:
+					callback()
 		self.register(KEYDOWN, f)
 
-	def bind_click(self, mouse_button, callback, area=None, inside=True):
+	def bind_click(self, mouse_buttons, callback, area=None, inside=True):
 		def f(event):
-			if event.button == mouse_button:
-				if area is None:
-					callback()
-				else:
-					collide = area.collidepoint(event.pos)
-					if inside:
-						if collide:
-							callback()
+			for mouse_button in mouse_buttons:
+				if event.button == mouse_button:
+					if area is None:
+						callback()
 					else:
-						if not collide:
-							callback()
+						collide = area.collidepoint(event.pos)
+						if inside:
+							if collide:
+								callback()
+						else:
+							if not collide:
+								callback()
 		self.register(MOUSEBUTTONDOWN, f)
 
 	def reset(self):
@@ -421,7 +423,7 @@ class Game(object):
 	def settings_menu(self):
 		event_handler = EventHandler("Settings")
 		logging.debug(_("Settings menu"))
-		event_handler.bind_key(K_ESCAPE, self.post_interrupt)
+		event_handler.bind_keys((K_ESCAPE,), self.post_interrupt)
 		back_btn = gui.Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
 		back_btn.rect.bottomright = self.screen.get_size()
 		fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
@@ -465,9 +467,8 @@ class Game(object):
 		hmenu.rect.bottomright = self.screen.get_size()
 
 		hmenu.register(self.event_handler)
-		self.event_handler.bind_key(K_RETURN, self.post_interrupt)
-		self.event_handler.bind_click(1, self.post_interrupt, hmenu.rect, False)
-
+		self.event_handler.bind_keys((K_RETURN, K_SPACE), self.post_interrupt)
+		self.event_handler.bind_click((1,), self.post_interrupt, hmenu.rect, False)
 		event = pygame.event.Event(NOEVENT, {})
 		while event.type != USEREVENT+2:
 			self.screen.fill(BLACK)
