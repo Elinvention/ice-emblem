@@ -242,17 +242,27 @@ class Button(GUI):
 		h = self.rendered_text.get_height() + padding[0] + padding[2]
 		super().__init__(pygame.Rect(pos, (w,h)))
 		self.clicked = False
-		self.hover = False
+		self._focus = False
 
 	def handle_mouse_motion(self, event):
 		super().handle_mouse_motion(event)
-		collide = self.rect.collidepoint(event.pos)
-		if collide and not self.hover:
+		if self.rect.collidepoint(event.pos):
+			self.focus()
+		else:
+			self.unfocus()
+
+	def focus(self):
+		if not self._focus:
 			self.rendered_text = self.font.render(self.text, True, self.txt_color, self.sel_color)
-			self.hover = True
-		elif not collide and self.hover:
+			self._focus = True
+
+	def unfocus(self):
+		if self._focus:
 			self.rendered_text = self.font.render(self.text, True, self.txt_color, self.bg_color)
-			self.hover = False
+			self._focus = False
+
+	def is_focused(self):
+		return self._focus
 
 	def handle_click(self, event):
 		super().handle_click(event)
@@ -298,3 +308,45 @@ class CheckBox(Button):
 			checkbox.fill(RED)
 		btn.blit(checkbox, (self.padding[1], self.padding[0]))
 		surface.blit(btn, self.rect.topleft)
+
+class Dialog(GUI):
+	def __init__(self, pos, font, text):
+		self.font = font
+		lines = text.split('\n')
+		self.text = [ font.render(r, True, WHITE) for r in lines ]
+		w = max(l.get_width() for l in self.text)
+		h = font.get_linesize() * len(lines)
+		super().__init__(pygame.Rect(pos, (w, h)))
+
+
+class Modal(Dialog):
+	def __init__(self, pos, font, text):
+		super().__init__(pos, font, text)
+		self.rect.h += font.get_linesize()
+		self._answer = None
+		self.affermative = Button(_("Yes"), font, lambda: setattr(self, _answer, True))
+		self.negative = Button(_("No"), font, lambda: setattr(self, _answer, False))
+
+	def get_answer():
+		return self._answer
+
+	def handle_keydown(self, event):
+		super().handle_keydown(event)
+		if event.key in [K_LEFT, K_RIGHT]:
+			if self.affermative.is_focused:
+				self.affermative.unfocus()
+				self.negative.focus()
+			else:
+				self.affermative.focus()
+				self.negative.unfocus()
+		elif event.key == KEY_SPACE:
+			self.answer = self.affermative.is_focused()
+
+	def draw(self, surface):
+		tmp = pygame.Surface(self.rect.size)
+		pos = self.rect.copy()
+		for l in self.text:
+			tmp.blit(l, pos)
+			pos.move_ip(0, self.font.get_linesize())
+		surface.blit(tmp, self.rect.topleft)
+
