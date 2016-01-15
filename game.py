@@ -146,12 +146,13 @@ class EventHandler(object):
 class Sidebar(object):
 	def __init__(self, screen, font, switch_turn):
 		self.screen = screen
-		self.rect = pygame.Rect((screen.get_width() - 200, 0), (200, screen.get_height()))
+		self.rect = pygame.Rect((screen.get_width() - 250, 0), (250, screen.get_height()))
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
 		self.endturn_btn = gui.Button(_("End Turn"), self.font, switch_turn)
 
 	def update(self, unit, terrain, coord, team):
+		render = lambda x, y: self.font.render(x, True, y)
 		self.rect.h = self.screen.get_height()
 		self.rect.x = self.screen.get_width() - self.rect.w
 		self.endturn_btn.rect.bottomright = self.rect.bottomright
@@ -159,45 +160,36 @@ class Sidebar(object):
 		sidebar = pygame.Surface(self.rect.size)
 		sidebar.fill((100, 100, 100))
 
-		turn_s = self.font.render(_('%s phase') % team.name, True, team.color)
-		pos = turn_s.get_rect(top=40, left=5)
+		turn_s = render(_('%s phase') % team.name, team.color)
+		pos = turn_s.get_rect(top=40, left=10)
 		sidebar.blit(turn_s, pos)
 
-		if terrain is not None:
-			t_name = self.font.render(terrain.name, True, WHITE)
-			t_def = self.font.render(_("Def: %d") % terrain.defense, True, WHITE)
-			t_avoid = self.font.render(_("Avoid: %d") % terrain.avoid, True, WHITE)
-			t_allowed = self.font.render(_("Allowed: %s") % terrain.allowed, True, WHITE)
-			pos = t_name.get_rect(top=pos.y + 40, left=5)
-			sidebar.blit(t_name, pos)
-			pos.left += pos.w + 5
-			sidebar.blit(terrain.surface, pos)
-			pos = t_def.get_rect(top=pos.y + 40, left=5)
-			sidebar.blit(t_def, pos)
-			pos = t_avoid.get_rect(top=pos.y + 40, left=5)
-			sidebar.blit(t_avoid, pos)
-			pos = t_allowed.get_rect(top=pos.y + 40, left=5)
-			sidebar.blit(t_allowed, pos)
+		t_info = [
+			render(terrain.name, WHITE),
+			render(_("Def: %d") % terrain.defense, WHITE),
+			render(_("Avoid: %d") % terrain.avoid, WHITE),
+			render(_("Allowed: %s") % (", ".join(terrain.allowed)), WHITE),
+		] if terrain else []
 
-		if unit is not None:
-			unit_name = self.font.render(unit.name, True, unit.color)
-		else:
-			unit_name = self.font.render(_("No units"), True, WHITE)
-		pos = unit_name.get_rect(top=pos.y + 40, left=5)
-		sidebar.blit(unit_name, pos)
+		u_info = [
+			render(unit.name, unit.color),
+			render(unit.get_active_weapon().name, WHITE),
+		] if unit else [render(_("No units"), WHITE)]
 
-		cell_label = self.font.render('X: %d Y: %d' % coord, True, WHITE)
-		pos = cell_label.get_rect(top=pos.y + 40, left=5)
-		sidebar.blit(cell_label, pos)
+		delta = (pygame.time.get_ticks() - self.start_time) // 1000
+		hours, remainder = divmod(delta, 3600)
+		minutes, seconds = divmod(remainder, 60)
 
-		time = pygame.time.get_ticks() - self.start_time
-		time //= 1000
-		sec = time % 60
-		minutes = time / 60 % 60
-		hours = time / 3600 % 24
-		time_s = self.font.render("%02d:%02d:%02d" % (hours, minutes, sec), True, WHITE)
-		pos = time_s.get_rect(top=pos.y + 40, left=5)
-		sidebar.blit(time_s, pos)
+		global_info = [
+			render('X: %d Y: %d' % coord, WHITE),
+			render('%02d:%02d:%02d' % (hours, minutes, seconds), WHITE),
+		]
+
+		out = t_info + u_info + global_info
+
+		for i in out:
+			pos.move_ip(0, 40)
+			sidebar.blit(i, pos)
 
 		self.screen.blit(sidebar, self.rect)
 		self.endturn_btn.draw(self.screen)

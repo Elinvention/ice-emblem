@@ -410,7 +410,7 @@ class Map(object):
 		arrow, highlight. It also generate a cost matrix to be used by
 		the Path class.
 		"""
-		self.tilemap = tmx.load(map_path, (screen_size[0] - 200, screen_size[1]))
+		self.tilemap = tmx.load(map_path, (screen_size[0] - 250, screen_size[1]))
 		self.tw, self.th = self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 		self.w, self.h = self.tilemap.width, self.tilemap.height
 
