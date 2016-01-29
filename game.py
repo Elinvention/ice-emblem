@@ -276,8 +276,6 @@ class Game(object):
 		self.SMALL_FONT = pygame.font.Font(font_path, 24)
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
-		self.load_map(map_path)
-
 		# load every .ogg file from sounds directory
 		self.sounds = Sounds(os.path.relpath('sounds'))
 		self.sounds.set_volume('cursor', 0.1)
@@ -289,9 +287,7 @@ class Game(object):
 		self.resolution = self.screen.get_size()
 		self.mode = pygame.RESIZABLE
 
-		# late init
-		self.sidebar = None
-		self.units_manager = None
+		self.load_map(map_path)
 
 	def load_map(self, map_path):
 		if map_path is not None:
@@ -310,6 +306,7 @@ class Game(object):
 			logging.debug(_('Main game loop started'))
 
 			self.units_manager.active_team.play_music('map')
+			self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.switch_turn)
 
 			if not self.units_manager.active_team.ai:
 				self.enable_controls()
@@ -472,7 +469,6 @@ class Game(object):
 		pygame.mixer.music.fadeout(2000)
 		self.fadeout(2000)
 		pygame.mixer.music.stop() # Make sure mixer is not busy
-		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.switch_turn)
 
 	def map_menu(self, main_menu_image):
 		if self.map is not None:
