@@ -308,7 +308,7 @@ class Team(object):
 
 	number_of_teams = 0
 
-	def __init__(self, name, color, relation, ai, units, boss):
+	def __init__(self, name, color, relation, ai, units, boss, music):
 		"""
 		name [str]: name of the Team
 		color [tuple of 3 ints]: color of the Team
@@ -319,6 +319,8 @@ class Team(object):
 		ai [AI]: if ai is an AI object ai will be used for this team
 		my_turn [bool]: if it is this team's turn
 		units [list of units]: units part of the team
+		boss [Unit]: the boss of this team that must be inside the units list
+		music [Dict of music_key : String filename ]
 		"""
 		self.number_of_teams += 1
 		self.name = name
@@ -329,6 +331,7 @@ class Team(object):
 			unit.color = color
 		self.units = units
 		self.boss = boss
+		self.music = music
 
 	def __del__(self):
 		self.number_of_teams -= 1
@@ -382,6 +385,20 @@ class Team(object):
 
 	def list_played(self):
 		return [u for u in self.units if u.played]
+
+	def play_music(self, music_key, music_pos=0):
+		old_pos = pygame.mixer.music.get_pos()
+		try:
+			pygame.mixer.music.load(self.music[music_key])
+			if music_pos > 0:
+				try:
+					pygame.mixer.music.set_pos(music_pos)
+				except pygame.error as e:
+					logging.warning(e)
+			pygame.mixer.music.play()
+		except KeyError:
+			logging.warning("Couldn't find key %s!" % music_key)
+		return old_pos
 
 
 class UnitsManager(object):
@@ -439,3 +456,4 @@ class UnitsManager(object):
 	def kill_unit(self, unit):
 		self.units.remove(unit)
 		self.get_team(unit.color).units.remove(unit)
+

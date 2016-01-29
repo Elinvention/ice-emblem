@@ -278,14 +278,6 @@ class Game(object):
 
 		self.load_map(map_path)
 
-		#pygame.mixer.set_reserved(2)
-		self.overworld_music_ch = pygame.mixer.Channel(0)
-		self.battle_music_ch = pygame.mixer.Channel(1)
-
-		self.main_menu_music = pygame.mixer.Sound(os.path.join('music', 'Beyond The Clouds (Dungeon Plunder).ogg'))
-		self.overworld_music = pygame.mixer.Sound(os.path.join('music', 'Ireland\'s Coast - Video Game.ogg'))
-		self.battle_music = pygame.mixer.Sound(os.path.join('music', 'The Last Encounter Short Loop.ogg'))
-
 		# load every .ogg file from sounds directory
 		self.sounds = Sounds(os.path.relpath('sounds'))
 		self.sounds.set_volume('cursor', 0.1)
@@ -317,7 +309,7 @@ class Game(object):
 		while True:
 			logging.debug(_('Main game loop started'))
 
-			self.play_overworld_music()
+			self.units_manager.active_team.play_music('map')
 
 			if not self.units_manager.active_team.ai:
 				self.enable_controls()
@@ -377,10 +369,6 @@ class Game(object):
 		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
 		self.screen.blit(fpslabel, rec)
 
-	def play_overworld_music(self):
-		"""Start playing overworld music in a loop."""
-		self.overworld_music_ch.play(self.overworld_music, -1)
-
 	def show_license(self):
 		event_handler = EventHandler("License")
 		path = os.path.abspath('images/GNU GPL.jpg')
@@ -438,7 +426,8 @@ class Game(object):
 			event = event_handler.wait(gui.Button.EVENT_TYPES + [self.INTERRUPTEVENT])
 
 	def main_menu(self):
-		self.main_menu_music.play()
+		pygame.mixer.music.load(os.path.join('music', 'Beyond The Clouds (Dungeon Plunder).ogg'))
+		pygame.mixer.music.play()
 		screen_rect = self.screen.get_rect()
 		screen_w, screen_h = self.screen.get_size()
 
@@ -480,9 +469,9 @@ class Game(object):
 
 		self.map_menu(main_menu_image)
 
-		pygame.mixer.fadeout(2000)
+		pygame.mixer.music.fadeout(2000)
 		self.fadeout(2000)
-		pygame.mixer.stop() # Make sure mixer is not busy
+		pygame.mixer.music.stop() # Make sure mixer is not busy
 		self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.switch_turn)
 
 	def map_menu(self, main_menu_image):
@@ -584,8 +573,7 @@ class Game(object):
 		print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
 		print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))
 
-		self.overworld_music_ch.pause()  # Stop music and loop fight music
-		self.battle_music_ch.play(self.battle_music, -1)
+		music_pos = attacking_team.play_music('battle')
 
 		self.blit_map()
 		self.fadeout(1000, 10)  # Darker atmosphere
@@ -740,10 +728,10 @@ class Game(object):
 			pygame.display.flip()
 			event_handler.wait(timeout=3000)
 
-		self.battle_music_ch.fadeout(500)
+		pygame.mixer.music.fadeout(500)
 		pygame.time.wait(500)
-		self.battle_music_ch.stop()
-		self.overworld_music_ch.unpause()
+		attacking_team.play_music('map', music_pos)
+
 		self.screen.blit(battle_background, (0, 0))
 		attacking.played = True
 
@@ -784,6 +772,8 @@ class Game(object):
 		phase = self.MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
 		self.screen.blit(phase, utils.center(self.screen.get_rect(), phase.get_rect()))
 		pygame.display.flip()
+		pygame.mixer.music.fadeout(1000)
+		active_team.play_music('map')
 		self.event_handler.wait(timeout=5000)
 
 	def victory_screen(self):

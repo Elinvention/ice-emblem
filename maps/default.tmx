@@ -19,7 +19,9 @@
  <objectgroup color="#ff0000" name="Squadra Rossa">
   <properties>
    <property name="AI" value=""/>
+   <property name="battle_music" value="The Last Encounter Short Loop.ogg"/>
    <property name="boss" value="Pirate Tux"/>
+   <property name="map_music" value="Dark Descent.ogg"/>
    <property name="relation" value="10"/>
   </properties>
   <object id="1" name="Pirate Tux" type="unit" x="39" y="135" width="16" height="16">
@@ -40,7 +42,9 @@
  </objectgroup>
  <objectgroup color="#0000ff" name="Squadra Blu">
   <properties>
+   <property name="battle_music" value="The Last Encounter Short Loop.ogg"/>
    <property name="boss" value="Boss"/>
+   <property name="map_music" value="Ireland's Coast - Video Game.ogg"/>
    <property name="relation" value="20"/>
   </properties>
   <object id="4" name="Soldier" type="unit" x="70.5" y="103.5" width="16" height="16">

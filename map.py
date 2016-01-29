@@ -442,10 +442,14 @@ class Map(object):
 				relation = layer.properties['relation']
 				ai = 'AI' in layer.properties
 				boss = csv_units[layer.properties['boss']]
+				def get(key):
+					v = layer.properties.get(key, None)
+					return os.path.join('music', v) if v else None
+				music = {'map': get('map_music'), 'battle': get('battle_music')}
 			except AttributeError:
 				pass
 			else:
-				teams[color] = unit.Team(layer.name, color, relation, ai, list(units.values()), boss)
+				teams[color] = unit.Team(layer.name, color, relation, ai, list(units.values()), boss, music)
 
 		for layer in self.tilemap.layers:
 			try:
@@ -803,3 +807,4 @@ class Map(object):
 
 	def is_enemy_cursor(self):
 		return self.cursor.coord in self.attack_area
+
