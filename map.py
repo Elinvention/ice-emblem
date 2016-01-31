@@ -674,6 +674,12 @@ class Map(object):
 		elif event.button == 3:
 			self.reset_selection()
 			return []
+		elif event.button == 4:  # Mouse wheel up
+			if self.tilemap.zoom <= 5.0:
+				self.tilemap.zoom += 0.05
+		elif event.button == 5:
+			if self.tilemap.zoom > 0.2:
+				self.tilemap.zoom -= 0.05
 
 	def handle_mouse_motion(self, event):
 		try:
@@ -722,8 +728,8 @@ class Map(object):
 		fy = self.tilemap.fy + self.move_y
 		min_x = self.tilemap.view_w // 2
 		min_y = self.tilemap.view_h // 2
-		max_x = self.tilemap.px_width - min_x
-		max_y = self.tilemap.px_height - min_y
+		max_x = self.tilemap.px_w_zoom - min_x
+		max_y = self.tilemap.px_h_zoom - min_y
 
 		if not min_x <= fx <= max_x:
 			fx = self.tilemap.fx

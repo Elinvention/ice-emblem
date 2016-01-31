@@ -809,6 +809,7 @@ class Game(object):
 		menu.register(event_handler)
 
 		self.blit_map()
+		self.blit_info()
 
 		action = None
 		while action is None:
