@@ -51,7 +51,7 @@ class AI(object):
 				self.logger.debug("Units next to %s: %s" % (unit.name, enemies))
 				if len(enemies) > 0:
 					target = self.best_target(enemies)
-					path = self.path.shortest_path(unit.coord, target.coord, unit.move)
+					path = self.path.shortest_path(unit.coord, target.coord, unit.movement)
 					if path:
 						dest = path[-1]
 						self.logger.debug("%s can reach %s from %s." % (unit.name, target.name, dest))
@@ -62,7 +62,7 @@ class AI(object):
 						unit.played = True
 				else:
 					target = self.nearest_enemy(unit)
-					path = self.path.shortest_path(unit.coord, target.coord, unit.move)
+					path = self.path.shortest_path(unit.coord, target.coord, unit.movement)
 					self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target.name, path))
 					if path:
 						dest = path[-1]
@@ -71,7 +71,7 @@ class AI(object):
 
 	def nearest_enemy(self, unit):
 		"""
-		Return the closest enemy outside his area
+		Finds the nearest enemy.
 		"""
 		l = [(len(self.path.shortest_path(unit.coord, enemy.coord)), enemy) for enemy in self.enemy_units]
 		l.sort(key=itemgetter(0))
@@ -82,13 +82,13 @@ class AI(object):
 		"""
 		Return the enemies in his area
 		"""
-		move_area = self.path.area(unit.coord, unit.move, False)
-		weapon_range = unit.get_weapon_range()
+		move_area = self.path.area(unit.coord, unit.movement, False)
+		min_range, max_range = unit.get_weapon_range()
 		enemies = []
 		for (x, y) in move_area:
-			for i in range(x - weapon_range, x + weapon_range + 1):
-				for j in range(y - weapon_range, y + weapon_range + 1):
-					if utils.distance((x, y), (i, j)) <= weapon_range:
+			for i in range(x - max_range, x + max_range + 1):
+				for j in range(y - max_range, y + max_range + 1):
+					if min_range <= utils.distance((x, y), (i, j)) <= max_range:
 						try:
 							enemy = self.map.get_unit((i, j))
 							if enemy and self.units_manager.are_enemies(enemy, unit):
@@ -99,7 +99,7 @@ class AI(object):
 
 	def best_target(self, enemies):
 		"""
-		Return the best enemy frome one list of enemies
+		Choose the best enemy to attack from a list
 		"""
 		enemies_values = [ u.value() for u in enemies ]
 		ranking = list(zip(enemies_values, enemies))
@@ -110,5 +110,4 @@ class AI(object):
 	def refresh(self):
 		random.shuffle(self.own_units)
 		random.shuffle(self.enemy_units)
-
 
