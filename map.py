@@ -176,9 +176,9 @@ class CellHighlight(pygame.sprite.Sprite):
 		for (x, y) in played:
 			blit(self.highlight_surfaces['played'], (x * self.tw, y * self.th))
 
-		for i in range(self.w):
+		for i in range(1, self.w):
 			self.image.blit(self.vertical_line, (i * self.tw - 1, 0))
-		for j in range(self.h):
+		for j in range(1, self.h):
 			self.image.blit(self.horizontal_line, (0, j * self.th - 1))
 
 
