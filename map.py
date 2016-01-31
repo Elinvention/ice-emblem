@@ -648,20 +648,6 @@ class Map(object):
 			self.units_manager.active_team.is_mine(prev_unit) and
 			self.curr_sel in self.move_area)
 
-	def sel_distance(self):
-		return distance(self.curr_sel, self.prev_sel)
-
-	def can_selection_attack(self):
-		prev_unit = self.get_unit(self.prev_sel)
-		curr_unit = self.get_unit(self.curr_sel)
-		active_team = self.units_manager.active_team
-
-		return (prev_unit is not None and not prev_unit.played and
-			active_team.is_mine(prev_unit) and
-			curr_unit is not None and
-			not active_team.is_mine(curr_unit) and
-			self.sel_distance() <= prev_unit.get_weapon_range())
-
 	def handle_click(self, event):
 		if event.button == 1:
 			try:
