@@ -76,7 +76,7 @@ class UnitSprite(pygame.sprite.Sprite):
 			resized_image = pygame.transform.smoothscale(src_img, image_size).convert_alpha()
 			self.image.blit(resized_image, utils.center(self.image.get_rect(), resized_image.get_rect()))
 
-		hp_bar_length = int(self.unit.hp / self.unit.hp_max * self.rect.w)
+		hp_bar_length = int(self.unit.health / self.unit.health_max * self.rect.w)
 		hp_bar = pygame.Surface((hp_bar_length, 5))
 		hp_bar.fill((0, 255, 0))
 		self.image.blit(hp_bar, (0, self.rect.h - 5))
@@ -417,8 +417,8 @@ class Map(object):
 		self.terrains = {}
 		self.sprites = tmx.SpriteLayer()
 
-		csv_units = utils.csv_to_objects_dict(os.path.join('data', 'units.txt'), unit.Unit)
-		csv_weapons = utils.csv_to_objects_dict(os.path.join('data', 'weapons.txt'), item.Weapon)
+		yaml_units = utils.parse_yaml(os.path.join('data', 'units.yml'), unit)
+		yaml_weapons = utils.parse_yaml(os.path.join('data', 'weapons.yml'), item)
 
 		teams = {}
 
@@ -431,17 +431,17 @@ class Map(object):
 				units = {}
 				for obj in layer.objects:
 					if obj.type == 'unit':
-						units[obj.name] = csv_units[obj.name]
+						units[obj.name] = yaml_units[obj.name]
 						units[obj.name].coord = obj.px // self.tw, obj.py // self.th
 						weapon = obj.properties.get('weapon', None)
 						if weapon:
 							try:
-								units[obj.name].give_weapon(csv_weapons[weapon])
+								units[obj.name].give_weapon(yaml_weapons[weapon])
 							except KeyError:
 								logging.warning("Weapon %s not found", weapon)
 				relation = layer.properties['relation']
 				ai = 'AI' in layer.properties
-				boss = csv_units[layer.properties['boss']]
+				boss = yaml_units[layer.properties['boss']]
 				def get(key):
 					v = layer.properties.get(key, None)
 					return os.path.join('music', v) if v else None
@@ -454,7 +454,7 @@ class Map(object):
 		for layer in self.tilemap.layers:
 			try:
 				for obj in layer.objects:
-					u = csv_units[obj.name]
+					u = yaml_units[obj.name]
 					team = teams[u.color]
 					UnitSprite(self.tile_size, obj, u, team, self.sprites)
 			except (AttributeError):
@@ -572,7 +572,7 @@ class Map(object):
 		which nodes can be reached by the selected unit.
 		"""
 		unit = self.get_unit(coord)
-		self.move_area = self.path.area(coord, unit.move)
+		self.move_area = self.path.area(coord, unit.movement)
 
 	def get_unit(self, coord):
 		return self.terrains[coord].unit
@@ -588,20 +588,20 @@ class Map(object):
 		Updates the area which will be highlighted on the map to show
 		how far the selected unit can attack.
 		"""
-		weapon_range = self.get_unit(coord).get_weapon_range()
+		min_range, max_range = self.get_unit(coord).get_weapon_range()
 		self.attack_area = []
 
 		for (x, y) in self.move_area:
-			for i in range(x - weapon_range, x + weapon_range + 1):
-				for j in range(y - weapon_range, y + weapon_range + 1):
+			for i in range(x - max_range, x + max_range + 1):
+				for j in range(y - max_range, y + max_range + 1):
 					if (i, j) not in self.move_area and (i, j) not in self.attack_area:
-						if utils.distance((x, y), (i, j)) <= weapon_range:
+						if min_range <= utils.distance((x, y), (i, j)) <= max_range:
 							self.attack_area.append((i, j))
 
 	def update_arrow(self, target):
 		if self.curr_sel and target:
 			if target in self.move_area:
-				path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).move)
+				path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).movement)
 				self.arrow.update(path, self.curr_sel)
 		else:
 			self.arrow.update([])
@@ -610,20 +610,21 @@ class Map(object):
 		played = [u.coord for u in self.units_manager.active_team.list_played()]
 		self.highlight.update(self.curr_sel, self.move_area, self.attack_area, played)
 
-	def area(self, c, r):
-		x, y = c
-		a = [(i, j) for i in range(x - r, x + r + 1)
-					for j in range(y - r, y + r + 1)
+	def area(self, center, radius, hole=0):
+		x, y = center
+		_area = [(i, j) for i in range(x - radius, x + radius + 1)
+					for j in range(y - radius, y + radius + 1)
 					if self.check_coord((i, j))
-					and utils.distance((x, y), (i, j)) <= r]
-		return a
+					and hole <= utils.distance((x, y), (i, j)) <= radius]
+		return _area
 
 	def nearby_enemies(self, unit):
 		"""
 		Returns a list of near enemies that can be
 		attacked without having to move.
 		"""
-		area = self.area(unit.coord, unit.get_weapon_range())
+		min_range, max_range = unit.get_weapon_range()
+		area = self.area(unit.coord, max_range, min_range)
 		nearby_list = []
 		for c in area:
 			c_unit = self.get_unit(c)

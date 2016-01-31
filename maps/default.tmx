@@ -59,7 +59,7 @@
   </object>
   <object id="5" name="Boss" type="unit" x="38.5" y="38.5" width="16" height="16">
    <properties>
-    <property name="weapon" value="Biga Feroce"/>
+    <property name="weapon" value="Long Bow"/>
    </properties>
   </object>
  </objectgroup>

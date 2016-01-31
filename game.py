@@ -171,10 +171,12 @@ class Sidebar(object):
 			render(_("Allowed: %s") % (", ".join(terrain.allowed)), WHITE),
 		] if terrain else []
 
+		weapon = unit.get_active_weapon() if unit else None
+		weapon_name = weapon.name if weapon else _("No Weapon")
 		u_info = [
 			render(unit.name, unit.color),
-			render(unit.get_active_weapon().name, WHITE),
-		] if unit else [render(_("No units"), WHITE)]
+			render(weapon_name, WHITE),
+		] if unit else [render(_("No unit"), WHITE)]
 
 		delta = (pygame.time.get_ticks() - self.start_time) // 1000
 		hours, remainder = divmod(delta, 3600)
@@ -534,7 +536,7 @@ class Game(object):
 			exp.fill(YELLOW)
 
 			exp_text = self.SMALL_FONT.render(_("EXP: %d") % (curr_exp % 100), True, YELLOW)
-			lv_text = self.SMALL_FONT.render(_("LV: %d") % unit.lv, True, BLUE)
+			lv_text = self.SMALL_FONT.render(_("LV: %d") % unit.level, True, BLUE)
 
 			self.screen.blit(bg, (0, 0))
 			self.screen.blit(unit.image, img_pos)
@@ -619,7 +621,7 @@ class Game(object):
 			animate_miss = False
 			outcome = 0
 			def_text = att_text = None
-			if (at > 0 or dt > 0) and (def_swap.hp > 0 and att_swap.hp > 0):  # Se ci sono turni e se sono vivi
+			if (at > 0 or dt > 0) and (def_swap.health > 0 and att_swap.health > 0):  # Se ci sono turni e se sono vivi
 				print(" " * 6 + "-" * 6 + "Round:" + str(_round + 1) + "-" * 6)
 			else:
 				break
@@ -672,17 +674,17 @@ class Game(object):
 					self.screen.blit(def_text, def_text_pos)
 				self.screen.blit(att_name, att_name_pos)
 				self.screen.blit(def_name, def_name_pos)
-				for i in range(attacking.hp_max):
+				for i in range(attacking.health_max):
 					x = att_life_pos[0] + (i % 30 * 5)
 					y = att_life_pos[1] + i // 30 * 11
-					if i < attacking.hp:
+					if i < attacking.health:
 						self.screen.blit(life_block, (x , y))
 					else:
 						self.screen.blit(life_block_used, (x , y))
-				for i in range(defending.hp_max):
+				for i in range(defending.health_max):
 					x = def_life_pos[0] + (i % 30 * 5)
 					y = def_life_pos[1] + i // 30 * 11
-					if i < defending.hp:
+					if i < defending.health:
 						self.screen.blit(life_block, (x , y))
 					else:
 						self.screen.blit(life_block_used, (x , y))
@@ -699,14 +701,14 @@ class Game(object):
 				att_rect, def_rect = def_rect, att_rect
 				att_rect_origin, def_rect_origin = def_rect_origin, att_rect_origin
 				att_text_pos, def_text_pos = def_text_pos, att_text_pos
-		if attacking.hp > 0:
-			attacking.experience(defending)
+		if attacking.health > 0:
+			attacking.gain_exp(defending)
 			self.experience_animation(attacking, battle_background)
 		else:
 			self.kill(attacking)
 
-		if defending.hp > 0:
-			defending.experience(attacking)
+		if defending.health > 0:
+			defending.gain_exp(attacking)
 			self.experience_animation(defending, battle_background)
 		else:
 			self.kill(defending)

@@ -31,33 +31,32 @@ class Unit(object):
 	"""
 	This class is a unit with stats
 	"""
-	def __init__(self, name, hp_max, hp, lv, exp, strength, skill, spd, luck, defence, res, move, con, aid, trv, affin, cond, wrank):
-		self.name	=	str(name)   	# name of the Unit
-		self.hp_max	=	int(hp_max) 	# maximum hp
-		self.hp 	=	int(hp)     	# current hp
-		self.prev_hp=	self.hp     	# HP before an attack
-		self.lv 	=	int(lv)     	# level
-		self.prev_lv = self.lv
-		self.exp	=	int(exp)    	# experience
-		self.prev_exp = self.exp
-		self.strength = int(strength)	# strength determines the damage inflicted to the enemy
-		self.skill	=	int(skill)  	# skill chance of hitting the enemy
-		self.spd	=	int(spd)    	# speed chance to avoid enemy's attack
-		self.luck	=	int(luck)   	# luck influences many things
-		self.defence=	int(defence)	# defence reduces phisical damages
-		self.res	=	int(res)    	# resistence reduces magical damages
-		self.move	=	int(move)   	# movement determines how far the unit can move in a turn
-		self.con	=	int(con)    	# constitution, or phisical size. affects rescues.
-		self.aid	=	int(aid)    	# max rescuing constitution. units with lower con can be rescued.
-		self.trv	=	trv         	# traveler. the unit with whom this unit is traveling.
-		self.affin	=	affin       	# elemental affinity. determines compatibility with other units.
-		self.cond	=	cond        	# health conditions.
-		self.wrank	=	wrank       	# weapons' levels.
-		self.items	=	[]          	# list of items
-		self.played	=	False       	# wether unit was used or not in a turn
-		self.color	=	None        	# team color
-		self.coord	=	None
-		self.modified = True
+	def __init__(self, name, health, level, experience, strength, skill, speed, luck, defence, resistence, movement, constitution, aid, affinity, condition, wrank, health_max=None):
+		self.name         = str(name)          # name of the Unit
+		self.health       = int(health)        # current health
+		self.health_max   = health_max if health_max else self.health  # maximum health
+		self.health_prev  = health             # HP before an attack
+		self.level        = int(level)         # level
+		self.level_prev   = self.level
+		self.experience   = int(experience)    # experience
+		self.exp_prev     = experience
+		self.strength     = int(strength)      # strength determines the damage inflicted to the enemy
+		self.skill        = int(skill)         # skill chance of hitting the enemy
+		self.speed        = int(speed)         # speed chance to avoid enemy's attack
+		self.luck         = int(luck)          # luck influences many things
+		self.defence      = int(defence)       # defence reduces phisical damages
+		self.resistence   = int(resistence)    # resistence reduces magical damages
+		self.movement     = int(movement)      # movement determines how far the unit can move in a turn
+		self.constitution = int(constitution)  # constitution, or phisical size. affects rescues.
+		self.aid          = int(aid)           # max rescuing constitution. units with lower con can be rescued.
+		self.affinity     = affinity           # elemental affinity. determines compatibility with other units.
+		self.condition    = condition          # health conditions.
+		self.wrank        = wrank              # weapons' levels.
+		self.items        = []                 # list of items
+		self.played       = False              # wether unit was used or not in a turn
+		self.color        = None               # team color
+		self.coord        = None
+		self.modified     = True
 		path = os.path.relpath(os.path.join('sprites', self.name + '.png'))
 		try:
 			self.image = pygame.image.load(path).convert_alpha()
@@ -80,16 +79,16 @@ Unit: "%s"
 	Spd: %d	Luck: %d
 	Def: %d	Res: %d
 	Move: %d	Con: %d
-	Aid: %d	Trv: %s
-	Affin: %s	Cond: %s
+	Aid: %d	Affin: %s
+	Cond: %s
 	WRank: %s
 	Items: %s
 	Played: %s
 """ % (self.name,
-			self.hp, self.hp_max, self.lv, self.exp, self.strength,
-			self.skill, self.spd, self.luck, self.defence,
-			self.res, self.move, self.con, self.aid, self.trv,
-			self.affin, self.cond, self.wrank, self.items, self.played)
+			self.health, self.health_max, self.level, self.experience, self.strength,
+			self.skill, self.speed, self.luck, self.defence,
+			self.resistence, self.movement, self.constitution, self.aid,
+			self.affinity, self.condition, self.wrank, self.items, self.played)
 
 	def render_info(self, font):
 		"""
@@ -139,26 +138,42 @@ Unit: "%s"
 				return item
 		return None
 
+	def deactivate_items(self):
+		for i in self.items:
+			i.active = False
+
 	def give_weapon(self, weapon, active=True):
-		"""Gives a weapon to the unit. The weapon becomes active by default."""
-		weapon.active = active
+		"""
+		Gives a weapon to the unit. The weapon becomes active by default if
+		its rank is lower or equals to the rank of the unit. 
+		"""
 		self.items.append(weapon)
+		if active:
+			self.deactivate_items()
+		weapon_class = weapon.__class__.__name__
+		try:
+			weapon.active = (weapon.rank <= self.wrank[weapon_class])
+		except KeyError:
+			weapon.active = False
+			print("Unit %s can't use a %s" % (self.name, weapon_class))
 		self.modified = True
 
 	def inflict_damage(self, dmg):
 		"""Inflicts damages to the unit."""
-		self.hp -= dmg
-		if self.hp <= 0:
-			self.hp = 0
+		self.health -= dmg
+		if self.health <= 0:
+			self.health = 0
 			print(_("%s died") % self.name)
 		self.modified = True
 
 	def get_weapon_range(self):
 		active_weapon = self.get_active_weapon()
-		return active_weapon.range if active_weapon is not None else 1
+		if active_weapon:
+			return active_weapon.min_range, active_weapon.max_range
+		return 1, 1
 
 	def get_attack_distance(self):
-		return self.get_weapon_range() + self.move
+		return self.get_weapon_range() + self.movement
 
 	def number_of_attacks(self, enemy, distance):
 		"""
@@ -167,22 +182,22 @@ Unit: "%s"
 		"""
 		self_attacks = enemy_attacks = 1
 
-		if self.spd > enemy.spd:
+		if self.speed > enemy.speed:
 			self_attacks += 1
-		elif enemy.spd > self.spd:
+		elif enemy.speed > self.speed:
 			enemy_attacks += 1
 
 		self_range = self.get_weapon_range()
 		enemy_range = enemy.get_weapon_range()
-		if self_range < distance:
+		if not self_range[0] <= distance <= self_range[1]:
 			self_attacks = 0
-		if enemy_range < distance:
+		if not enemy_range[0] <= distance <= enemy_range[1]:
 			enemy_attacks = 0
 
 		return (self_attacks, enemy_attacks)
 
 	def life_percent(self):
-		return int(float(self.hp) / float(self.hp_max) * 100.0)
+		return int(float(self.health) / float(self.health_max) * 100.0)
 
 	def attack(self, enemy):
 		"""
@@ -234,54 +249,54 @@ Unit: "%s"
 		the return value is used by ai to choose who enemy attack
 		"""
 		# TODO add type unit influence
-		return self.hp + self.strength + self.skill + self.spd + self.luck + self.defence
+		return self.health + self.strength + self.skill + self.speed + self.luck + self.defence
 
 	def prepare_battle(self):
-		self.prev_hp = self.hp
-		self.prev_lv = self.lv
+		self.health_prev = self.health
+		self.level_prev = self.level
 
 	def get_damage(self):
-		return self.prev_hp - self.hp
+		return self.health_prev - self.health
 
-	def experience(self, enemy):
-		self.prev_exp = self.exp
+	def gain_exp(self, enemy):
+		self.prev_exp = self.experience
 		exp = 1
 		damages = enemy.get_damage()
 		if damages > 0:
-			lv_diff = abs(enemy.lv - self.lv)
-			if enemy.lv < self.lv:
+			lv_diff = abs(enemy.level - self.level)
+			if enemy.level < self.level:
 				exp += damages // lv_diff
 			else:
 				exp += damages * lv_diff
 			exp += random.randrange(0, self.luck // 2 + 1)
-		if enemy.hp == 0:
+		if enemy.health == 0:
 			exp += damages // 2
 		if exp > 100:
 			exp = 100
-		self.exp += exp
-		if self.exp >= 100:
+		self.experience += exp
+		if self.experience >= 100:
 			self.exp %= 100
 			self.level_up()
 		self.modified = True
-		print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.exp))
+		print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.experience))
 
 	def gained_exp(self):
 		"""Return the gained experience with latest battle"""
-		if self.exp > self.prev_exp:
-			return self.exp - self.prev_exp
-		return self.exp + 100 - self.prev_exp
+		if self.experience > self.prev_exp:
+			return self.experience - self.prev_exp
+		return self.experience + 100 - self.prev_exp
 
 	def level_up(self):
-		self.prev_lv = self.lv
-		self.lv += 1
+		self.level_prev = self.level
+		self.level += 1
 		print(_("%s levelled up!") % self.name)
 
 	def levelled_up(self):
 		"""Returns True if the latest attack caused a level-up"""
-		return self.lv > self.prev_lv
+		return self.level > self.level_prev
 
 	def is_dead(self):
-		return self.hp == 0
+		return self.health == 0
 
 	def get_allowed_terrains(self):
 		return [_('any')]

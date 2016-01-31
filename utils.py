@@ -23,7 +23,7 @@
 
 import pygame
 import sys
-import csv
+import yaml
 import logging
 import os.path
 
@@ -40,14 +40,14 @@ def timeit(f):
 
 	return timed
 
-def csv_to_objects_dict(path, _class):
+def parse_yaml(path, module):
 	objects = {}
 	with open(path, 'r') as f:
-		reader = csv.reader(f, delimiter='\t')
-		reader.__next__()
-		for row in reader:
-			objects[row[0]] = (_class(*row))
-			logging.debug(_("%s loaded") % row[0])
+		data = yaml.safe_load(f)
+		for u in data:
+			u_class = module.__dict__[list(u.keys())[0]]
+			kwargs = list(u.values())[0]
+			objects[kwargs['name']] = u_class(**kwargs)
 	return objects
 
 def distance(p0, p1):
