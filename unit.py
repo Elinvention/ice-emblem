@@ -401,16 +401,13 @@ class Team(object):
 	def list_played(self):
 		return [u for u in self.units if u.played]
 
-	def play_music(self, music_key, music_pos=0):
+	def play_music(self, music_key, music_pos=0.0):
 		old_pos = pygame.mixer.music.get_pos()
 		try:
 			pygame.mixer.music.load(self.music[music_key])
-			if music_pos > 0:
-				try:
-					pygame.mixer.music.set_pos(music_pos)
-				except pygame.error as e:
-					logging.warning(e)
-			pygame.mixer.music.play()
+			# resume and loop indefinitely
+			# FIXME: pygame bug! music_pos is ignored!
+			pygame.mixer.music.play(-1, music_pos)
 		except KeyError:
 			logging.warning("Couldn't find key %s!" % music_key)
 		return old_pos
