@@ -26,6 +26,7 @@ import logging
 import traceback
 import random
 
+import resources
 import map
 import gui
 import utils
@@ -254,12 +255,8 @@ class Sounds(object):
 			for s in self.sounds[sound]:
 				s.stop()
 
-	def set_volume(self, sound, volume):
-		try:
-			self.sounds[sound].set_volume(volume)
-		except AttributeError:
-			for s in self.sounds[sound]:
-				s.set_volume(volume)
+	def __getitem__(self, sound):
+		return self.sounds[sound]
 
 
 class Game(object):
@@ -272,15 +269,15 @@ class Game(object):
 		self.screen = screen
 		self.clock = pygame.time.Clock()
 
-		font_path = os.path.abspath('fonts/Medieval Sharp/MedievalSharp.ttf')
-		self.MAIN_MENU_FONT = pygame.font.Font(font_path, 48)
-		self.MAIN_FONT = pygame.font.Font(font_path, 36)
-		self.SMALL_FONT = pygame.font.Font(font_path, 24)
+		font_name = os.path.join('Medieval Sharp', 'MedievalSharp.ttf')
+		self.MAIN_MENU_FONT = resources.load_font(font_name, 48)
+		self.MAIN_FONT = resources.load_font(font_name, 36)
+		self.SMALL_FONT = resources.load_font(font_name, 24)
 		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
 		# load every .ogg file from sounds directory
-		self.sounds = Sounds(os.path.relpath('sounds'))
-		self.sounds.set_volume('cursor', 0.1)
+		self.sounds = Sounds(resources.SOUNDS_PATH)
+		self.sounds['cursor'].set_volume(0.1)
 
 		self.event_handler = EventHandler("Main")
 
@@ -370,8 +367,7 @@ class Game(object):
 
 	def show_license(self):
 		event_handler = EventHandler("License")
-		path = os.path.abspath('images/GNU GPL.jpg')
-		gpl_image = pygame.image.load(path).convert()
+		gpl_image = resources.load_image('GNU GPL.jpg')
 		gpl_image = pygame.transform.smoothscale(gpl_image, self.screen.get_size())
 		self.screen.blit(gpl_image, (0, 0))
 		pygame.display.flip()
@@ -425,7 +421,7 @@ class Game(object):
 			event = event_handler.wait(gui.Button.EVENT_TYPES + [self.INTERRUPTEVENT])
 
 	def main_menu(self):
-		pygame.mixer.music.load(os.path.join('music', 'Beyond The Clouds (Dungeon Plunder).ogg'))
+		resources.load_music('Beyond The Clouds (Dungeon Plunder).ogg')
 		pygame.mixer.music.play()
 		screen_rect = self.screen.get_rect()
 		screen_w, screen_h = self.screen.get_size()
@@ -438,8 +434,7 @@ class Game(object):
 		pygame.display.flip()
 		self.event_handler.wait(timeout=6000)
 
-		path = os.path.abspath(os.path.join('images', 'Ice Emblem.png'))
-		main_menu_image = ResizableImage(path, (screen_w, screen_h), (0, 0))
+		main_menu_image = ResizableImage(resources.load_image('Ice Emblem.png'), (screen_w, screen_h), (0, 0))
 		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
 
 		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
@@ -477,8 +472,7 @@ class Game(object):
 			return
 		event_handler = EventHandler("MapMenu")
 		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
-		maps_path = os.path.abspath('maps')
-		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(os.path.join(maps_path, f)) and f.endswith('.tmx')]
+		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(resources.map_path(f)) and f.endswith('.tmx')]
 		menu = gui.Menu(files, self.MAIN_FONT, None, (25, 25))
 		menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
 		menu.register(event_handler)
@@ -497,7 +491,7 @@ class Game(object):
 			self.clock.tick(30)
 
 		try:
-			self.load_map(os.path.join('maps', files[menu.choice][0]))
+			self.load_map(resources.map_path(files[menu.choice][0]))
 		except:
 			logging.error("Can't load map %s! Probabily the format is not ok.", files[menu.choice][0])
 			traceback.print_exc()
@@ -777,7 +771,7 @@ class Game(object):
 	def victory_screen(self):
 		print(_("%s wins") % self.winner.name)
 		pygame.mixer.stop()
-		pygame.mixer.music.load(os.path.join('music', 'Victory Track.ogg'))
+		resources.load_music('Victory Track.ogg')
 		pygame.mixer.music.play()
 		self.fadeout(1000)
 

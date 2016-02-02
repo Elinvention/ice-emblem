@@ -20,6 +20,7 @@
 #  MA 02110-1301, USA.
 
 
+import resources
 import pygame
 import os.path
 import random
@@ -57,15 +58,13 @@ class Unit(object):
 		self.color        = None               # team color
 		self.coord        = None
 		self.modified     = True
-		path = os.path.relpath(os.path.join('sprites', self.name + '.png'))
 		try:
-			self.image = pygame.image.load(path).convert_alpha()
+			self.image = resources.load_sprite(self.name).convert_alpha()
 			new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
 			self.image = pygame.transform.smoothscale(self.image, new_size)
 		except pygame.error as e:
 			logging.warning(_("Couldn't load %s! Loading default image") % path)
-			no_image_path = os.path.relpath(os.path.join('sprites', 'no_image.png'))
-			self.image = pygame.image.load(no_image_path).convert_alpha()
+			self.image = resources.load_image('no_image.png').convert_alpha()
 
 	def __repr__(self):
 		return "<Unit %s at %s>" % (self.name, self.coord)

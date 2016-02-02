@@ -20,6 +20,7 @@
 #  MA 02110-1301, USA.
 
 
+import resources
 import tmx
 import pygame
 import os.path
@@ -98,9 +99,9 @@ class Terrain(object):
 
 
 class Cursor(pygame.sprite.Sprite):
-	def __init__(self, tilemap, img_path, sounds, *groups):
+	def __init__(self, tilemap, img, sounds, *groups):
 		super(Cursor, self).__init__(*groups)
-		self.image = pygame.image.load(img_path).convert_alpha()
+		self.image = img.convert_alpha()
 		self.tilesize = tilemap.tile_width, tilemap.tile_height
 		self.rect = pygame.Rect((0, 0), self.tilesize)
 		self.coord = (0, 0)
@@ -183,9 +184,9 @@ class CellHighlight(pygame.sprite.Sprite):
 
 
 class Arrow(pygame.sprite.Sprite):
-	def __init__(self, screen_size, image_path, tilesize, *groups):
+	def __init__(self, screen_size, image, tilesize, *groups):
 		super(Arrow, self).__init__(*groups)
-		self.source_image = pygame.image.load(image_path)
+		self.source_image = image
 
 		self.arrow = {}
 
@@ -417,8 +418,8 @@ class Map(object):
 		self.terrains = {}
 		self.sprites = tmx.SpriteLayer()
 
-		yaml_units = utils.parse_yaml(os.path.join('data', 'units.yml'), unit)
-		yaml_weapons = utils.parse_yaml(os.path.join('data', 'weapons.yml'), item)
+		yaml_units = utils.parse_yaml(resources.data_path('units.yml'), unit)
+		yaml_weapons = utils.parse_yaml(resources.data_path('weapons.yml'), item)
 
 		teams = {}
 
@@ -444,7 +445,7 @@ class Map(object):
 				boss = yaml_units[layer.properties['boss']]
 				def get(key):
 					v = layer.properties.get(key, None)
-					return os.path.join('music', v) if v else None
+					return resources.music_path(v) if v else None
 				music = {'map': get('map_music'), 'battle': get('battle_music')}
 			except AttributeError:
 				pass
@@ -477,10 +478,10 @@ class Map(object):
 				pass
 
 		cursor_layer = tmx.SpriteLayer()
-		self.cursor = Cursor(self.tilemap, os.path.join('images', 'cursor.png'), sounds, cursor_layer)
+		self.cursor = Cursor(self.tilemap, resources.load_image('cursor.png'), sounds, cursor_layer)
 
 		arrow_layer = tmx.SpriteLayer()
-		self.arrow = Arrow((self.tilemap.px_width, self.tilemap.px_height), os.path.join('images', 'arrow.png'), self.tile_size, arrow_layer)
+		self.arrow = Arrow((self.tilemap.px_width, self.tilemap.px_height), resources.load_image('arrow.png'), self.tile_size, arrow_layer)
 
 		highlight_layer = tmx.SpriteLayer()
 		self.highlight = CellHighlight(self.tilemap, highlight_layer)

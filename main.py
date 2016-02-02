@@ -30,6 +30,7 @@ import sys
 import gettext
 import utils
 
+import resources
 import map
 import game
 
@@ -47,7 +48,7 @@ if sys.platform.startswith('win'):
 		lang, enc = locale.getdefaultlocale()
 		os.environ['LANG'] = lang
 		logging.debug('Language: %s' % lang)
-gettext.install('ice-emblem', 'locale')  # load translations
+gettext.install('ice-emblem', resources.LOCALE_PATH)  # load translations
 
 
 def main():
@@ -70,7 +71,7 @@ def main():
 
 	pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
 	pygame.init()
-	pygame.display.set_icon(pygame.image.load(os.path.join('images', 'icon.png')))
+	pygame.display.set_icon(resources.load_image('icon.png'))
 	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
 	pygame.display.set_caption("Ice Emblem " + VERSION)
 	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
@@ -79,10 +80,10 @@ def main():
 
 	map_file = None
 	if args.map is not None:
-		map_file = os.path.join('maps', args.map + '.tmx')
+		map_file = resources.map_path(args.map)
 		logging.debug(_('Loading map: %s') % map_file)
 	elif args.skip:
-		map_file = os.path.join('maps', 'default.tmx')
+		map_file = resources.map_path('default.tmx')
 		logging.debug(_('Loading default map: %s') % map_file)
 	else:
 		logging.debug(_('No map on command line: choose the map via the main menu'))
