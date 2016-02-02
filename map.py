@@ -583,7 +583,15 @@ class Map(object):
 				if getattr(sprite, attr) == kwargs[attr]:
 					return sprite
 
-	def update_attack_area(self, coord):
+	def __set_attack_area(self, coord, min_range, max_range):
+		x, y = coord
+		for i in range(x - max_range, x + max_range + 1):
+			for j in range(y - max_range, y + max_range + 1):
+				if (i, j) not in self.move_area and (i, j) not in self.attack_area:
+					if min_range <= utils.distance((x, y), (i, j)) <= max_range:
+						self.attack_area.append((i, j))
+
+	def move_attack_area(self, coord):
 		"""
 		Updates the area which will be highlighted on the map to show
 		how far the selected unit can attack.
@@ -592,11 +600,18 @@ class Map(object):
 		self.attack_area = []
 
 		for (x, y) in self.move_area:
-			for i in range(x - max_range, x + max_range + 1):
-				for j in range(y - max_range, y + max_range + 1):
-					if (i, j) not in self.move_area and (i, j) not in self.attack_area:
-						if min_range <= utils.distance((x, y), (i, j)) <= max_range:
-							self.attack_area.append((i, j))
+			self.__set_attack_area((x, y), min_range, max_range)
+
+	def still_attack_area(self, coord):
+		"""
+		Update the area which will be highlighted on the map to show
+		how far the unit attach with her weapon
+		"""
+		min_range, max_range = self.get_unit(coord).get_weapon_range()
+		self.attack_area = []
+		self.move_area = []
+
+		self.__set_attack_area(coord, min_range, max_range)
 
 	def update_arrow(self, target):
 		if self.curr_sel and target:
@@ -742,7 +757,7 @@ class Map(object):
 				self.attack_area = []
 			else:
 				self.update_move_area(coord)
-				self.update_attack_area(coord)
+				self.move_attack_area(coord)
 			self.prev_sel = self.curr_sel
 		else:
 			prev_unit = self.get_unit(self.prev_sel)
@@ -758,7 +773,7 @@ class Map(object):
 				else:
 					self.prev_sel = self.curr_sel
 					self.update_move_area(self.curr_sel)
-					self.update_attack_area(self.curr_sel)
+					self.move_attack_area(self.curr_sel)
 			elif self.can_selection_move():
 				self.move(self.get_unit(self.prev_sel), self.curr_sel)
 				enemies_nearby = len(self.nearby_enemies(self.get_unit(self.curr_sel)))
@@ -772,7 +787,7 @@ class Map(object):
 
 				if curr_unit is not None and not curr_unit.played:
 					self.update_move_area(coord)
-					self.update_attack_area(coord)
+					self.move_attack_area(coord)
 		return []
 
 	def wait_callback(self):

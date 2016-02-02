@@ -810,6 +810,9 @@ class Game(object):
 		menu = gui.Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
 		menu.register(event_handler)
 
+		self.map.still_attack_area(self.map.curr_sel)
+		self.map.update_highlight()
+
 		self.blit_map()
 		self.blit_info()
 
