@@ -306,6 +306,10 @@ Unit: "%s"
 		self.modified = False
 		return m
 
+	def move(self, coord):
+		self.modified = True
+		self.coord = coord
+
 
 class Flying(Unit):
 	def __init__(self, *args):

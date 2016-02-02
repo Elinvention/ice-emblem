@@ -33,6 +33,9 @@ from colors import *
 
 
 class UnitSprite(pygame.sprite.Sprite):
+	"""
+	Encapsulates a Unit so that it can be shown on screen as a sprite.
+	"""
 	def __init__(self, size, obj, unit, team, *groups):
 		"""
 		size: sprite size in pixels
@@ -45,7 +48,7 @@ class UnitSprite(pygame.sprite.Sprite):
 		self.unit = unit
 		self.team = team
 		w, h = size
-		x, y = self.coord = (obj.px // w), (obj.py // h)
+		x, y = (obj.px // w), (obj.py // h)
 		pos = x * w, y * h
 
 		self.image = pygame.Surface(size).convert_alpha()
@@ -53,13 +56,14 @@ class UnitSprite(pygame.sprite.Sprite):
 
 		self.update()
 
-	def update(self, new_coord=None):
-		if not self.unit.was_modified() and (not new_coord or new_coord == self.coord):
+	def update(self):
+		if not self.unit.was_modified():
 			return
+
 		logging.debug("Sprite update: %s" % self.unit.name)
-		if new_coord:
-			self.coord = new_coord
-			self.rect.topleft = self.coord[0] * self.rect.w, self.coord[1] * self.rect.h
+
+		self.rect.left = self.unit.coord[0] * self.rect.w
+		self.rect.top = self.unit.coord[1] * self.rect.h
 
 		w, h = self.rect.size
 		w2, h2 = w // 2, h // 2
@@ -557,9 +561,9 @@ class Map(object):
 				raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
 			self.terrains[unit.coord].unit = None
 			self.terrains[new_coord].unit = unit
-			self.find_sprite(unit=unit).update(new_coord)
 			print(_('Unit %s moved from %s to %s') % (unit.name, unit.coord, new_coord))
-			unit.coord = new_coord
+			unit.move(new_coord)
+			self.find_sprite(unit=unit).update()
 
 	def kill_unit(self, **kwargs):
 		coord = kwargs['coord'] if 'coord' in kwargs else kwargs['unit'].coord
