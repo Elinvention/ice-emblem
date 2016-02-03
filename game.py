@@ -572,10 +572,6 @@ class Game(object):
 
 		battle_background = self.screen.copy()
 
-		life_percent_background = pygame.Surface((100, 10))
-		life_percent_background.fill(RED)
-		life_percent_background.convert()
-
 		att_swap = attacking
 		def_swap = defending
 
