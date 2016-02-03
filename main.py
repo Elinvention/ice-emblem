@@ -72,7 +72,7 @@ def main():
 	pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
 	pygame.init()
 	pygame.display.set_icon(resources.load_image('icon.png'))
-	screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
+	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 	pygame.display.set_caption("Ice Emblem " + VERSION)
 	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
 	# event will be generated every 50 ms
