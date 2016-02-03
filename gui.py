@@ -24,6 +24,7 @@ import pygame
 import logging
 from pygame.locals import *
 from colors import *
+import events
 
 
 class GUI(object):
@@ -43,15 +44,15 @@ class GUI(object):
 		if event.type != MOUSEMOTION:
 			raise ValueError("Event type must be MOUSEMOTION")
 
-	def register(self, event_handler):
-		event_handler.register(MOUSEMOTION, self.handle_mouse_motion)
-		event_handler.register(MOUSEBUTTONDOWN, self.handle_click)
-		event_handler.register(KEYDOWN, self.handle_keydown)
+	def register(self, context="default"):
+		events.register(MOUSEMOTION, self.handle_mouse_motion, context)
+		events.register(MOUSEBUTTONDOWN, self.handle_click, context)
+		events.register(KEYDOWN, self.handle_keydown, context)
 
-	def unregister(self, event_handler):
-		event_handler.unregister(MOUSEMOTION, self.handle_mouse_motion)
-		event_handler.unregister(MOUSEBUTTONDOWN, self.handle_click)
-		event_handler.unregister(KEYDOWN, self.handle_keydown)
+	def unregister(self, context="default"):
+		events.unregister(MOUSEMOTION, self.handle_mouse_motion, context)
+		events.unregister(MOUSEBUTTONDOWN, self.handle_click, context)
+		events.unregister(KEYDOWN, self.handle_keydown, context)
 
 	def draw(self, surface):
 		raise NotImplementedError("GUI class is abstract")

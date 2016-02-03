@@ -28,121 +28,12 @@ import random
 
 import resources
 import sounds
+import events
 import map
 import gui
 import utils
 import ai
 from colors import *
-
-
-class EventHandler(object):
-	"""
-	This class should provide a uniform and comfortable way to handle
-	events.
-	"""
-
-	def __init__(self, name=""):
-		self._callbacks = {
-			QUIT: [utils.return_to_os],
-			VIDEORESIZE: [utils.videoresize_handler],
-		}
-		self.name = ""
-		self.logger = logging.getLogger('EventHandler' + name)
-
-	def __call__(self):
-		"""
-		Process new events
-		"""
-		processed = {}
-		for event in pygame.event.get():
-			processed[event.type] = self._process_event(event)
-		return processed
-
-	def wait(self, event_types=[MOUSEBUTTONDOWN, KEYDOWN], timeout=-1):
-		"""
-		if the timeout argument is positive, returns after the specified
-		number of milliseconds.
-		"""
-		event_types.append(QUIT)
-		event_types.append(VIDEORESIZE)
-
-		if timeout > 0:
-			pygame.time.set_timer(USEREVENT+1, timeout)
-			event_types.append(USEREVENT+1)
-
-		if pygame.event.peek(event_types):  # if events we are looking for are already available
-			for event in pygame.event.get(event_types):  # get them
-				self._process_event(event)
-			pygame.event.clear()  # clear queue from events we don't want
-		else:
-			event = pygame.event.wait()  # wait for an interesting event
-			while event.type not in event_types:
-				event = pygame.event.wait()
-			self._process_event(event)
-
-		if timeout > 0:
-			pygame.time.set_timer(USEREVENT+1, 0)
-
-		return event
-
-	def _process_event(self, event):
-		ret = []
-		if event.type in self._callbacks:
-			for callback in self._callbacks[event.type]:
-				ret.append(callback(event))
-		return ret
-
-	def register(self, event_type, callback):
-		"""
-		Bind a callback function to a specified event type.
-		"""
-		if event_type in self._callbacks:
-			if callback not in self._callbacks[event_type]:
-				self._callbacks[event_type].append(callback)
-		else:
-			self._callbacks[event_type] = [callback]
-		self.logger.debug('%s registered %s' % (pygame.event.event_name(event_type), callback))
-
-	def unregister(self, event_type, callback=None):
-		for key in self._callbacks:
-			if key == event_type:
-				if callback:
-					if callback in self._callbacks[key]:
-						self._callbacks[key].remove(callback)
-				elif len(self._callbacks[key]) > 0:
-					callback = self._callbacks[key].pop()
-				self.logger.debug('%s unregistered %s' % (pygame.event.event_name(event_type), callback))
-				break
-
-	def bind_keys(self, keys, callback):
-		def f(event):
-			for key in keys:
-				if event.key == key:
-					callback()
-		self.register(KEYDOWN, f)
-
-	def bind_click(self, mouse_buttons, callback, area=None, inside=True):
-		def f(event):
-			for mouse_button in mouse_buttons:
-				if event.button == mouse_button:
-					if area is None:
-						callback()
-					else:
-						collide = area.collidepoint(event.pos)
-						if inside:
-							if collide:
-								callback()
-						else:
-							if not collide:
-								callback()
-		self.register(MOUSEBUTTONDOWN, f)
-
-	def reset(self):
-		self.logger.debug('Reset')
-		self._callbacks = {
-			QUIT: [utils.return_to_os],
-			VIDEORESIZE: [utils.videoresize_handler],
-		}
 
 
 class Sidebar(object):
@@ -247,8 +138,6 @@ class Game(object):
 
 		sounds.get('cursor').set_volume(0.1)
 
-		self.event_handler = EventHandler("Main")
-
 		self.winner = None
 		self.done = False
 		self.resolution = self.screen.get_size()
@@ -263,7 +152,7 @@ class Game(object):
 			for team in self.units_manager.teams:
 				if team.ai:
 					team.ai = ai.AI(self.map, self.units_manager, team, self.battle)
-			self.event_handler.register(VIDEORESIZE, self.map.handle_videoresize)
+			events.register(VIDEORESIZE, self.map.handle_videoresize)
 		else:
 			self.map = None
 			self.units_manager = None
@@ -294,12 +183,12 @@ class Game(object):
 				if callable(self.units_manager.active_team.ai):
 					self.units_manager.active_team.ai()
 				elif self.map.move_x != 0 or self.map.move_y != 0:
-					self.event_handler()
+					events.pump()
 				else:
 					# we want to wait but update the clock!
 					time = pygame.time.get_ticks() - self.sidebar.start_time
 					pygame.time.set_timer(self.CLOCKEVENT, (1000 - time % 1000))
-					event = self.event_handler.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, self.CLOCKEVENT])
+					event = events.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, self.CLOCKEVENT])
 					if event.type != self.CLOCKEVENT:
 						# something happened before CLOCKEVENT so we don't want it anymore
 						pygame.time.set_timer(self.CLOCKEVENT, 0)
@@ -310,7 +199,7 @@ class Game(object):
 			self.done = False
 			self.sidebar = None
 			self.units_manager = None
-			self.event_handler.reset()
+			events.new_context()
 			self.main_menu()
 
 	def blit_map(self):
@@ -334,12 +223,12 @@ class Game(object):
 		self.screen.blit(fpslabel, rec)
 
 	def show_license(self):
-		event_handler = EventHandler("License")
+		events.new_context("License")
 		gpl_image = resources.load_image('GNU GPL.jpg')
 		gpl_image = pygame.transform.smoothscale(gpl_image, self.screen.get_size())
 		self.screen.blit(gpl_image, (0, 0))
 		pygame.display.flip()
-		event_handler.wait()
+		events.wait("License")
 
 	def update_display(self):
 		self.screen = pygame.display.set_mode(self.resolution, self.mode)
@@ -364,9 +253,9 @@ class Game(object):
 		return set_res
 
 	def settings_menu(self):
-		event_handler = EventHandler("Settings")
+		events.new_context("Settings")
 		logging.debug(_("Settings menu"))
-		event_handler.bind_keys((K_ESCAPE,), self.post_interrupt)
+		events.bind_keys((K_ESCAPE,), self.post_interrupt, "Settings")
 		back_btn = gui.Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
 		back_btn.rect.bottomright = self.screen.get_size()
 		fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
@@ -374,9 +263,9 @@ class Game(object):
 		resolutions = [("{0[0]}x{0[1]}".format(res), self.resolution_setter(res)) for res in pygame.display.list_modes()]
 		resolutions_menu = gui.Menu(resolutions, self.MAIN_FONT)
 		resolutions_menu.rect.midtop = self.screen.get_rect(top=100).midtop
-		back_btn.register(event_handler)
-		fullscreen_btn.register(event_handler)
-		resolutions_menu.register(event_handler)
+		back_btn.register("Settings")
+		fullscreen_btn.register("Settings")
+		resolutions_menu.register("Settings")
 		event = pygame.event.Event(NOEVENT, {})
 		while event.type != self.INTERRUPTEVENT:
 			self.screen.fill(BLACK)
@@ -386,7 +275,7 @@ class Game(object):
 			self.blit_fps()
 			pygame.display.flip()
 			self.clock.tick(30)
-			event = event_handler.wait(gui.Button.EVENT_TYPES + [self.INTERRUPTEVENT])
+			event = events.wait(gui.Button.EVENT_TYPES + [self.INTERRUPTEVENT], context="Settings")
 
 	def main_menu(self):
 		resources.load_music('Beyond The Clouds (Dungeon Plunder).ogg')
@@ -400,18 +289,18 @@ class Game(object):
 		self.screen.blit(elinvention, utils.center(screen_rect, elinvention.get_rect()))
 		self.screen.blit(presents, utils.center(screen_rect, presents.get_rect(), yoffset=self.MAIN_MENU_FONT.get_linesize()))
 		pygame.display.flip()
-		self.event_handler.wait(timeout=6000)
+		events.wait(timeout=6000)
 
 		main_menu_image = ResizableImage(resources.load_image('Ice Emblem.png'), (screen_w, screen_h), (0, 0))
-		self.event_handler.register(VIDEORESIZE, main_menu_image.resize)
+		events.register(VIDEORESIZE, main_menu_image.resize)
 
 		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
 		hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], self.SMALL_FONT)
 		hmenu.rect.bottomright = self.screen.get_size()
 
-		hmenu.register(self.event_handler)
-		self.event_handler.bind_keys((K_RETURN, K_SPACE), self.post_interrupt)
-		self.event_handler.bind_click((1,), self.post_interrupt, hmenu.rect, False)
+		hmenu.register()
+		events.bind_keys((K_RETURN, K_SPACE), self.post_interrupt)
+		events.bind_click((1,), self.post_interrupt, hmenu.rect, False)
 		event = pygame.event.Event(NOEVENT, {})
 		while event.type != USEREVENT+2:
 			self.screen.fill(BLACK)
@@ -423,9 +312,9 @@ class Game(object):
 			self.blit_fps()
 			pygame.display.flip()
 			self.clock.tick(30)
-			event = self.event_handler.wait(hmenu.EVENT_TYPES + [self.INTERRUPTEVENT])
+			event = events.wait(hmenu.EVENT_TYPES + [self.INTERRUPTEVENT])
 
-		self.event_handler.reset()
+		events.new_context()
 		self.screen.fill(BLACK)
 		self.screen.blit(main_menu_image.image, (0, 0))
 
@@ -438,13 +327,13 @@ class Game(object):
 	def map_menu(self, main_menu_image):
 		if self.map is not None:
 			return
-		event_handler = EventHandler("MapMenu")
+		events.new_context("MapMenu")
 		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
 		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(resources.map_path(f)) and f.endswith('.tmx')]
 		menu = gui.Menu(files, self.MAIN_FONT, None, (25, 25))
 		menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
-		menu.register(event_handler)
-		event_handler.register(VIDEORESIZE, main_menu_image.resize)
+		menu.register("MapMenu")
+		events.register(VIDEORESIZE, main_menu_image.resize, "MapMenu")
 
 		while menu.choice is None:
 			self.screen.fill(BLACK)
@@ -455,7 +344,7 @@ class Game(object):
 			menu.draw(self.screen)
 			self.blit_fps()
 			pygame.display.flip()
-			event_handler.wait(gui.Menu.EVENT_TYPES)
+			events.wait(gui.Menu.EVENT_TYPES, context="MapMenu")
 			self.clock.tick(30)
 
 		try:
@@ -481,7 +370,7 @@ class Game(object):
 			pygame.display.flip()
 			self.clock.tick(60)
 			state_time = pygame.time.get_ticks() - start
-			self.event_handler()
+			events.pump()
 
 	def experience_animation(self, unit, bg):
 		img_pos = utils.center(self.screen.get_rect(), unit.image.get_rect())
@@ -509,13 +398,13 @@ class Game(object):
 			curr_exp += 1
 			pygame.display.flip()
 			self.clock.tick(60)
-			self.event_handler()
+			events.pump()
 
 		sounds.stop('exp')
-		self.event_handler.wait(timeout=2000)
+		events.wait(timeout=2000)
 
 	def battle(self, attacking, defending):
-		event_handler = EventHandler("Battle")
+		events.new_context("Battle")
 		attacking_team = self.units_manager.get_team(attacking.color)
 		defending_team = self.units_manager.get_team(defending.color)
 
@@ -649,7 +538,7 @@ class Game(object):
 				self.screen.blit(att_info, att_info_pos)
 				self.screen.blit(def_info, def_info_pos)
 				self.blit_fps()
-				event_handler()
+				events.pump("Battle")
 				pygame.display.flip()
 				latest_tick = self.clock.tick(60)
 
@@ -676,13 +565,13 @@ class Game(object):
 			broken_text = self.SMALL_FONT.render("%s is broken" % att_weapon.name, True, RED)
 			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
-			event_handler.wait(timeout=3000)
+			events.wait(timeout=3000, context="Battle")
 		if def_weapon and def_weapon.uses == 0:
 			sounds.play('broke')
 			broken_text = self.SMALL_FONT.render("%s is broken" % def_weapon.name, True, RED)
 			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
 			pygame.display.flip()
-			event_handler.wait(timeout=3000)
+			events.wait(timeout=3000, context="Battle")
 
 		pygame.mixer.music.fadeout(500)
 		pygame.time.wait(500)
@@ -703,16 +592,16 @@ class Game(object):
 		self.units_manager.kill_unit(unit)
 
 	def disable_controls(self):
-		self.event_handler.unregister(MOUSEBUTTONDOWN, self.handle_click)
-		self.event_handler.unregister(MOUSEMOTION, self.handle_mouse_motion)
-		self.event_handler.unregister(KEYDOWN, self.handle_keyboard)
-		self.sidebar.endturn_btn.unregister(self.event_handler)
+		events.unregister(MOUSEBUTTONDOWN, self.handle_click)
+		events.unregister(MOUSEMOTION, self.handle_mouse_motion)
+		events.unregister(KEYDOWN, self.handle_keyboard)
+		self.sidebar.endturn_btn.unregister()
 
 	def enable_controls(self):
-		self.event_handler.register(MOUSEBUTTONDOWN, self.handle_click)
-		self.event_handler.register(MOUSEMOTION, self.handle_mouse_motion)
-		self.event_handler.register(KEYDOWN, self.handle_keyboard)
-		self.sidebar.endturn_btn.register(self.event_handler)
+		events.register(MOUSEBUTTONDOWN, self.handle_click)
+		events.register(MOUSEMOTION, self.handle_mouse_motion)
+		events.register(KEYDOWN, self.handle_keyboard)
+		self.sidebar.endturn_btn.register()
 
 	def switch_turn(self):
 		active_team = self.units_manager.switch_turn()
@@ -730,7 +619,7 @@ class Game(object):
 		pygame.display.flip()
 		pygame.mixer.music.fadeout(1000)
 		active_team.play_music('map')
-		self.event_handler.wait(timeout=5000)
+		events.wait(timeout=5000)
 
 	def victory_screen(self):
 		print(_("%s wins") % self.winner.name)
@@ -749,7 +638,7 @@ class Game(object):
 		pygame.display.flip()
 
 		pygame.event.clear()
-		self.event_handler.wait()
+		events.wait()
 		pygame.mixer.music.fadeout(2000)
 		self.fadeout(2000)
 		pygame.mixer.music.stop()
@@ -763,10 +652,10 @@ class Game(object):
 			return None
 
 	def action_menu(self, actions, rollback, pos):
-		event_handler = EventHandler("ActionMenu")
+		events.new_context("ActionMenu")
 
 		menu = gui.Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
-		menu.register(event_handler)
+		menu.register("ActionMenu")
 
 		self.map.still_attack_area(self.map.curr_sel)
 		self.map.update_highlight()
@@ -778,7 +667,7 @@ class Game(object):
 		while action is None:
 			menu.draw(self.screen)
 			pygame.display.flip()
-			event_handler.wait(gui.Menu.EVENT_TYPES)
+			events.wait(gui.Menu.EVENT_TYPES, context="ActionMenu")
 			action = menu.choice
 		return action
 
@@ -794,7 +683,7 @@ class Game(object):
 	def __attack_mousebuttondown(self, event):
 		# user must click on an enemy unit
 		if event.button == 1 and self.map.is_attack_click(event.pos):
-			self.event_handler = EventHandler("Main")
+			events.new_context()
 			self.enable_controls()
 			self.battle_wrapper(self.get_mouse_coord())
 		elif event.button == 3:
@@ -803,7 +692,7 @@ class Game(object):
 	def __attack_keydown(self, event):
 		# user must choose an enemy unit
 		if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
-			self.event_handler = EventHandler("Main")
+			events.new_context()
 			self.enable_controls()
 			self.battle_wrapper(self.map.cursor.coord)
 		elif event.key == pygame.K_ESCAPE:
@@ -811,7 +700,7 @@ class Game(object):
 		self.map.cursor.update(event)
 
 	def __attack_abort(self):
-		self.event_handler = EventHandler("Main")
+		events.new_context()
 		self.enable_controls()
 		self.map.move(self.map.get_unit(self.map.curr_sel), self.map.prev_sel)
 		self.map.reset_selection()
@@ -822,17 +711,21 @@ class Game(object):
 		self.done = True
 
 	def pause_menu(self):
-		event_handler = EventHandler("PauseMenu")
-		menu_entries = [('Return to Game', None), ('Return to Main Menu', self.reset), ('Return to O.S.', utils.return_to_os)]
+		events.new_context("PauseMenu")
+		menu_entries = [
+			('Return to Game', None),
+			('Return to Main Menu', self.reset),
+			('Return to O.S.', utils.return_to_os)
+		]
 		menu = gui.Menu(menu_entries, self.MAIN_FONT)
 		menu.rect.center = self.screen.get_rect().center
 
-		menu.register(event_handler)
+		menu.register("PauseMenu")
 
 		while menu.choice is None:
 			menu.draw(self.screen)
 			pygame.display.flip()
-			event_handler.wait(gui.Menu.EVENT_TYPES)
+			events.wait(gui.Menu.EVENT_TYPES, context="PauseMenu")
 
 	def check_turn(self):
 		if self.units_manager.active_team.is_turn_over():
@@ -853,10 +746,10 @@ class Game(object):
 				# user choose to attack.
 				# Now he has to choose the enemy to attack
 				# so the next click must be an enemy unit
-				self.event_handler = EventHandler("Attack")
-				self.event_handler.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
-				self.event_handler.register(KEYDOWN, self.__attack_keydown)
-				self.event_handler.register(MOUSEMOTION, self.map.cursor.update)
+				self.disable_controls()
+				events.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
+				events.register(KEYDOWN, self.__attack_keydown)
+				events.register(MOUSEMOTION, self.map.cursor.update)
 
 	def handle_click(self, event):
 		menu_entries = self.map.handle_click(event)
@@ -871,3 +764,4 @@ class Game(object):
 			pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
 
 			self.action_menu_wrapper(menu_entries, pos)
+
