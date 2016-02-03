@@ -422,7 +422,7 @@ class Game(object):
 		print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
 		print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))
 
-		music_pos = attacking_team.play_music('battle')
+		attacking_team.play_music('battle')
 
 		self.blit_map()
 		self.fadeout(1000, 10)  # Darker atmosphere
@@ -575,7 +575,7 @@ class Game(object):
 
 		pygame.mixer.music.fadeout(500)
 		pygame.time.wait(500)
-		attacking_team.play_music('map', music_pos)
+		attacking_team.play_music('map', True)
 
 		self.screen.blit(battle_background, (0, 0))
 		attacking.played = True

@@ -350,6 +350,7 @@ class Team(object):
 		self.units = units
 		self.boss = boss
 		self.music = music
+		self.music_pos = {k:0 for k,v in music.items()}
 
 	def __del__(self):
 		self.number_of_teams -= 1
@@ -404,16 +405,18 @@ class Team(object):
 	def list_played(self):
 		return [u for u in self.units if u.played]
 
-	def play_music(self, music_key, music_pos=0.0):
-		old_pos = pygame.mixer.music.get_pos()
+	def play_music(self, music_key, resume=False):
+		music_pos = pygame.mixer.music.get_pos() // 1000
+		if not resume:
+			self.music_pos[music_key] = 0
 		try:
 			pygame.mixer.music.load(self.music[music_key])
 			# resume and loop indefinitely
 			# FIXME: pygame bug! music_pos is ignored!
-			pygame.mixer.music.play(-1, music_pos)
+			pygame.mixer.music.play(-1, self.music_pos[music_key])
 		except KeyError:
 			logging.warning("Couldn't find key %s!" % music_key)
-		return old_pos
+		self.music_pos[music_key] += music_pos
 
 
 class UnitsManager(object):
