@@ -67,3 +67,8 @@ def data_path(fname):
 def list_sounds():
 	return os.listdir(SOUNDS_PATH)
 
+def list_maps():
+	ls = os.listdir(MAPS_PATH)
+	return [f for f in ls if os.path.isfile(map_path(f)) and f.endswith('.tmx')]
+
+

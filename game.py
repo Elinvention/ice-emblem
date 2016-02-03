@@ -91,9 +91,8 @@ class Sidebar(object):
 
 
 class ResizableImage(object):
-	def __init__(self, path, size, pos, keep_ratio=True, smooth=True):
-		self.path = path
-		self.original_image = pygame.image.load(path).convert_alpha()
+	def __init__(self, fname, size, pos, keep_ratio=True, smooth=True):
+		self.original_image = resources.load_image(fname).convert_alpha()
 		self.__size = self.original_image.get_size()
 		self.rect = self.original_image.get_rect(topleft=pos)
 		self.resize(size, keep_ratio, smooth)
@@ -228,7 +227,7 @@ class Game(object):
 		gpl_image = pygame.transform.smoothscale(gpl_image, self.screen.get_size())
 		self.screen.blit(gpl_image, (0, 0))
 		pygame.display.flip()
-		events.wait("License")
+		events.wait(context="License")
 
 	def update_display(self):
 		self.screen = pygame.display.set_mode(self.resolution, self.mode)
@@ -291,7 +290,7 @@ class Game(object):
 		pygame.display.flip()
 		events.wait(timeout=6000)
 
-		main_menu_image = ResizableImage(resources.load_image('Ice Emblem.png'), (screen_w, screen_h), (0, 0))
+		main_menu_image = ResizableImage('Ice Emblem.png', (screen_w, screen_h), (0, 0))
 		events.register(VIDEORESIZE, main_menu_image.resize)
 
 		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
@@ -329,7 +328,7 @@ class Game(object):
 			return
 		events.new_context("MapMenu")
 		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
-		files = [ (f, None) for f in os.listdir(maps_path) if os.path.isfile(resources.map_path(f)) and f.endswith('.tmx')]
+		files = [(f, None) for f in resources.list_maps()]
 		menu = gui.Menu(files, self.MAIN_FONT, None, (25, 25))
 		menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
 		menu.register("MapMenu")
