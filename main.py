@@ -48,7 +48,7 @@ if sys.platform.startswith('win'):
 gettext.install('ice-emblem', resources.LOCALE_PATH)  # load translations
 
 
-def main():
+try:
 	# command-line argument parsing
 	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
 	parser.add_argument('--version', action='version', version='Ice Emblem '+VERSION)
@@ -95,20 +95,16 @@ def main():
 
 	MAIN_GAME.play()
 
+except (KeyboardInterrupt, SystemExit):
+	# game was interrupted by the user
+	print(_("Interrupted by user, exiting."))
 
-if __name__ == '__main__':
-	try:
-		main()
-	except (KeyboardInterrupt, SystemExit):
-		# game was interrupted by the user
-		print(_("Interrupted by user, exiting."))
+	# we're not playing anymore, go away
+	utils.return_to_os()
 
-		# we're not playing anymore, go away
-		utils.return_to_os()
-
-	except:
-		# other error
-		kind_error_message = _("""
+except:
+	# other error
+	kind_error_message = _("""
 Oops, something went wrong. Dumping brain contents:
 
 %s
@@ -122,16 +118,22 @@ so that the error can be fixed.
 Thank you!
 -- the Ice Emblem team
 
-""") % ('~' * 80, traceback.format_exc(), '~' * 80, "https://gitlab.com/Elinvention/ice-emblem/issues")
+""") % ('-' * 80 + '\n', traceback.format_exc(), '-' * 80, "https://gitlab.com/Elinvention/ice-emblem/issues")
 
-		print(kind_error_message)
+	print(kind_error_message)
 
-		# we're not playing anymore, go away
-		utils.return_to_os()
+	fname = args.file if args.file else "traceback.log"
+	with open(fname, 'a') as f:
+		traceback.print_exc(file=f)
+		f.write('\n' + '-' * 80 + '\n\n')
 
-	# we got here, so everything was normal
-	print()
-	print("~" * 80)
-	print(_("Game terminated normally."))
-
+	# we're not playing anymore, go away
 	utils.return_to_os()
+
+# we got here, so everything was normal
+print()
+print("-" * 80)
+print(_("Game terminated normally."))
+
+utils.return_to_os()
+
