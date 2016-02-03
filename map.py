@@ -21,6 +21,7 @@
 
 
 import resources
+import sounds
 import tmx
 import pygame
 import os.path
@@ -103,14 +104,13 @@ class Terrain(object):
 
 
 class Cursor(pygame.sprite.Sprite):
-	def __init__(self, tilemap, img, sounds, *groups):
+	def __init__(self, tilemap, img, *groups):
 		super(Cursor, self).__init__(*groups)
 		self.image = img.convert_alpha()
 		self.tilesize = tilemap.tile_width, tilemap.tile_height
 		self.rect = pygame.Rect((0, 0), self.tilesize)
 		self.coord = (0, 0)
 		self.tilemap = tilemap
-		self.sounds = sounds
 
 	def update(self, event):
 		if event.type == pygame.KEYDOWN:
@@ -128,14 +128,14 @@ class Cursor(pygame.sprite.Sprite):
 			self.rect.y = cy * self.tilemap.tile_height
 			self.coord = cx, cy
 
-			self.sounds.play('cursor')
+			sounds.play('cursor')
 		elif event.type == pygame.MOUSEMOTION:
 			cx, cy = self.tilemap.index_at(*event.pos)
 			if 0 <= cx < self.tilemap.width and 0 <= cy < self.tilemap.height:
 				self.rect.x = cx * self.tilemap.tile_width
 				self.rect.y = cy * self.tilemap.tile_height
 				if (cx, cy) != self.coord:
-					self.sounds.play('cursor')
+					sounds.play('cursor')
 					self.coord = cx, cy
 
 
@@ -409,7 +409,7 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen_size, sounds):
+	def __init__(self, map_path, screen_size):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
@@ -482,7 +482,7 @@ class Map(object):
 				pass
 
 		cursor_layer = tmx.SpriteLayer()
-		self.cursor = Cursor(self.tilemap, resources.load_image('cursor.png'), sounds, cursor_layer)
+		self.cursor = Cursor(self.tilemap, resources.load_image('cursor.png'), cursor_layer)
 
 		arrow_layer = tmx.SpriteLayer()
 		self.arrow = Arrow((self.tilemap.px_width, self.tilemap.px_height), resources.load_image('arrow.png'), self.tile_size, arrow_layer)
@@ -610,7 +610,7 @@ class Map(object):
 	def still_attack_area(self, coord):
 		"""
 		Update the area which will be highlighted on the map to show
-		how far the unit attach with her weapon
+		how far the unit attack with her weapon
 		"""
 		min_range, max_range = self.get_unit(coord).get_weapon_range()
 		self.attack_area = []

@@ -29,12 +29,9 @@ import os
 import sys
 import gettext
 import utils
+from colors import *
 
 import resources
-import map
-import game
-
-from colors import *
 
 
 VERSION = utils.read('VERSION').strip('\n')
@@ -77,6 +74,9 @@ def main():
 	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
 	# event will be generated every 50 ms
 	pygame.key.set_repeat(200, 50)
+
+	import map
+	import game
 
 	map_file = None
 	if args.map is not None:

@@ -1,4 +1,4 @@
-import os.path
+import os
 import pygame
 import logging
 
@@ -13,11 +13,11 @@ MAPS_PATH = os.path.join(RESOURCES_PATH, "maps")
 SPRITES_PATH = os.path.join(RESOURCES_PATH, "sprites")
 DATA_PATH = os.path.join(RESOURCES_PATH, "data")
 
-logger = logging.getLogger('Resources')
+__logger = logging.getLogger('Resources')
 
 
 def __load_log(path):
-	logger.debug('Loading %s' % path)
+	__logger.debug('Loading %s' % path)
 
 def load_image(fname):
 	path = os.path.join(IMAGE_PATH, fname)
@@ -64,4 +64,6 @@ def music_path(fname):
 def data_path(fname):
 	return os.path.join(DATA_PATH, fname)
 
+def list_sounds():
+	return os.listdir(SOUNDS_PATH)
 
