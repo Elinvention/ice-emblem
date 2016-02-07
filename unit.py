@@ -412,10 +412,11 @@ class Team(object):
 		try:
 			pygame.mixer.music.load(self.music[music_key])
 			# resume and loop indefinitely
-			# FIXME: pygame bug! music_pos is ignored!
 			pygame.mixer.music.play(-1, self.music_pos[music_key])
 		except KeyError:
 			logging.warning("Couldn't find key %s!" % music_key)
+		except pygame.error:
+			logging.warning("Can't play %s at %s" % (music_key, self.music[music_key]))
 		self.music_pos[music_key] += music_pos
 
 
