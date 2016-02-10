@@ -121,9 +121,6 @@ class ResizableImage(object):
 
 class Game(object):
 	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
-	TIMEOUTEVENT = USEREVENT + 1
-	INTERRUPTEVENT = USEREVENT + 2
-	CLOCKEVENT = USEREVENT + 3
 
 	def __init__(self, screen, map_path):
 		self.screen = screen
@@ -186,11 +183,8 @@ class Game(object):
 				else:
 					# we want to wait but update the clock!
 					time = pygame.time.get_ticks() - self.sidebar.start_time
-					pygame.time.set_timer(self.CLOCKEVENT, (1000 - time % 1000))
-					event = events.wait([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, self.CLOCKEVENT])
-					if event.type != self.CLOCKEVENT:
-						# something happened before CLOCKEVENT so we don't want it anymore
-						pygame.time.set_timer(self.CLOCKEVENT, 0)
+					pygame.time.set_timer(events.CLOCK, (1000 - time % 1000))
+					events.wait(event_types=[KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
 
 			logging.debug(_('Returning to main menu'))
 			self.map = None
@@ -239,9 +233,6 @@ class Game(object):
 			self.mode = pygame.RESIZABLE
 		self.update_display()
 
-	def post_interrupt(self, event=None):
-		pygame.event.post(pygame.event.Event(self.INTERRUPTEVENT, {}))
-
 	def set_resolution(self, res):
 		self.resolution = res
 
@@ -254,8 +245,8 @@ class Game(object):
 	def settings_menu(self):
 		events.new_context("Settings")
 		logging.debug(_("Settings menu"))
-		events.bind_keys((K_ESCAPE,), self.post_interrupt, "Settings")
-		back_btn = gui.Button(_("Go Back"), self.MAIN_FONT, self.post_interrupt)
+		events.bind_keys((K_ESCAPE,), events.post_interrupt, context="Settings")
+		back_btn = gui.Button(_("Go Back"), self.MAIN_FONT, events.post_interrupt)
 		back_btn.rect.bottomright = self.screen.get_size()
 		fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
 		fullscreen_btn.rect.midtop = self.screen.get_rect(top=50).midtop
@@ -265,8 +256,8 @@ class Game(object):
 		back_btn.register("Settings")
 		fullscreen_btn.register("Settings")
 		resolutions_menu.register("Settings")
-		event = pygame.event.Event(NOEVENT, {})
-		while event.type != self.INTERRUPTEVENT:
+
+		def event_loop(_events):
 			self.screen.fill(BLACK)
 			back_btn.draw(self.screen)
 			fullscreen_btn.draw(self.screen)
@@ -274,7 +265,12 @@ class Game(object):
 			self.blit_fps()
 			pygame.display.flip()
 			self.clock.tick(30)
-			event = events.wait(gui.Button.EVENT_TYPES + [self.INTERRUPTEVENT], context="Settings")
+			for event in _events:
+				if event.type == events.INTERRUPT:
+					return True
+			return False
+
+		events.event_loop(event_loop, gui.Button.EVENT_TYPES + [events.INTERRUPT], "Settings")
 
 	def main_menu(self):
 		resources.load_music('Beyond The Clouds (Dungeon Plunder).ogg')
@@ -288,7 +284,7 @@ class Game(object):
 		self.screen.blit(elinvention, utils.center(screen_rect, elinvention.get_rect()))
 		self.screen.blit(presents, utils.center(screen_rect, presents.get_rect(), yoffset=self.MAIN_MENU_FONT.get_linesize()))
 		pygame.display.flip()
-		events.wait(timeout=6000)
+		events.wait(6000)
 
 		main_menu_image = ResizableImage('Ice Emblem.png', (screen_w, screen_h), (0, 0))
 		events.register(VIDEORESIZE, main_menu_image.resize)
@@ -298,20 +294,26 @@ class Game(object):
 		hmenu.rect.bottomright = self.screen.get_size()
 
 		hmenu.register()
-		events.bind_keys((K_RETURN, K_SPACE), self.post_interrupt)
-		events.bind_click((1,), self.post_interrupt, hmenu.rect, False)
-		event = pygame.event.Event(NOEVENT, {})
-		while event.type != USEREVENT+2:
+		events.bind_keys((K_RETURN, K_SPACE), events.post_interrupt)
+		events.bind_click((1,), events.post_interrupt, hmenu.rect, False)
+
+		def event_loop(_events):
 			self.screen.fill(BLACK)
 			main_menu_image.rect.center = self.screen.get_rect().center
 			main_menu_image.draw(self.screen)
-			self.screen.blit(click_to_start, utils.center(self.screen.get_rect(), click_to_start.get_rect(), yoffset=200))
+			rect = utils.center(self.screen.get_rect(), click_to_start.get_rect(), yoffset=200)
+			self.screen.blit(click_to_start, rect)
 			hmenu.rect.bottomright = self.screen.get_size()
 			hmenu.draw(self.screen)
 			self.blit_fps()
 			pygame.display.flip()
 			self.clock.tick(30)
-			event = events.wait(hmenu.EVENT_TYPES + [self.INTERRUPTEVENT])
+			for event in _events:
+				if event.type == events.INTERRUPT:
+					return True
+			return False
+
+		events.event_loop(event_loop, hmenu.EVENT_TYPES + [events.INTERRUPT])
 
 		events.new_context()
 		self.screen.fill(BLACK)
@@ -334,7 +336,7 @@ class Game(object):
 		menu.register("MapMenu")
 		events.register(VIDEORESIZE, main_menu_image.resize, "MapMenu")
 
-		while menu.choice is None:
+		def event_loop(_events):
 			self.screen.fill(BLACK)
 			main_menu_image.rect.center = self.screen.get_rect().center
 			main_menu_image.draw(self.screen)
@@ -343,8 +345,10 @@ class Game(object):
 			menu.draw(self.screen)
 			self.blit_fps()
 			pygame.display.flip()
-			events.wait(gui.Menu.EVENT_TYPES, context="MapMenu")
 			self.clock.tick(30)
+			return menu.choice is not None
+
+		events.event_loop(event_loop, gui.Menu.EVENT_TYPES, "MapMenu")
 
 		try:
 			self.load_map(resources.map_path(files[menu.choice][0]))
@@ -573,7 +577,7 @@ class Game(object):
 			events.wait(timeout=3000, context="Battle")
 
 		pygame.mixer.music.fadeout(500)
-		pygame.time.wait(500)
+		events.wait(500, [], "Battle")
 		attacking_team.play_music('map', True)
 
 		self.screen.blit(battle_background, (0, 0))
@@ -650,25 +654,69 @@ class Game(object):
 		except ValueError:
 			return None
 
-	def action_menu(self, actions, rollback, pos):
+	def action_menu(self, pos):
+		"""
+		Shows the action menu and handles input until it is dismissed.
+		"""
 		events.new_context("ActionMenu")
+		enemies = len(self.map.nearby_enemies())
 
-		menu = gui.Menu(actions, self.SMALL_FONT, rollback, (5, 10), pos)
+		def attack():
+			self.map.attack()
+
+			def abort():
+				events.new_context()
+				self.enable_controls()
+				self.map.move(self.map.get_unit(self.map.curr_sel), self.map.prev_sel)
+				self.map.reset_selection()
+
+			def mousebuttondown(event):
+				# user must click on an enemy unit
+				if event.button == 1 and self.map.is_attack_click(event.pos):
+					events.new_context()
+					self.enable_controls()
+					self.battle_wrapper(self.get_mouse_coord())
+				elif event.button == 3:
+					abort()
+
+			def keydown(event):
+				# user must choose an enemy unit
+				if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
+					events.new_context()
+					self.enable_controls()
+					self.battle_wrapper(self.map.cursor.coord)
+				elif event.key == pygame.K_ESCAPE:
+					abort()
+				self.map.cursor.update(event)
+
+			self.disable_controls()
+			events.register(MOUSEBUTTONDOWN, mousebuttondown)
+			events.register(KEYDOWN, keydown)
+			events.register(MOUSEMOTION, self.map.cursor.update)
+
+		actions = [
+			(_("Attack"), attack),
+			(_("Wait"), self.map.wait),
+		] if enemies > 0 else [
+			(_("Wait"), self.map.wait),
+		]
+
+		menu = gui.Menu(actions, self.SMALL_FONT, self.map.move_undo, (5, 10), pos)
 		menu.register("ActionMenu")
 
 		self.map.still_attack_area(self.map.curr_sel)
 		self.map.update_highlight()
-
 		self.blit_map()
 		self.blit_info()
 
-		action = None
-		while action is None:
+		def event_loop(_events):
 			menu.draw(self.screen)
 			pygame.display.flip()
-			events.wait(gui.Menu.EVENT_TYPES, context="ActionMenu")
-			action = menu.choice
-		return action
+			return menu.choice is not None
+
+		events.event_loop(event_loop, gui.Menu.EVENT_TYPES, "ActionMenu")
+
+		return menu.choice
 
 	def battle_wrapper(self, coord):
 		defending = self.map.get_unit(coord)
@@ -677,31 +725,6 @@ class Game(object):
 		# enemy chosen by the user... let the battle begin!
 		self.battle(attacking, defending)
 
-		self.map.reset_selection()
-
-	def __attack_mousebuttondown(self, event):
-		# user must click on an enemy unit
-		if event.button == 1 and self.map.is_attack_click(event.pos):
-			events.new_context()
-			self.enable_controls()
-			self.battle_wrapper(self.get_mouse_coord())
-		elif event.button == 3:
-			self.__attack_abort()
-
-	def __attack_keydown(self, event):
-		# user must choose an enemy unit
-		if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
-			events.new_context()
-			self.enable_controls()
-			self.battle_wrapper(self.map.cursor.coord)
-		elif event.key == pygame.K_ESCAPE:
-			self.__attack_abort()
-		self.map.cursor.update(event)
-
-	def __attack_abort(self):
-		events.new_context()
-		self.enable_controls()
-		self.map.move(self.map.get_unit(self.map.curr_sel), self.map.prev_sel)
 		self.map.reset_selection()
 
 	def reset(self):
@@ -721,10 +744,13 @@ class Game(object):
 
 		menu.register("PauseMenu")
 
-		while menu.choice is None:
+		def event_loop(_events):
 			menu.draw(self.screen)
 			pygame.display.flip()
-			events.wait(gui.Menu.EVENT_TYPES, context="PauseMenu")
+			self.clock.tick(30)
+			return menu.choice is not None
+
+		events.event_loop(event_loop, gui.Menu.EVENT_TYPES, "PauseMenu")
 
 	def check_turn(self):
 		if self.units_manager.active_team.is_turn_over():
@@ -733,34 +759,17 @@ class Game(object):
 	def handle_mouse_motion(self, event):
 		self.map.handle_mouse_motion(event)
 
-	def action_menu_wrapper(self, menu_entries, pos):
-		# Check if have to display action menu
-		if menu_entries is not None and len(menu_entries) > 0:
-			# rollback will be called if the user aborts the
-			# action menu by right clicking
-			rollback = self.map.rollback_callback
-			action = self.action_menu(menu_entries, rollback, pos)
-
-			if action == 0 and menu_entries[0][0] is _("Attack"):
-				# user choose to attack.
-				# Now he has to choose the enemy to attack
-				# so the next click must be an enemy unit
-				self.disable_controls()
-				events.register(MOUSEBUTTONDOWN, self.__attack_mousebuttondown)
-				events.register(KEYDOWN, self.__attack_keydown)
-				events.register(MOUSEMOTION, self.map.cursor.update)
-
 	def handle_click(self, event):
-		menu_entries = self.map.handle_click(event)
-		self.action_menu_wrapper(menu_entries, event.pos)
+		if self.map.handle_click(event):
+			self.action_menu(event.pos)
 
 	def handle_keyboard(self, event):
 		if event.key == pygame.K_ESCAPE:
 			self.pause_menu()
 		else:
-			menu_entries = self.map.handle_keyboard(event)
-			pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
-			pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
-
-			self.action_menu_wrapper(menu_entries, pos)
+			show_menu = self.map.handle_keyboard(event)
+			if show_menu:
+				pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
+				pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
+				self.action_menu(pos)
 

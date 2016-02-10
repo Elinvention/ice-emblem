@@ -638,11 +638,13 @@ class Map(object):
 					and hole <= utils.distance((x, y), (i, j)) <= radius]
 		return _area
 
-	def nearby_enemies(self, unit):
+	def nearby_enemies(self, unit=None):
 		"""
-		Returns a list of near enemies that can be
-		attacked without having to move.
+		Returns a list of near enemies that can be attacked without having to move.
+		If the unit is not specified it is assumed to be the currently selected unit.
 		"""
+		if unit is None:
+			unit = self.get_unit(self.curr_sel)
 		min_range, max_range = unit.get_weapon_range()
 		area = self.area(unit.coord, max_range, min_range)
 		nearby_list = []
@@ -751,62 +753,67 @@ class Map(object):
 		self.tilemap.draw(surf)
 
 	def select(self, coord):
+		"""
+		Handles selection on the map. Returns whether the action menù has to be shown.
+		"""
 		active_team = self.units_manager.active_team
 		self.curr_sel = coord
 		self.arrow.update([])
 
 		if self.prev_sel is None:
+			# Nothing has been previously selected
 			unit = self.get_unit(coord)
 			if unit is None or unit.played:
 				self.move_area = []
 				self.attack_area = []
 			else:
+				# Show the currently selected unit's move and attack area
 				self.update_move_area(coord)
 				self.move_attack_area(coord)
 			self.prev_sel = self.curr_sel
 		else:
+			# Something has been previously selected
 			prev_unit = self.get_unit(self.prev_sel)
 			curr_unit = self.get_unit(self.curr_sel)
 
 			if prev_unit is not None and curr_unit is not None:
-				if prev_unit == curr_unit and not prev_unit.played and active_team.is_mine(prev_unit):
-					enemies_nearby = len(self.nearby_enemies(self.get_unit(self.curr_sel)))
-					if enemies_nearby > 0:
-						return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
-					else:
-						return[(_("Wait"), self.wait_callback)]
+				# Selected a unit two times
+				if self.prev_sel == self.curr_sel and not prev_unit.played and active_team.is_mine(prev_unit):
+					# Two times on the same playable unit. Show the action menu.
+					return True
 				else:
+					# Two different units
+					# show the current unit's move and attack area
 					self.prev_sel = self.curr_sel
 					self.update_move_area(self.curr_sel)
 					self.move_attack_area(self.curr_sel)
 			elif self.can_selection_move():
+				# Move the previously selected unit to the currently selected coordinate.
 				self.move(self.get_unit(self.prev_sel), self.curr_sel)
-				enemies_nearby = len(self.nearby_enemies(self.get_unit(self.curr_sel)))
-				if enemies_nearby > 0:
-					return [(_("Attack"), self.attack_callback), (_("Wait"), self.wait_callback)]
-				else:
-					return[(_("Wait"), self.wait_callback)]
+				return True
 			else:
+				# Previously something irrelevant was chosen
 				self.reset_selection()
 				self.curr_sel = self.prev_sel = coord
 
 				if curr_unit is not None and not curr_unit.played:
+					# Selected a unit: show its move and attack area
 					self.update_move_area(coord)
 					self.move_attack_area(coord)
-		return []
+		return False
 
-	def wait_callback(self):
+	def wait(self):
 		unit = self.get_unit(self.curr_sel)
 		unit.played = True
 		self.reset_selection()
 
-	def attack_callback(self):
+	def attack(self):
 		unit = self.get_unit(self.curr_sel)
 		self.move_area = []
-		self.attack_area = [u.coord for u in self.nearby_enemies(self.get_unit(self.curr_sel))]
+		self.attack_area = [u.coord for u in self.nearby_enemies()]
 		self.update_highlight()
 
-	def rollback_callback(self):
+	def move_undo(self):
 		self.move(self.get_unit(self.curr_sel), self.prev_sel)
 		self.reset_selection()
 
