@@ -318,15 +318,14 @@ class Game(object):
 		self.screen.fill(BLACK)
 		self.screen.blit(main_menu_image.image, (0, 0))
 
-		self.map_menu(main_menu_image)
+		while not self.map:
+			self.map_menu(main_menu_image)
 
 		pygame.mixer.music.fadeout(2000)
 		self.fadeout(2000)
 		pygame.mixer.music.stop() # Make sure mixer is not busy
 
 	def map_menu(self, main_menu_image):
-		if self.map is not None:
-			return
 		events.new_context("MapMenu")
 		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
 		files = [(f, None) for f in resources.list_maps()]
@@ -352,11 +351,19 @@ class Game(object):
 		try:
 			self.load_map(resources.map_path(files[menu.choice][0]))
 		except:
-			logging.error("Can't load map %s! Probabily the format is not ok.", files[menu.choice][0])
-			traceback.print_exc()
 			self.map = None
 			self.units_manager = None
-			self.map_menu(main_menu_image)
+			msg = _("Can't load map %s! Probabily the format is not ok.\n%s") % (resources.map_path(files[menu.choice][0]), traceback.format_exc())
+			logging.error(msg)
+			dialog = gui.Dialog(msg, self.SMALL_FONT, (100, 100))
+			events.new_context("MapError")
+			dialog.register("MapError")
+			def event_loop(_events):
+				dialog.draw(self.screen)
+				self.clock.tick(60)
+				pygame.display.flip()
+				return dialog.ok
+			events.event_loop(event_loop, gui.Dialog.EVENT_TYPES, "MapError")
 
 	def fadeout(self, fadeout_time, percent=0):
 		start = pygame.time.get_ticks()
