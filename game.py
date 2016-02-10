@@ -273,8 +273,7 @@ class Game(object):
 		events.event_loop(event_loop, gui.Button.EVENT_TYPES + [events.INTERRUPT], "Settings")
 
 	def main_menu(self):
-		resources.load_music('Beyond The Clouds (Dungeon Plunder).ogg')
-		pygame.mixer.music.play()
+		resources.play_music('Beyond The Clouds (Dungeon Plunder).ogg')
 		screen_rect = self.screen.get_rect()
 		screen_w, screen_h = self.screen.get_size()
 

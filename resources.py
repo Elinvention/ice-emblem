@@ -53,6 +53,10 @@ def load_music(fname):
 	__load_log(path)
 	pygame.mixer.music.load(path)
 
+def play_music(fname, loop=-1, pos=0):
+	load_music(fname)
+	pygame.mixer.music.play(loop, pos)
+
 def map_path(fname):
 	if '.' not in fname:
 		fname += '.tmx'
