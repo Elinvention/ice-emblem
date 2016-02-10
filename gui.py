@@ -55,7 +55,19 @@ class GUI(object):
 		events.unregister(KEYDOWN, self.handle_keydown, context)
 
 	def draw(self, surface):
-		raise NotImplementedError("GUI class is abstract")
+		raise NotImplementedError("GUI.draw is not implemented")
+
+	def get_pos(self):
+		return self.rect.topleft
+
+	def get_size(self):
+		return self.rect.size
+
+	def get_width(self):
+		return self.rect.w
+
+	def get_height(self):
+		return self.rect.h
 
 
 class Menu(GUI):
@@ -230,7 +242,7 @@ class HorizontalMenu(Menu):
 
 
 class Button(GUI):
-	def __init__(self, text, font, callback, padding=(0,0,0,0), pos=(0,0), txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
+	def __init__(self, text, font, callback=None, padding=(0,0,0,0), pos=(0,0), txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
 		self.text = text
 		self.rendered_text = font.render(text, True, txt_color)
 		self.font = font
@@ -310,44 +322,122 @@ class CheckBox(Button):
 		btn.blit(checkbox, (self.padding[1], self.padding[0]))
 		surface.blit(btn, self.rect.topleft)
 
-class Dialog(GUI):
-	def __init__(self, pos, font, text):
+class Label(GUI):
+	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
 		self.font = font
 		lines = text.split('\n')
-		self.text = [ font.render(r, True, WHITE) for r in lines ]
-		w = max(l.get_width() for l in self.text)
-		h = font.get_linesize() * len(lines)
+		self.text = [ font.render(r, True, txt_color) for r in lines ]
+		w = max(l.get_width() for l in self.text) + padding * 2
+		h = (font.get_linesize() + leading) * len(lines) + padding * 2
+		self.padding = padding
+		self.leading = leading
+		self.txt_color = txt_color
+		self.bg_color = bg_color
 		super().__init__(pygame.Rect(pos, (w, h)))
 
+	def draw(self, surface):
+		tmp = pygame.Surface(self.rect.size)
+		tmp.fill(MENU_BG)
+		for i, line in enumerate(self.text):
+			y = i * (self.font.get_linesize() + self.leading)
+			tmp.blit(line, (self.padding, self.padding + y))
+		surface.blit(tmp, self.rect)
 
-class Modal(Dialog):
-	def __init__(self, pos, font, text):
-		super().__init__(pos, font, text)
-		self.rect.h += font.get_linesize()
-		self._answer = None
-		self.affermative = Button(_("Yes"), font, lambda: setattr(self, _answer, True))
-		self.negative = Button(_("No"), font, lambda: setattr(self, _answer, False))
+class Dialog(Label):
+	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
+		super().__init__(text, font, pos, padding, leading, txt_color, bg_color)
+		self.ok = False
+		self.ok_btn = Button("OK", font, self.dismiss, pos=self.rect.midbottom)
+		self.ok_btn.rect.move_ip(-self.ok_btn.rect.w//2, -padding)
+		self.rect.w = max(self.rect.w, self.ok_btn.get_width() + padding * 2)
+		self.rect.h += self.ok_btn.get_height()
+		self.padding = padding
+		self.leading = leading
 
-	def get_answer():
-		return self._answer
+	def dismiss(self):
+		self.ok = True
+
+	def register(self, context="default"):
+		super().register(context)
+		self.ok_btn.register(context)
+
+	def unregister(self, context="default"):
+		super().unregister(context)
+		self.ok_btn.unregister(context)
+
+	def draw(self, surface):
+		super().draw(surface)
+		self.ok_btn.draw(surface)
+
+class Modal(Label):
+	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
+		super().__init__(text, font, pos, padding, leading, txt_color, bg_color)
+		self.answer = None
+		self.yes_btn = Button("Yes", font, lambda: setattr(self, 'answer', True), pos=self.rect.midbottom)
+		self.yes_btn.rect.move_ip(-self.yes_btn.rect.w - 20, -padding)
+		self.no_btn = Button("No", font, lambda: setattr(self, 'answer', False), pos=self.rect.midbottom)
+		self.no_btn.rect.move_ip(20, -padding)
+		self.rect.w = max(self.rect.w, self.no_btn.get_width() + self.yes_btn.get_width() + padding * 2)
+		self.rect.h += max(self.yes_btn.get_height(), self.no_btn.get_height())
 
 	def handle_keydown(self, event):
 		super().handle_keydown(event)
 		if event.key in [K_LEFT, K_RIGHT]:
-			if self.affermative.is_focused:
-				self.affermative.unfocus()
-				self.negative.focus()
+			if self.yes_btn.is_focused():
+				self.yes_btn.unfocus()
+				self.no_btn.focus()
 			else:
-				self.affermative.focus()
-				self.negative.unfocus()
-		elif event.key == KEY_SPACE:
-			self.answer = self.affermative.is_focused()
+				self.yes_btn.focus()
+				self.no_btn.unfocus()
+		elif event.key == K_SPACE:
+			self.answer = self.yes_btn.is_focused()
+
+	def register(self, context="default"):
+		super().register(context)
+		self.yes_btn.register(context)
+		self.no_btn.register(context)
+
+	def unregister(self, context="default"):
+		super().unregister(context)
+		self.yes_btn.unregister(context)
+		self.no_btn.register(context)
 
 	def draw(self, surface):
-		tmp = pygame.Surface(self.rect.size)
-		pos = self.rect.copy()
-		for l in self.text:
-			tmp.blit(l, pos)
-			pos.move_ip(0, self.font.get_linesize())
-		surface.blit(tmp, self.rect.topleft)
+		super().draw(surface)
+		self.yes_btn.draw(surface)
+		self.no_btn.draw(surface)
+
+
+if __name__ == '__main__':
+	import events
+
+	pygame.init()
+	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
+	pygame.display.set_caption("Ice Emblem GUI Test"),
+	clock = pygame.time.Clock()
+
+	f = pygame.font.SysFont("Liberation Sans", 24)
+	d = Dialog("Lorem ipsum dolor sit amet. ASD. LOL.\n\nTROLOL", f, (50, 100))
+	l = Label("TEST LABEL\nASDASDASD\nLOL\n\n\nTROLOL", f, (500, 100))
+	m = Modal("Rispondi SI o NO?\n\nFORSE?", f, (800, 400))
+	d.register()
+	m.register()
+
+	def event_loop(_events):
+		screen.fill(BLACK)
+		d.draw(screen)
+		l.draw(screen)
+		m.draw(screen)
+		a = Label("ANSWER: " + ("YES" if m.answer else "NO"), f, m.rect.bottomleft)
+		a.draw(screen)
+		pygame.display.flip()
+		clock.tick(60)
+		return d.ok
+
+	events.event_loop([MOUSEMOTION, MOUSEBUTTONDOWN, KEYDOWN], event_loop)
+
+	if m.answer is not None:
+		print("Answer: %s" % m.answer)
+
+	pygame.quit()
 
