@@ -190,7 +190,7 @@ def event_loop(callback, event_types, context="default"):
 	set_allowed(event_types)
 	done = callback([EMPTYEVENT])
 	while not done:
-		events = pygame.event.get() if pygame.event.peek(event_types) else [pygame.event.wait()]
+		events = pygame.event.get()
 		for event in events:
 			process_event(event, context)
 		done = callback(events)
