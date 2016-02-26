@@ -13,7 +13,7 @@
     movement: 1
     constitution: 1
     aid: 5
-    affinity: 
+    affinity:
     condition: 0
     wrank:
         Axe: E
@@ -33,7 +33,7 @@
     movement: 3
     constitution: 1
     aid: 5
-    affinity: 
+    affinity:
     condition: 0
     wrank:
         Bow: E
@@ -52,7 +52,7 @@
     movement: 2
     constitution: 2
     aid: 3
-    affinity: 
+    affinity:
     condition: 0
     wrank:
         DarkTome: E
@@ -71,7 +71,7 @@
     movement: 3
     constitution: 2
     aid: 4
-    affinity: 
+    affinity:
     condition: 0
     wrank:
         Bow: E
@@ -90,7 +90,7 @@
     movement: 5
     constitution: 2
     aid: 2
-    affinity: 
+    affinity:
     condition: 0
     wrank:
         Sword: E
@@ -109,7 +109,7 @@
     movement: 3
     constitution: 3
     aid: 4
-    affinity: 
+    affinity:
     condition: 0
     wrank:
         Sword: E

@@ -413,7 +413,7 @@ if __name__ == '__main__':
 
 	pygame.init()
 	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
-	pygame.display.set_caption("Ice Emblem GUI Test"),
+	pygame.display.set_caption("Ice Emblem GUI Test")
 	clock = pygame.time.Clock()
 
 	f = pygame.font.SysFont("Liberation Sans", 24)

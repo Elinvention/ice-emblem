@@ -30,6 +30,7 @@ import utils
 import heapq
 import unit
 import item
+import events
 from colors import *
 
 
@@ -57,14 +58,31 @@ class UnitSprite(pygame.sprite.Sprite):
 
 		self.update()
 
+	def reposition(self):
+		self.rect.left = int(self.rect.w * self.unit.coord[0])
+		self.rect.top = int(self.rect.h * self.unit.coord[1])
+
+	def move_animation(self, delta, dest):
+		delta /= 100
+		x, y = dest
+		normal = tuple(map(lambda x: 1 if x > 0 else -1 if x < 0 else 0, (x - self.rect.left, y - self.rect.top)))
+		self.rect.left += int(self.rect.w * delta) * normal[0]
+		self.rect.top += int(self.rect.h * delta) * normal[1]
+
+		reached = False
+		if (normal[0] == 1 and self.rect.left >= x) or (normal[0] == -1 and self.rect.left <= x):
+			self.rect.left = x
+			reached = True
+		if (normal[1] == 1 and self.rect.top >= y) or (normal[1] == -1 and self.rect.left <= y):
+			self.rect.top = y
+			reached = True
+		return reached
+
 	def update(self):
 		if not self.unit.was_modified():
 			return
 
 		logging.debug("Sprite update: %s" % self.unit.name)
-
-		self.rect.left = self.unit.coord[0] * self.rect.w
-		self.rect.top = self.unit.coord[1] * self.rect.h
 
 		w, h = self.rect.size
 		w2, h2 = w // 2, h // 2
@@ -409,13 +427,14 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen_size):
+	def __init__(self, map_path, screen):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
 		the Path class.
 		"""
-		self.tilemap = tmx.load(map_path, (screen_size[0] - 250, screen_size[1]))
+		self.screen = screen
+		self.tilemap = tmx.load(map_path, (screen.get_width() - 250, screen.get_height()))
 		self.tw, self.th = self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 		self.w, self.h = self.tilemap.width, self.tilemap.height
 
@@ -551,6 +570,30 @@ class Map(object):
 		else:
 			raise ValueError('(%d:%d) Cursor out of map')
 
+	def move_animation(self, unit, target, path=None):
+		events.new_context("move")
+		if not path:
+			path = self.path.shortest_path(unit.coord, target, unit.movement)
+		self.arrow.update(path, unit.coord)
+		px_path = list(map(lambda x: (x[0] * self.tw, x[1] * self.th), path))
+		sprite = self.find_sprite(unit=unit)
+		clock = pygame.time.Clock()
+		i = 0
+
+		def event_loop(_events):
+			nonlocal i
+			self.draw(self.screen)
+			pygame.display.flip()
+			delta = clock.tick(60)
+			reached = sprite.move_animation(delta, px_path[i])
+			if reached and i < len(px_path) - 1:
+				i += 1
+				reached = False
+				#print(i, i >= len(px_path) - 1)
+			return reached and i >= len(px_path) - 1
+
+		events.event_loop(event_loop, [], "move")
+
 	def move(self, unit, new_coord):
 		"""
 		This method moves a unit from a node to another one. If the two
@@ -559,11 +602,11 @@ class Map(object):
 		if unit.coord != new_coord:
 			if self.get_unit(new_coord) is not None:
 				raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
+			self.move_animation(unit, new_coord)
 			self.terrains[unit.coord].unit = None
 			self.terrains[new_coord].unit = unit
 			print(_('Unit %s moved from %s to %s') % (unit.name, unit.coord, new_coord))
 			unit.move(new_coord)
-			self.find_sprite(unit=unit).update()
 
 	def kill_unit(self, **kwargs):
 		coord = kwargs['coord'] if 'coord' in kwargs else kwargs['unit'].coord

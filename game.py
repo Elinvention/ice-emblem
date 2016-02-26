@@ -143,7 +143,7 @@ class Game(object):
 
 	def load_map(self, map_path):
 		if map_path is not None:
-			self.map = map.Map(map_path, self.screen.get_size())
+			self.map = map.Map(map_path, self.screen)
 			self.units_manager = self.map.units_manager
 			for team in self.units_manager.teams:
 				if team.ai:
@@ -154,6 +154,9 @@ class Game(object):
 			self.units_manager = None
 
 	def play(self):
+		"""
+		Main loop.
+		"""
 		while True:
 			logging.debug(_('Main game loop started'))
 
