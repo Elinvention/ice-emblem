@@ -274,7 +274,7 @@ Unit: "%s"
 			exp = 100
 		self.experience += exp
 		if self.experience >= 100:
-			self.exp %= 100
+			self.experience %= 100
 			self.level_up()
 		self.modified = True
 		print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.experience))
