@@ -574,7 +574,6 @@ class Map(object):
 		events.new_context("move")
 		if not path:
 			path = self.path.shortest_path(unit.coord, target, unit.movement)
-		self.arrow.update(path, unit.coord)
 		px_path = list(map(lambda x: (x[0] * self.tw, x[1] * self.th), path))
 		sprite = self.find_sprite(unit=unit)
 		clock = pygame.time.Clock()
