@@ -4,6 +4,7 @@ import resources
 import logging
 import random
 
+print(pygame.mixer.get_init())
 
 __logger = logging.getLogger('Sounds')
 sounds = {}

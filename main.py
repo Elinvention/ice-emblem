@@ -20,7 +20,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
-
+import pygame_sdl2
+pygame_sdl2.import_as_pygame()
 import pygame
 import argparse
 import traceback
@@ -66,7 +67,7 @@ try:
 		logging.warning(_('You are running a version of Pygame that might be outdated.'))
 		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
+	#pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
 	pygame.init()
 	pygame.display.set_icon(resources.load_image('icon.png'))
 	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
