@@ -34,6 +34,8 @@ from colors import *
 import resources
 
 
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 VERSION = utils.read('VERSION').strip('\n')
 
 # Gettext work around for Windows
