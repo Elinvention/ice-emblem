@@ -27,7 +27,8 @@ CLOCK = USEREVENT + 3
 
 EMPTYEVENT = pygame.event.Event(NOEVENT, {})
 
-allowed = set()
+allowed = set(range(NOEVENT, NUMEVENTS))
+allowed.remove(SYSWMEVENT)
 
 def allow_all():
 	"""
@@ -157,20 +158,18 @@ def pump(context="default"):
 	for event in pygame.event.get():
 		process_event(event, context)
 
-def wait(timeout=-1, event_types=[MOUSEBUTTONDOWN, KEYDOWN], context="default"):
+def wait(timeout=-1, context="default"):
 	"""
 	If the timeout argument is positive, returns after the specified
 	number of milliseconds. event_types must be a list of event types
 	that are allowed to interrupt the wait.
 	"""
-	event_types.extend(ALWAYS_ALLOWED)
-	set_allowed(event_types)
 
 	if timeout > 0:
 		pygame.time.set_timer(TIMEOUT, timeout)
 		add_allowed([TIMEOUT])
 
-	if pygame.event.peek(event_types):  # if we don't have to wait process all events
+	if pygame.event.peek(list(allowed)):  # if we don't have to wait process all events
 		for event in pygame.event.get():  # with get we can process many events per frame
 			process_event(event, context)
 	else:
@@ -182,15 +181,18 @@ def wait(timeout=-1, event_types=[MOUSEBUTTONDOWN, KEYDOWN], context="default"):
 
 	return event
 
-def event_loop(callback, event_types, context="default"):
+def event_loop(callback, wait=True, context="default"):
 	"""
 	Call a function passing all events as an argument until it returns True.
-	event_types must be a list of allowed event types.
+	If wait is True it calls pygame.event.wait if there are no events in
+	pygame's queue, otherwise it just calls pygame.event.get.
 	"""
-	set_allowed(event_types)
 	done = callback([EMPTYEVENT])
 	while not done:
-		events = pygame.event.get()
+		if wait and not pygame.event.peek(list(allowed)):
+			events = [pygame.event.wait()]
+		else:
+			events = pygame.event.get()
 		for event in events:
 			process_event(event, context)
 		done = callback(events)
