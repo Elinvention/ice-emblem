@@ -58,9 +58,13 @@ def play_music(fname, loop=-1, pos=0):
 	pygame.mixer.music.play(loop, pos)
 
 def map_path(fname):
-	if '.' not in fname:
+	root, ext = os.path.splitext(fname)
+	if ext == '':
 		fname += '.tmx'
 	return os.path.join(MAPS_PATH, fname)
+
+def is_map(fname):
+	return os.path.isfile(fname) and os.path.splitext(fname)[1] == '.tmx'
 
 def music_path(fname):
 	return os.path.join(MUSIC_PATH, fname)
@@ -73,6 +77,6 @@ def list_sounds():
 
 def list_maps():
 	ls = os.listdir(MAPS_PATH)
-	return [f for f in ls if os.path.isfile(map_path(f)) and f.endswith('.tmx')]
+	return [f for f in ls if is_map(map_path(f))]
 
 
