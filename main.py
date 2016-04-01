@@ -68,15 +68,7 @@ try:
 		logging.warning(_('You are running a version of Pygame that might be outdated.'))
 		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
-	pygame.init()
-	pygame.display.set_icon(resources.load_image('icon.png'))
-	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
-	pygame.display.set_caption("Ice Emblem " + VERSION)
-	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
-	# event will be generated every 50 ms
-	pygame.key.set_repeat(200, 50)
-
+	import display
 	import map
 	import game
 
@@ -90,12 +82,10 @@ try:
 	else:
 		logging.debug(_('No map on command line: choose the map via the main menu'))
 
-	MAIN_GAME = game.Game(screen, map_file)
-
 	if not args.skip:
-		MAIN_GAME.main_menu()
+		game.main_menu()
 
-	MAIN_GAME.play()
+	game.play()
 
 except (KeyboardInterrupt, SystemExit):
 	# game was interrupted by the user

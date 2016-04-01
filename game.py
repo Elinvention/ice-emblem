@@ -33,21 +33,300 @@ import map
 import gui
 import utils
 import ai
+import room
+import display
+from display import window
 from colors import *
 
 
+TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
+font_name = os.path.join('Medieval Sharp', 'MedievalSharp.ttf')
+MAIN_MENU_FONT = resources.load_font(font_name, 48)
+MAIN_FONT = resources.load_font(font_name, 36)
+SMALL_FONT = resources.load_font(font_name, 24)
+
+
+loaded_map = None
+units_manager = None
+winner = None
+
+
+def load_map(map_path):
+	global loaded_map, units_manager
+	if map_path is not None:
+		try:
+			loaded_map = map.Map(map_path)
+			units_manager = loaded_map.units_manager
+			for team in units_manager.teams:
+				if team.ai:
+					team.ai = ai.AI(loaded_map, units_manager, team)
+			events.register(VIDEORESIZE, loaded_map.handle_videoresize)
+		except:
+			msg = _("Can't load map %s! Probabily the format is not ok.\n%s") % (resources.map_path(files[menu.choice][0]), traceback.format_exc())
+			logging.error(msg)
+			dialog = gui.Dialog(msg, SMALL_FONT, (100, 100))
+			events.new_context("MapError")
+			dialog.register("MapError")
+			def event_loop(_events):
+				dialog.draw(window)
+				display.clock.tick(60)
+				pygame.display.flip()
+				return dialog.ok
+			events.event_loop(event_loop, True, "MapError")
+	else:
+		loaded_map = None
+		units_manager = None
+
+
+def kill(unit):
+	loaded_map.kill_unit(unit=unit)
+	units_manager.kill_unit(unit)
+
+
+def experience_animation(unit, bg):
+	img_pos = utils.center(window.get_rect(), unit.image.get_rect())
+	exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
+
+	sounds.play('exp', -1)
+
+	gained_exp = unit.gained_exp()
+	curr_exp = unit.prev_exp
+	while curr_exp <= gained_exp + unit.prev_exp:
+		if unit.levelled_up() and curr_exp == 100:
+			sounds.play('levelup')
+		exp = pygame.Surface((curr_exp % 100, 20))
+		exp.fill(YELLOW)
+
+		exp_text = SMALL_FONT.render(_("EXP: %d") % (curr_exp % 100), True, YELLOW)
+		lv_text = SMALL_FONT.render(_("LV: %d") % unit.level, True, BLUE)
+
+		window.blit(bg, (0, 0))
+		window.blit(unit.image, img_pos)
+		window.blit(exp, exp_pos)
+		window.blit(exp_text, (exp_pos[0], exp_pos[1] + 25))
+		window.blit(lv_text, (exp_pos[0] + exp_text.get_width() + 10, exp_pos[1] + 25))
+
+		curr_exp += 1
+		pygame.display.flip()
+		display.clock.tick(60)
+		events.pump()
+
+	sounds.stop('exp')
+	events.wait(timeout=2000)
+
+
+def attack(attacking, defending):
+	global winner
+	events.new_context("Battle")
+	attacking_team = units_manager.get_team(attacking.color)
+	defending_team = units_manager.get_team(defending.color)
+
+	att_weapon = attacking.get_active_weapon()
+	def_weapon = defending.get_active_weapon()
+
+	attacking.prepare_battle()
+	defending.prepare_battle()
+
+	dist = utils.distance(attacking.coord, defending.coord)
+	at, dt = attacking.number_of_attacks(defending, dist)
+
+	print("\r\n" + "#" * 12 + " " + _("Fight!!!") + " " + "#" * 12)
+	att_str = _("%s is going to attack %d %s")
+	print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
+	print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))
+
+	attacking_team.play_music('battle')
+
+	loaded_map.draw(window)
+	display.fadeout(1000, 10)  # Darker atmosphere
+
+	battle_background = window.copy()
+
+	att_swap = attacking
+	def_swap = defending
+
+	att_name = MAIN_FONT.render(attacking.name, 1, attacking_team.color)
+	def_name = MAIN_FONT.render(defending.name, 1, defending_team.color)
+
+	miss_text = SMALL_FONT.render(_("MISS"), 1, YELLOW).convert_alpha()
+	null_text = SMALL_FONT.render(_("NULL"), 1, RED).convert_alpha()
+	crit_text = SMALL_FONT.render(_("TRIPLE"), 1, RED).convert_alpha()
+	screen_rect = window.get_rect()
+
+	att_rect_origin = attacking.image.get_rect(centerx=screen_rect.centerx-screen_rect.centerx//2, bottom=screen_rect.centery-25)
+	def_rect_origin = defending.image.get_rect(centerx=screen_rect.centerx+screen_rect.centerx//2, bottom=screen_rect.centery-25)
+	att_rect = att_rect_origin.copy()
+	def_rect = def_rect_origin.copy()
+
+	att_life_pos = (att_rect_origin.left, screen_rect.centery)
+	def_life_pos = (def_rect_origin.left, screen_rect.centery)
+
+	att_name_pos = (att_rect_origin.left, 30 + att_life_pos[1])
+	def_name_pos = (def_rect_origin.left, 30 + def_life_pos[1])
+
+	att_info_pos = (att_rect_origin.left, att_name_pos[1] + att_name.get_height() + 20)
+	def_info_pos = (def_rect_origin.left, def_name_pos[1] + def_name.get_height() + 20)
+
+	att_text_pos = (att_rect_origin.topright)
+	def_text_pos = (def_rect_origin.topleft)
+
+	life_block = pygame.Surface((4, 10))
+	life_block_used = pygame.Surface((4, 10))
+	life_block.fill(GREEN)
+	life_block_used.fill(RED)
+
+	collide = screen_rect.centerx, att_rect.bottom - 1
+	broken = False
+	for _round in range(at + dt + 1):
+		animate_miss = False
+		outcome = 0
+		def_text = att_text = None
+		if (at > 0 or dt > 0) and (def_swap.health > 0 and att_swap.health > 0):  # Se ci sono turni e se sono vivi
+			print(" " * 6 + "-" * 6 + "Round:" + str(_round + 1) + "-" * 6)
+		else:
+			break
+		at -= 1
+		start_animation = pygame.time.get_ticks()
+		animation_time = latest_tick = 0
+		while animation_time < TIME_BETWEEN_ATTACKS:
+			speed = int(100 / 250 * latest_tick)
+			if att_swap == defending:
+				speed = -speed
+			if outcome == 0:
+				att_rect = att_rect.move(speed, 0)
+			if att_rect.collidepoint(collide) and outcome == 0:
+				outcome = att_swap.attack(def_swap)
+				if outcome == 1:  # Miss
+					def_text = miss_text
+					animate_miss = animation_time
+					sounds.play('miss')
+				elif outcome == 2:  # Null attack
+					def_text = null_text
+					sounds.play('null')
+				elif outcome == 3:  # Triple hit
+					att_text = crit_text
+					sounds.play('critical')
+				elif outcome == 4:  # Hit
+					sounds.play('hit')
+
+				att_rect = att_rect_origin.copy()
+				def_rect = def_rect_origin.copy()
+				miss_target = def_rect_origin.y - 50
+
+			if animate_miss:
+				t = (animation_time - animate_miss) / 1000
+				def_rect.bottom = int(att_rect.bottom - 400 * t + 800 * t * t)
+				if def_rect.bottom > att_rect.bottom:
+					animate_miss = False
+					def_rect.bottom = att_rect.bottom
+
+			animation_time = pygame.time.get_ticks() - start_animation
+
+			att_info = attacking.render_info(SMALL_FONT)
+			def_info = defending.render_info(SMALL_FONT)
+
+			window.blit(battle_background, (0, 0))
+			window.blit(att_swap.image, att_rect.topleft)
+			window.blit(def_swap.image, def_rect.topleft)
+			if att_text is not None:
+				window.blit(att_text, att_text_pos)
+			if def_text is not None:
+				window.blit(def_text, def_text_pos)
+			window.blit(att_name, att_name_pos)
+			window.blit(def_name, def_name_pos)
+			for i in range(attacking.health_max):
+				x = att_life_pos[0] + (i % 30 * 5)
+				y = att_life_pos[1] + i // 30 * 11
+				if i < attacking.health:
+					window.blit(life_block, (x , y))
+				else:
+					window.blit(life_block_used, (x , y))
+			for i in range(defending.health_max):
+				x = def_life_pos[0] + (i % 30 * 5)
+				y = def_life_pos[1] + i // 30 * 11
+				if i < defending.health:
+					window.blit(life_block, (x , y))
+				else:
+					window.blit(life_block_used, (x , y))
+			window.blit(att_info, att_info_pos)
+			window.blit(def_info, def_info_pos)
+			display.draw_fps()
+			events.pump("Battle")
+			pygame.display.flip()
+			latest_tick = display.clock.tick(60)
+
+		if dt > 0:
+			att_swap, def_swap = def_swap, att_swap
+			at, dt = dt, at
+			att_rect, def_rect = def_rect, att_rect
+			att_rect_origin, def_rect_origin = def_rect_origin, att_rect_origin
+			att_text_pos, def_text_pos = def_text_pos, att_text_pos
+	if attacking.health > 0:
+		attacking.gain_exp(defending)
+		experience_animation(attacking, battle_background)
+	else:
+		kill(attacking)
+
+	if defending.health > 0:
+		defending.gain_exp(attacking)
+		experience_animation(defending, battle_background)
+	else:
+		kill(defending)
+
+	if att_weapon and att_weapon.uses == 0:
+		sounds.play('broke')
+		broken_text = SMALL_FONT.render("%s is broken" % att_weapon.name, True, RED)
+		window.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
+		pygame.display.flip()
+		events.wait(timeout=3000, context="Battle")
+	if def_weapon and def_weapon.uses == 0:
+		sounds.play('broke')
+		broken_text = SMALL_FONT.render("%s is broken" % def_weapon.name, True, RED)
+		window.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
+		pygame.display.flip()
+		events.wait(timeout=3000, context="Battle")
+
+	pygame.mixer.music.fadeout(500)
+	events.block_all()
+	events.wait(500, "Battle")
+	events.allow_all()
+	attacking_team.play_music('map', True)
+
+	window.blit(battle_background, (0, 0))
+	attacking.played = True
+
+	if defending_team.is_defeated():
+		winner = attacking_team
+	elif attacking_team.is_defeated():
+		winner = defending_team
+
+	print("#" * 12 + " " + _("Battle ends") + " " + "#" * 12 + "\r\n")
+
+
+def move(who, where):
+	loaded_map.move(who, where)
+
+def play_actions(actions):
+	for action in actions:
+		action()
+		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
+		events.wait(5000)
+
+import action
+action.Move.fun = staticmethod(move)
+action.Attack.fun = staticmethod(attack)
+
 class Sidebar(object):
-	def __init__(self, screen, font, switch_turn):
-		self.screen = screen
-		self.rect = pygame.Rect((screen.get_width() - 250, 0), (250, screen.get_height()))
+	def __init__(self, font, switch_turn):
+		self.rect = pygame.Rect((window.get_width() - 250, 0), (250, window.get_height()))
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
 		self.endturn_btn = gui.Button(_("End Turn"), self.font, switch_turn)
 
 	def update(self, unit, terrain, coord, team):
 		render = lambda x, y: self.font.render(x, True, y)
-		self.rect.h = self.screen.get_height()
-		self.rect.x = self.screen.get_width() - self.rect.w
+		self.rect.h = window.get_height()
+		self.rect.x = window.get_width() - self.rect.w
 		self.endturn_btn.rect.bottomright = self.rect.bottomright
 
 		sidebar = pygame.Surface(self.rect.size)
@@ -86,522 +365,234 @@ class Sidebar(object):
 			pos.move_ip(0, 40)
 			sidebar.blit(i, pos)
 
-		self.screen.blit(sidebar, self.rect)
-		self.endturn_btn.draw(self.screen)
+		window.blit(sidebar, self.rect)
+		self.endturn_btn.draw(window)
 
 
-class ResizableImage(object):
-	def __init__(self, fname, size, pos, keep_ratio=True, smooth=True):
-		self.original_image = resources.load_image(fname).convert_alpha()
-		self.__size = self.original_image.get_size()
-		self.rect = self.original_image.get_rect(topleft=pos)
-		self.resize(size, keep_ratio, smooth)
-
-	def resize(self, new_size, keep_ratio=True, smooth=True):
-		try:
-			new_size = new_size.size  # might be a pygame.event.Event
-		except AttributeError:
-			pass
-		if new_size == self.__size:
-			return
-		if keep_ratio:
-			img_size = utils.resize_keep_ratio(self.original_image.get_size(), new_size)
-		else:
-			img_size = new_size
-		if smooth:
-			self.image = pygame.transform.smoothscale(self.original_image, img_size)
-		else:
-			self.image = pygame.transform.scale(self.original_image, img_size)
-		self.rect.size = img_size
-		self.__size = new_size
-
-	def draw(self, surface):
-		surface.blit(self.image, self.rect)
-
-
-class Game(object):
-	TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
-
-	def __init__(self, screen, map_path):
-		self.screen = screen
-		self.clock = pygame.time.Clock()
-
-		font_name = os.path.join('Medieval Sharp', 'MedievalSharp.ttf')
-		self.MAIN_MENU_FONT = resources.load_font(font_name, 48)
-		self.MAIN_FONT = resources.load_font(font_name, 36)
-		self.SMALL_FONT = resources.load_font(font_name, 24)
-		self.FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
-
-		sounds.get('cursor').set_volume(0.1)
-
-		self.winner = None
+class SplashScreen(room.Room):
+	def __init__(self):
+		self.elinvention = MAIN_MENU_FONT.render("Elinvention", 1, WHITE)
+		self.presents = MAIN_MENU_FONT.render(_("PRESENTS"), 1, WHITE)
+		self.ticks = pygame.time.get_ticks()
 		self.done = False
-		self.resolution = self.screen.get_size()
-		self.mode = pygame.RESIZABLE
 
-		self.load_map(map_path)
+	def begin(self):
+		resources.play_music('Beyond The Clouds (Dungeon Plunder).ogg')
 
-	def load_map(self, map_path):
-		if map_path is not None:
-			self.map = map.Map(map_path, self.screen)
-			self.units_manager = self.map.units_manager
-			for team in self.units_manager.teams:
-				if team.ai:
-					team.ai = ai.AI(self.map, self.units_manager, team, self.battle)
-			events.register(VIDEORESIZE, self.map.handle_videoresize)
-		else:
-			self.map = None
-			self.units_manager = None
+	def loop(self, _events):
+		return self.done
 
-	def play(self):
-		"""
-		Main loop.
-		"""
-		while True:
-			logging.debug(_('Main game loop started'))
+	def draw(self):
+		window.fill(BLACK)
+		window.blit(self.elinvention, self.elinvention.get_rect(center=window.get_rect().center))
+		window.blit(self.presents, self.presents.get_rect(centery=window.get_rect().centery+MAIN_MENU_FONT.get_linesize(), centerx=window.get_rect().centerx))
+		pygame.display.flip()
+		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
+		events.wait(6000)
+		events.allow_all()
+		self.done = True
 
-			self.units_manager.active_team.play_music('map')
-			self.sidebar = Sidebar(self.screen, self.SMALL_FONT, self.switch_turn)
 
-			if not self.units_manager.active_team.ai:
-				self.enable_controls()
+class MainMenu(room.Room):
+	context = "MainMenu"
+	def __init__(self):
+		events.new_context(self.context)
+		self.image = resources.load_image('Ice Emblem.png')
+		self.rect = self.image.get_rect()
+		self.click_to_start = MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
+		self.hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], SMALL_FONT)
+		self.hmenu.rect.bottomright = window.get_size()
+		self.hmenu.register(self.context)
+		events.bind_keys((K_RETURN, K_SPACE), events.post_interrupt, self.context)
+		events.bind_click((1,), events.post_interrupt, self.hmenu.rect, False, self.context)
 
-			while not self.done:
-				if self.winner is not None:
-					self.victory_screen()
-					self.done = True
-				else:
-					self.check_turn()
-					self.screen.fill(BLACK)
-					self.blit_map()
-					self.blit_info()
-					self.blit_fps()
-					pygame.display.flip()
-					self.clock.tick(30)
+	def loop(self, _events):
+		for event in _events:
+			if event.type == events.INTERRUPT:
+				print("INTERRUPT")
+				return True
+		return False
 
-				if callable(self.units_manager.active_team.ai):
-					self.units_manager.active_team.ai()
-				elif self.map.move_x != 0 or self.map.move_y != 0:
-					events.pump()
-				else:
-					# we want to wait but update the clock!
-					time = pygame.time.get_ticks() - self.sidebar.start_time
-					pygame.time.set_timer(events.CLOCK, (1000 - time % 1000))
-					events.wait(event_types=[KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
+	def draw(self):
+		window.fill(BLACK)
+		self.rect.center = window.get_rect().center
+		window.blit(self.image, self.rect)
+		rect = self.click_to_start.get_rect(centery=window.get_rect().centery+200, centerx=window.get_rect().centerx)
+		window.blit(self.click_to_start, rect)
+		self.hmenu.rect.bottomright = window.get_size()
+		self.hmenu.draw(window)
+		display.draw_fps()
+		pygame.display.flip()
+		display.clock.tick(30)
 
-			logging.debug(_('Returning to main menu'))
-			self.map = None
-			self.winner = None
-			self.done = False
-			self.sidebar = None
-			self.units_manager = None
-			events.new_context()
-			self.main_menu()
+	def end(self):
+		window.fill(BLACK)
+		window.blit(self.image, (0, 0))
 
-	def blit_map(self):
-		"""
-		This method renders and blits the map on the screen.
-		"""
-		self.map.draw(self.screen)
+		map_menu = MapMenu(self.image)
+		while not loaded_map:
+			room.run_room(map_menu)
 
-	def blit_info(self):
-		coord = self.map.cursor.coord
-		unit = self.map.get_unit(coord)
-		terrain = self.map[coord]
-		turn = self.units_manager.active_team
-		self.sidebar.update(unit, terrain, coord, turn)
-
-	def blit_fps(self):
-		screen_w, screen_h = self.screen.get_size()
-		fps = self.clock.get_fps()
-		fpslabel = self.FPS_FONT.render(str(int(fps)) + ' FPS', True, WHITE)
-		rec = fpslabel.get_rect(top=5, right=screen_w - 5)
-		self.screen.blit(fpslabel, rec)
+		pygame.mixer.music.fadeout(2000)
+		display.fadeout(2000)
+		pygame.mixer.music.stop() # Make sure mixer is not busy
 
 	def show_license(self):
 		events.new_context("License")
 		gpl_image = resources.load_image('GNU GPL.jpg')
-		gpl_image = pygame.transform.smoothscale(gpl_image, self.screen.get_size())
-		self.screen.blit(gpl_image, (0, 0))
+		gpl_image = pygame.transform.smoothscale(gpl_image, window.get_size())
+		window.blit(gpl_image, (0, 0))
 		pygame.display.flip()
+		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
 		events.wait(context="License")
-
-	def update_display(self):
-		self.screen = pygame.display.set_mode(self.resolution, self.mode)
-
-	def set_fullscreen(self, enable):
-		if enable:
-			self.mode = pygame.FULLSCREEN
-		else:
-			self.mode = pygame.RESIZABLE
-		self.update_display()
-
-	def set_resolution(self, res):
-		self.resolution = res
-
-	def resolution_setter(self, res):
-		def set_res():
-			self.set_resolution(res)
-			self.update_display()
-		return set_res
+		events.allow_all()
 
 	def settings_menu(self):
-		events.new_context("Settings")
+		room.run_room(SettingsMenu())
+
+
+class SettingsMenu(room.Room):
+	context = "SettingsMenu"
+
+	def __init__(self):
+		self.back_btn = gui.Button(_("Go Back"), MAIN_FONT, events.post_interrupt)
+		self.fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), MAIN_FONT, lambda e: display.toggle_fullscreen())
+
+	def begin(self):
+		events.new_context(self.context)
 		logging.debug(_("Settings menu"))
-		events.bind_keys((K_ESCAPE,), events.post_interrupt, context="Settings")
-		back_btn = gui.Button(_("Go Back"), self.MAIN_FONT, events.post_interrupt)
-		back_btn.rect.bottomright = self.screen.get_size()
-		fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), self.MAIN_FONT, self.set_fullscreen)
-		fullscreen_btn.rect.midtop = self.screen.get_rect(top=50).midtop
-		resolutions = [("{0[0]}x{0[1]}".format(res), self.resolution_setter(res)) for res in pygame.display.list_modes()]
-		resolutions_menu = gui.Menu(resolutions, self.MAIN_FONT)
-		resolutions_menu.rect.midtop = self.screen.get_rect(top=100).midtop
-		back_btn.register("Settings")
-		fullscreen_btn.register("Settings")
-		resolutions_menu.register("Settings")
+		def res_setter(res):
+			return lambda: display.set_resolution(res)
+		resolutions = [("{0[0]}x{0[1]}".format(res), res_setter(res)) for res in pygame.display.list_modes()]
+		self.resolutions_menu = gui.Menu(resolutions, MAIN_FONT)
+		events.bind_keys((K_ESCAPE,), events.post_interrupt, self.context)
+		self.back_btn.register(self.context)
+		self.fullscreen_btn.register(self.context)
+		self.resolutions_menu.register(self.context)
 
-		def event_loop(_events):
-			self.screen.fill(BLACK)
-			back_btn.draw(self.screen)
-			fullscreen_btn.draw(self.screen)
-			resolutions_menu.draw(self.screen)
-			self.blit_fps()
-			pygame.display.flip()
-			self.clock.tick(30)
-			for event in _events:
-				if event.type == events.INTERRUPT:
-					return True
-			return False
-
-		events.event_loop(event_loop, gui.Button.EVENT_TYPES + [events.INTERRUPT], "Settings")
-
-	def main_menu(self):
-		resources.play_music('Beyond The Clouds (Dungeon Plunder).ogg')
-		screen_rect = self.screen.get_rect()
-		screen_w, screen_h = self.screen.get_size()
-
-		self.screen.fill(BLACK)
-		elinvention = self.MAIN_MENU_FONT.render("Elinvention", 1, WHITE)
-		presents = self.MAIN_MENU_FONT.render(_("PRESENTS"), 1, WHITE)
-		self.screen.blit(elinvention, utils.center(screen_rect, elinvention.get_rect()))
-		self.screen.blit(presents, utils.center(screen_rect, presents.get_rect(), yoffset=self.MAIN_MENU_FONT.get_linesize()))
+	def draw(self):
+		window.fill(BLACK)
+		self.back_btn.rect.bottomright = window.get_size()
+		self.fullscreen_btn.rect.midtop = window.get_rect(top=50).midtop
+		self.resolutions_menu.rect.midtop = window.get_rect(top=100).midtop
+		self.back_btn.draw(window)
+		self.fullscreen_btn.draw(window)
+		self.resolutions_menu.draw(window)
+		display.draw_fps()
 		pygame.display.flip()
-		events.wait(6000)
+		display.clock.tick(30)
 
-		main_menu_image = ResizableImage('Ice Emblem.png', (screen_w, screen_h), (0, 0))
-		events.register(VIDEORESIZE, main_menu_image.resize)
+	def loop(self, _events):
+		for event in _events:
+			if event.type == events.INTERRUPT:
+				return True
+		return False
 
-		click_to_start = self.MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
-		hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], self.SMALL_FONT)
-		hmenu.rect.bottomright = self.screen.get_size()
 
-		hmenu.register()
-		events.bind_keys((K_RETURN, K_SPACE), events.post_interrupt)
-		events.bind_click((1,), events.post_interrupt, hmenu.rect, False)
+class MapMenu(room.Room):
+	context = "MapMenu"
+	def __init__(self, image):
+		self.image = image
+		self.rect = self.image.get_rect()
+		events.new_context(self.context)
+		self.files = [(f, None) for f in resources.list_maps()]
+		self.choose_label = MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
+		self.menu = gui.Menu(self.files, MAIN_FONT, None, (25, 25))
+		self.menu.rect.center = window.get_rect().center
 
-		def event_loop(_events):
-			self.screen.fill(BLACK)
-			main_menu_image.rect.center = self.screen.get_rect().center
-			main_menu_image.draw(self.screen)
-			rect = utils.center(self.screen.get_rect(), click_to_start.get_rect(), yoffset=200)
-			self.screen.blit(click_to_start, rect)
-			hmenu.rect.bottomright = self.screen.get_size()
-			hmenu.draw(self.screen)
-			self.blit_fps()
-			pygame.display.flip()
-			self.clock.tick(30)
-			for event in _events:
-				if event.type == events.INTERRUPT:
-					return True
-			return False
+	def begin(self):
+		events.allow_all()
+		self.menu.register(self.context)
 
-		events.event_loop(event_loop, hmenu.EVENT_TYPES + [events.INTERRUPT])
+	def draw(self):
+		window.fill(BLACK)
+		self.rect.center = window.get_rect().center
+		window.blit(self.image, self.rect)
+		window.blit(self.choose_label, self.choose_label.get_rect(top=50, centerx=window.get_rect().centerx))
+		self.menu.rect.center = window.get_rect().center
+		self.menu.draw(window)
+		display.draw_fps()
+		pygame.display.flip()
+		display.clock.tick(30)
 
-		events.new_context()
-		self.screen.fill(BLACK)
-		self.screen.blit(main_menu_image.image, (0, 0))
+	def loop(self, _events):
+		return self.menu.choice is not None
 
-		while not self.map:
-			self.map_menu(main_menu_image)
+	def end(self):
+		load_map(resources.map_path(self.files[self.menu.choice][0]))
 
+class VictoryScreen(room.Room):
+	def __init__(self):
+		pass
+
+	def begin(self):
+		print(_("%s wins") % winner.name)
+		victory = MAIN_MENU_FONT.render(self.winner.name + ' wins!', 1, winner.color)
+		thank_you = MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
+
+	def draw(self):
+		window.fill(BLACK)
+		wr = window.get_rect()
+		window.blit(victory, victory.get_rect(centery=wr.centery-50, centerx=wr.centerx))
+		window.blit(thank_you, thank_you.get_rect(centery=wr.centery-50, centerx=wr.centerx))
+		pygame.display.flip()
+		pygame.event.clear()
+		events.wait()
+
+	def loop(self, events):
+		pygame.mixer.stop()
+		resources.load_music('Victory Track.ogg')
+		pygame.mixer.music.play()
+		display.fadeout(1000)
+
+	def end(self):
 		pygame.mixer.music.fadeout(2000)
-		self.fadeout(2000)
-		pygame.mixer.music.stop() # Make sure mixer is not busy
+		display.fadeout(2000)
+		pygame.mixer.music.stop()
 
-	def map_menu(self, main_menu_image):
-		events.new_context("MapMenu")
-		choose_label = self.MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
-		files = [(f, None) for f in resources.list_maps()]
-		menu = gui.Menu(files, self.MAIN_FONT, None, (25, 25))
-		menu.rect.center = (self.screen.get_width() // 2, self.screen.get_height() // 2)
-		menu.register("MapMenu")
-		events.register(VIDEORESIZE, main_menu_image.resize, "MapMenu")
 
-		def event_loop(_events):
-			self.screen.fill(BLACK)
-			main_menu_image.rect.center = self.screen.get_rect().center
-			main_menu_image.draw(self.screen)
-			self.screen.blit(choose_label, choose_label.get_rect(top=50, centerx=self.screen.get_rect().centerx))
-			menu.rect.center = self.screen.get_rect().center
-			menu.draw(self.screen)
-			self.blit_fps()
-			pygame.display.flip()
-			self.clock.tick(30)
-			return menu.choice is not None
+class Game(room.Room):
+	def __init__(self):
+		self.winner = None
 
-		events.event_loop(event_loop, gui.Menu.EVENT_TYPES, "MapMenu")
+	def begin(self):
+		units_manager.active_team.play_music('map')
+		self.sidebar = Sidebar(SMALL_FONT, self.switch_turn)
+		if not units_manager.active_team.ai:
+			self.enable_controls()
 
-		try:
-			self.load_map(resources.map_path(files[menu.choice][0]))
-		except:
-			self.map = None
-			self.units_manager = None
-			msg = _("Can't load map %s! Probabily the format is not ok.\n%s") % (resources.map_path(files[menu.choice][0]), traceback.format_exc())
-			logging.error(msg)
-			dialog = gui.Dialog(msg, self.SMALL_FONT, (100, 100))
-			events.new_context("MapError")
-			dialog.register("MapError")
-			def event_loop(_events):
-				dialog.draw(self.screen)
-				self.clock.tick(60)
-				pygame.display.flip()
-				return dialog.ok
-			events.event_loop(event_loop, gui.Dialog.EVENT_TYPES, "MapError")
+	def draw(self):
+		window.fill(BLACK)
+		loaded_map.draw(window)
+		self.blit_info()
+		display.draw_fps()
+		pygame.display.flip()
+		display.clock.tick(30)
 
-	def fadeout(self, fadeout_time, percent=0):
-		start = pygame.time.get_ticks()
-		fade = self.screen.copy()
-		state_time = 0
-		percent = (100 - percent) / 100.0
-
-		while state_time < fadeout_time:
-			alpha = int(255.0 - 255.0 * state_time / fadeout_time * percent)
-			fade.set_alpha(alpha)
-			self.screen.fill(BLACK)
-			self.screen.blit(fade, (0, 0))
-			pygame.display.flip()
-			self.clock.tick(60)
-			state_time = pygame.time.get_ticks() - start
+	def loop(self, _events):
+		"""
+		Main loop.
+		"""
+		self.check_turn()
+		if callable(units_manager.active_team.ai):
+			actions = units_manager.active_team.ai()
+			play_actions(actions)
+		elif loaded_map.move_x != 0 or loaded_map.move_y != 0:
 			events.pump()
-
-	def experience_animation(self, unit, bg):
-		img_pos = utils.center(self.screen.get_rect(), unit.image.get_rect())
-		exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
-
-		sounds.play('exp', -1)
-
-		gained_exp = unit.gained_exp()
-		curr_exp = unit.prev_exp
-		while curr_exp <= gained_exp + unit.prev_exp:
-			if unit.levelled_up() and curr_exp == 100:
-				sounds.play('levelup')
-			exp = pygame.Surface((curr_exp % 100, 20))
-			exp.fill(YELLOW)
-
-			exp_text = self.SMALL_FONT.render(_("EXP: %d") % (curr_exp % 100), True, YELLOW)
-			lv_text = self.SMALL_FONT.render(_("LV: %d") % unit.level, True, BLUE)
-
-			self.screen.blit(bg, (0, 0))
-			self.screen.blit(unit.image, img_pos)
-			self.screen.blit(exp, exp_pos)
-			self.screen.blit(exp_text, (exp_pos[0], exp_pos[1] + 25))
-			self.screen.blit(lv_text, (exp_pos[0] + exp_text.get_width() + 10, exp_pos[1] + 25))
-
-			curr_exp += 1
-			pygame.display.flip()
-			self.clock.tick(60)
-			events.pump()
-
-		sounds.stop('exp')
-		events.wait(timeout=2000)
-
-	def battle(self, attacking, defending):
-		events.new_context("Battle")
-		attacking_team = self.units_manager.get_team(attacking.color)
-		defending_team = self.units_manager.get_team(defending.color)
-
-		att_weapon = attacking.get_active_weapon()
-		def_weapon = defending.get_active_weapon()
-
-		attacking.prepare_battle()
-		defending.prepare_battle()
-
-		dist = utils.distance(attacking.coord, defending.coord)
-		at, dt = attacking.number_of_attacks(defending, dist)
-
-		print("\r\n" + "#" * 12 + " " + _("Fight!!!") + " " + "#" * 12)
-		att_str = _("%s is going to attack %d %s")
-		print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
-		print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))
-
-		attacking_team.play_music('battle')
-
-		self.blit_map()
-		self.fadeout(1000, 10)  # Darker atmosphere
-
-		battle_background = self.screen.copy()
-
-		att_swap = attacking
-		def_swap = defending
-
-		att_name = self.MAIN_FONT.render(attacking.name, 1, attacking_team.color)
-		def_name = self.MAIN_FONT.render(defending.name, 1, defending_team.color)
-
-		miss_text = self.SMALL_FONT.render(_("MISS"), 1, YELLOW).convert_alpha()
-		null_text = self.SMALL_FONT.render(_("NULL"), 1, RED).convert_alpha()
-		crit_text = self.SMALL_FONT.render(_("TRIPLE"), 1, RED).convert_alpha()
-		screen_rect = self.screen.get_rect()
-
-		att_rect_origin = attacking.image.get_rect(centerx=screen_rect.centerx-screen_rect.centerx//2, bottom=screen_rect.centery-25)
-		def_rect_origin = defending.image.get_rect(centerx=screen_rect.centerx+screen_rect.centerx//2, bottom=screen_rect.centery-25)
-		att_rect = att_rect_origin.copy()
-		def_rect = def_rect_origin.copy()
-
-		att_life_pos = (att_rect_origin.left, screen_rect.centery)
-		def_life_pos = (def_rect_origin.left, screen_rect.centery)
-
-		att_name_pos = (att_rect_origin.left, 30 + att_life_pos[1])
-		def_name_pos = (def_rect_origin.left, 30 + def_life_pos[1])
-
-		att_info_pos = (att_rect_origin.left, att_name_pos[1] + att_name.get_height() + 20)
-		def_info_pos = (def_rect_origin.left, def_name_pos[1] + def_name.get_height() + 20)
-
-		att_text_pos = (att_rect_origin.topright)
-		def_text_pos = (def_rect_origin.topleft)
-
-		life_block = pygame.Surface((4, 10))
-		life_block_used = pygame.Surface((4, 10))
-		life_block.fill(GREEN)
-		life_block_used.fill(RED)
-
-		collide = screen_rect.centerx, att_rect.bottom - 1
-		broken = False
-		for _round in range(at + dt + 1):
-			animate_miss = False
-			outcome = 0
-			def_text = att_text = None
-			if (at > 0 or dt > 0) and (def_swap.health > 0 and att_swap.health > 0):  # Se ci sono turni e se sono vivi
-				print(" " * 6 + "-" * 6 + "Round:" + str(_round + 1) + "-" * 6)
-			else:
-				break
-			at -= 1
-			start_animation = pygame.time.get_ticks()
-			animation_time = latest_tick = 0
-			while animation_time < self.TIME_BETWEEN_ATTACKS:
-				speed = int(100 / 250 * latest_tick)
-				if att_swap == defending:
-					speed = -speed
-				if outcome == 0:
-					att_rect = att_rect.move(speed, 0)
-				if att_rect.collidepoint(collide) and outcome == 0:
-					outcome = att_swap.attack(def_swap)
-					if outcome == 1:  # Miss
-						def_text = miss_text
-						animate_miss = animation_time
-						sounds.play('miss')
-					elif outcome == 2:  # Null attack
-						def_text = null_text
-						sounds.play('null')
-					elif outcome == 3:  # Triple hit
-						att_text = crit_text
-						sounds.play('critical')
-					elif outcome == 4:  # Hit
-						sounds.play('hit')
-
-					att_rect = att_rect_origin.copy()
-					def_rect = def_rect_origin.copy()
-					miss_target = def_rect_origin.y - 50
-
-				if animate_miss:
-					t = (animation_time - animate_miss) / 1000
-					def_rect.bottom = int(att_rect.bottom - 400 * t + 800 * t * t)
-					if def_rect.bottom > att_rect.bottom:
-						animate_miss = False
-						def_rect.bottom = att_rect.bottom
-
-				animation_time = pygame.time.get_ticks() - start_animation
-
-				att_info = attacking.render_info(self.SMALL_FONT)
-				def_info = defending.render_info(self.SMALL_FONT)
-
-				self.screen.blit(battle_background, (0, 0))
-				self.screen.blit(att_swap.image, att_rect.topleft)
-				self.screen.blit(def_swap.image, def_rect.topleft)
-				if att_text is not None:
-					self.screen.blit(att_text, att_text_pos)
-				if def_text is not None:
-					self.screen.blit(def_text, def_text_pos)
-				self.screen.blit(att_name, att_name_pos)
-				self.screen.blit(def_name, def_name_pos)
-				for i in range(attacking.health_max):
-					x = att_life_pos[0] + (i % 30 * 5)
-					y = att_life_pos[1] + i // 30 * 11
-					if i < attacking.health:
-						self.screen.blit(life_block, (x , y))
-					else:
-						self.screen.blit(life_block_used, (x , y))
-				for i in range(defending.health_max):
-					x = def_life_pos[0] + (i % 30 * 5)
-					y = def_life_pos[1] + i // 30 * 11
-					if i < defending.health:
-						self.screen.blit(life_block, (x , y))
-					else:
-						self.screen.blit(life_block_used, (x , y))
-				self.screen.blit(att_info, att_info_pos)
-				self.screen.blit(def_info, def_info_pos)
-				self.blit_fps()
-				events.pump("Battle")
-				pygame.display.flip()
-				latest_tick = self.clock.tick(60)
-
-			if dt > 0:
-				att_swap, def_swap = def_swap, att_swap
-				at, dt = dt, at
-				att_rect, def_rect = def_rect, att_rect
-				att_rect_origin, def_rect_origin = def_rect_origin, att_rect_origin
-				att_text_pos, def_text_pos = def_text_pos, att_text_pos
-		if attacking.health > 0:
-			attacking.gain_exp(defending)
-			self.experience_animation(attacking, battle_background)
 		else:
-			self.kill(attacking)
+			# we want to wait but update the clock!
+			time = pygame.time.get_ticks() - self.sidebar.start_time
+			pygame.time.set_timer(events.CLOCK, (1000 - time % 1000))
+			events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
+			events.wait()
+		return self.winner is not None
 
-		if defending.health > 0:
-			defending.gain_exp(attacking)
-			self.experience_animation(defending, battle_background)
-		else:
-			self.kill(defending)
-
-		if att_weapon and att_weapon.uses == 0:
-			sounds.play('broke')
-			broken_text = self.SMALL_FONT.render("%s is broken" % att_weapon.name, True, RED)
-			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
-			pygame.display.flip()
-			events.wait(timeout=3000, context="Battle")
-		if def_weapon and def_weapon.uses == 0:
-			sounds.play('broke')
-			broken_text = self.SMALL_FONT.render("%s is broken" % def_weapon.name, True, RED)
-			self.screen.blit(broken_text, utils.center(screen_rect, broken_text.get_rect()))
-			pygame.display.flip()
-			events.wait(timeout=3000, context="Battle")
-
-		pygame.mixer.music.fadeout(500)
-		events.wait(500, [], "Battle")
-		attacking_team.play_music('map', True)
-
-		self.screen.blit(battle_background, (0, 0))
-		attacking.played = True
-
-		if defending_team.is_defeated():
-			self.winner = attacking_team
-		elif attacking_team.is_defeated():
-			self.winner = defending_team
-
-		print("#" * 12 + " " + _("Battle ends") + " " + "#" * 12 + "\r\n")
-
-	def kill(self, unit):
-		self.map.kill_unit(unit=unit)
-		self.units_manager.kill_unit(unit)
+	def blit_info(self):
+		coord = loaded_map.cursor.coord
+		unit = loaded_map.get_unit(coord)
+		terrain = loaded_map[coord]
+		turn = units_manager.active_team
+		self.sidebar.update(unit, terrain, coord, turn)
 
 	def disable_controls(self):
 		events.unregister(MOUSEBUTTONDOWN, self.handle_click)
@@ -616,110 +607,80 @@ class Game(object):
 		self.sidebar.endturn_btn.register()
 
 	def switch_turn(self):
-		active_team = self.units_manager.switch_turn()
+		active_team = units_manager.switch_turn()
 		if not active_team.ai:
 			self.enable_controls()
 		else:
 			self.disable_controls()
-		self.map.reset_selection()
-		self.screen.fill(BLACK)
-		self.blit_map()
+		loaded_map.reset_selection()
+		window.fill(BLACK)
+		loaded_map.draw(window)
 		self.blit_info()
 		phase_str = _('%s phase') % active_team.name
-		phase = self.MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
-		self.screen.blit(phase, utils.center(self.screen.get_rect(), phase.get_rect()))
+		phase = MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
+		window.blit(phase, utils.center(window.get_rect(), phase.get_rect()))
 		pygame.display.flip()
 		pygame.mixer.music.fadeout(1000)
 		active_team.play_music('map')
 		events.wait(timeout=5000)
-
-	def victory_screen(self):
-		print(_("%s wins") % self.winner.name)
-		pygame.mixer.stop()
-		resources.load_music('Victory Track.ogg')
-		pygame.mixer.music.play()
-		self.fadeout(1000)
-
-		victory = self.MAIN_MENU_FONT.render(self.winner.name + ' wins!', 1, self.winner.color)
-		thank_you = self.MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
-
-		self.screen.fill(BLACK)
-		self.screen.blit(victory, utils.center(self.screen.get_rect(), victory.get_rect(), yoffset=-50))
-		self.screen.blit(thank_you, utils.center(self.screen.get_rect(), thank_you.get_rect(), yoffset=50))
-
-		pygame.display.flip()
-
-		pygame.event.clear()
-		events.wait()
-		pygame.mixer.music.fadeout(2000)
-		self.fadeout(2000)
-		pygame.mixer.music.stop()
-
-	def get_mouse_coord(self, pos=None):
-		if pos is None:
-			pos = pygame.mouse.get_pos()
-		try:
-			return self.map.mouse2cell(pos)
-		except ValueError:
-			return None
 
 	def action_menu(self, pos):
 		"""
 		Shows the action menu and handles input until it is dismissed.
 		"""
 		events.new_context("ActionMenu")
-		enemies = len(self.map.nearby_enemies())
+		enemies = len(loaded_map.nearby_enemies())
 
 		def attack():
-			self.map.attack()
+			loaded_map.attack()
 
 			def abort():
 				events.new_context()
 				self.enable_controls()
-				self.map.move(self.map.get_unit(self.map.curr_sel), self.map.prev_sel)
-				self.map.reset_selection()
+				loaded_map.move(loaded_map.get_unit(loaded_map.curr_sel), loaded_map.prev_sel)
+				loaded_map.reset_selection()
 
 			def mousebuttondown(event):
 				# user must click on an enemy unit
-				if event.button == 1 and self.map.is_attack_click(event.pos):
+				if event.button == 1 and loaded_map.is_attack_click(event.pos):
 					events.new_context()
 					self.enable_controls()
-					self.battle_wrapper(self.get_mouse_coord())
+					self.battle_wrapper(loaded_map.cursor.coord)
 				elif event.button == 3:
 					abort()
 
 			def keydown(event):
 				# user must choose an enemy unit
-				if event.key == pygame.K_SPACE and self.map.is_enemy_cursor():
+				if event.key == pygame.K_SPACE and loaded_map.is_enemy_cursor():
 					events.new_context()
 					self.enable_controls()
-					self.battle_wrapper(self.map.cursor.coord)
+					self.battle_wrapper(loaded_map.cursor.coord)
 				elif event.key == pygame.K_ESCAPE:
 					abort()
-				self.map.cursor.update(event)
+				loaded_map.cursor.update(event)
 
 			self.disable_controls()
 			events.register(MOUSEBUTTONDOWN, mousebuttondown)
 			events.register(KEYDOWN, keydown)
-			events.register(MOUSEMOTION, self.map.cursor.update)
+			events.register(MOUSEMOTION, loaded_map.cursor.update)
 
 		actions = [
 			(_("Attack"), attack),
-			(_("Wait"), self.map.wait),
+			(_("Wait"), loaded_map.wait),
 		] if enemies > 0 else [
-			(_("Wait"), self.map.wait),
+			(_("Wait"), loaded_map.wait),
 		]
 
-		menu = gui.Menu(actions, self.SMALL_FONT, self.map.move_undo, (5, 10), pos)
+		menu = gui.Menu(actions, SMALL_FONT, loaded_map.move_undo, (5, 10), pos)
 		menu.register("ActionMenu")
 
-		self.map.still_attack_area(self.map.curr_sel)
-		self.map.update_highlight()
-		self.blit_map()
+		loaded_map.still_attack_area(loaded_map.curr_sel)
+		loaded_map.update_highlight()
+		loaded_map.draw(window)
 		self.blit_info()
 
 		def event_loop(_events):
-			menu.draw(self.screen)
+			menu.draw(window)
 			pygame.display.flip()
 			return menu.choice is not None
 
@@ -728,17 +689,17 @@ class Game(object):
 		return menu.choice
 
 	def battle_wrapper(self, coord):
-		defending = self.map.get_unit(coord)
-		attacking = self.map.get_unit(self.map.curr_sel)
+		defending = loaded_map.get_unit(coord)
+		attacking = loaded_map.get_unit(loaded_map.curr_sel)
 
 		# enemy chosen by the user... let the battle begin!
-		self.battle(attacking, defending)
+		attack(attacking, defending)
 
-		self.map.reset_selection()
+		loaded_map.reset_selection()
 
 	def reset(self):
 		pygame.mixer.fadeout(1000)
-		self.fadeout(1000)
+		display.fadeout(1000)
 		self.done = True
 
 	def pause_menu(self):
@@ -748,37 +709,50 @@ class Game(object):
 			('Return to Main Menu', self.reset),
 			('Return to O.S.', utils.return_to_os)
 		]
-		menu = gui.Menu(menu_entries, self.MAIN_FONT)
-		menu.rect.center = self.screen.get_rect().center
+		menu = gui.Menu(menu_entries, MAIN_FONT)
+		menu.rect.center = window.get_rect().center
 
 		menu.register("PauseMenu")
 
 		def event_loop(_events):
-			menu.draw(self.screen)
+			menu.draw(window)
 			pygame.display.flip()
-			self.clock.tick(30)
+			display.clock.tick(30)
 			return menu.choice is not None
 
 		events.event_loop(event_loop, gui.Menu.EVENT_TYPES, "PauseMenu")
 
 	def check_turn(self):
-		if self.units_manager.active_team.is_turn_over():
+		if units_manager.active_team.is_turn_over():
 			self.switch_turn()
 
 	def handle_mouse_motion(self, event):
-		self.map.handle_mouse_motion(event)
+		loaded_map.handle_mouse_motion(event)
 
 	def handle_click(self, event):
-		if self.map.handle_click(event):
+		if loaded_map.handle_click(event):
 			self.action_menu(event.pos)
 
 	def handle_keyboard(self, event):
 		if event.key == pygame.K_ESCAPE:
 			self.pause_menu()
 		else:
-			show_menu = self.map.handle_keyboard(event)
+			show_menu = loaded_map.handle_keyboard(event)
 			if show_menu:
-				pos = self.map.tilemap.pixel_at(*self.map.cursor.coord)
-				pos = (pos[0] + self.map.tilemap.tile_width, pos[1] + self.map.tilemap.tile_height)
+				pos = loaded_map.tilemap.pixel_at(*loaded_map.cursor.coord)
+				pos = (pos[0] + loaded_map.tilemap.tile_width, pos[1] + loaded_map.tilemap.tile_height)
 				self.action_menu(pos)
+
+
+def main_menu():
+	room.queue_room(SplashScreen())
+	room.queue_room(MainMenu())
+	room.run()
+
+def play():
+	while True:
+		ice = Game()
+		room.queue_room(ice)
+		room.queue_room(VictoryScreen())
+		room.run()
 
