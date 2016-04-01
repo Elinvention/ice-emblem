@@ -23,21 +23,22 @@
 import logging
 import random
 import utils
+import action
 from operator import itemgetter
 
 
 class AI(object):
-	def __init__(self, _map, units_manager, team, battle):
+	def __init__(self, _map, units_manager, team):
 		self.map = _map
 		self.path = _map.path
 		self.units_manager = units_manager
-		self.battle = battle
 		self.own_units = team.units
 		self.enemy_units = units_manager.get_enemies(team)
 		self.logger = logging.getLogger('AI')
 
 	def __call__(self):
 		self.refresh()
+		actions = []
 		for unit in self.own_units:
 			self.logger.info(" Thinking what to do with %s..." % unit.name)
 			attackable_enemies = self.map.nearby_enemies(unit)
@@ -45,7 +46,7 @@ class AI(object):
 			if len(attackable_enemies) > 0:
 				target = self.best_target(attackable_enemies)
 				self.logger.debug(" %s attack %s." % (unit.name, target.name))
-				self.battle(unit, target)
+				actions.append(action.Attack(unit, target))
 			else:
 				enemies = self.enemies_in_walkable_area(unit)
 				self.logger.debug("Units next to %s: %s" % (unit.name, enemies))
@@ -55,8 +56,8 @@ class AI(object):
 					if path:
 						dest = path[-1]
 						self.logger.debug("%s can reach %s from %s." % (unit.name, target.name, dest))
-						self.map.move(unit, dest)
-						self.battle(unit, target)
+						actions.append(action.Move(unit, dest))
+						actions.append(action.Attack(unit, target))
 					else:
 						self.logger.debug("%s can't reach %s. Wait." % (unit.name, target.name))
 						unit.played = True
@@ -66,8 +67,9 @@ class AI(object):
 					self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target.name, path))
 					if path:
 						dest = path[-1]
-						self.map.move(unit, dest)
+						actions.append(action.Move(unit, dest))
 					unit.played = True
+		return actions
 
 	def nearest_enemy(self, unit):
 		"""
