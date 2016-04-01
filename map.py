@@ -31,6 +31,7 @@ import heapq
 import unit
 import item
 import events
+import display
 from colors import *
 
 
@@ -427,14 +428,13 @@ class Map(object):
 	This class should handle every aspect related to the Map in Ice Emblem.
 	"""
 
-	def __init__(self, map_path, screen):
+	def __init__(self, map_path):
 		"""
 		Loads a .tmx tilemap, initializes layers like sprites, cursor,
 		arrow, highlight. It also generate a cost matrix to be used by
 		the Path class.
 		"""
-		self.screen = screen
-		self.tilemap = tmx.load(map_path, (screen.get_width() - 250, screen.get_height()))
+		self.tilemap = tmx.load(map_path, (display.window.get_width() - 250, display.window.get_height()))
 		self.tw, self.th = self.tile_size = (self.tilemap.tile_width, self.tilemap.tile_height)
 		self.w, self.h = self.tilemap.width, self.tilemap.height
 
@@ -581,7 +581,7 @@ class Map(object):
 
 		def event_loop(_events):
 			nonlocal i
-			self.draw(self.screen)
+			self.draw(display.window)
 			pygame.display.flip()
 			delta = clock.tick(60)
 			reached = sprite.move_animation(delta, px_path[i])
@@ -591,7 +591,9 @@ class Map(object):
 				#print(i, i >= len(px_path) - 1)
 			return reached and i >= len(px_path) - 1
 
-		events.event_loop(event_loop, [], "move")
+		events.block_all()
+		events.event_loop(event_loop, False, "move")
+		events.allow_all()
 
 	def move(self, unit, new_coord):
 		"""
