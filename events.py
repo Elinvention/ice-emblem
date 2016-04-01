@@ -1,6 +1,7 @@
 import pygame
 from pygame.locals import *
 import utils
+import display
 import logging
 
 
@@ -13,7 +14,7 @@ functions to one or more types of event.
 __contexts = {
 	"default": {
 		QUIT: [utils.return_to_os],
-		VIDEORESIZE: [utils.videoresize_handler],
+		VIDEORESIZE: [display.handle_videoresize],
 	}
 }
 
@@ -271,6 +272,6 @@ def new_context(context="default"):
 	__logger.debug('%s reset' % context)
 	__contexts[context] = {
 		QUIT: [utils.return_to_os],
-		VIDEORESIZE: [utils.videoresize_handler],
+		VIDEORESIZE: [display.handle_videoresize],
 	}
 
