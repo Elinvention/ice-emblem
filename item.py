@@ -34,7 +34,6 @@ class Item(object):
 		self.uses -= 1
 		if self.uses <= 0:
 			self.uses = 0
-			self.active = False
 			print("%s is broken" % self.name)
 		return self.uses
 
@@ -73,10 +72,9 @@ Weapon "%s":
 	Uses: %d/%d
 	Worth: %d
 	Exp: %d
-	active: %d
 """ % (self.name, self.descr, self.rank, self.might, self.weight,
 		self.hit, self.crit, self.min_range, self.max_range, self.uses, self.muses,
-		self.worth, self.exp, self.active)
+		self.worth, self.exp)
 
 	def get_might(self, enemy):
 		if isinstance(enemy, self.bonus_class):
@@ -151,7 +149,6 @@ Armour "%s":
 	Uses: %d/%d
 	Worth: %d
 	Exp: %d
-	active: %d
 """ % (self.name, self.descr, self.rank, self.defence, self.weight,
-		self.uses, self.muses, self.worth, self.exp, self.active)
+		self.uses, self.muses, self.worth, self.exp)
 

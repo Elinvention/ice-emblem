@@ -28,6 +28,23 @@ import logging
 import utils
 
 
+class Items(list):
+	def __init__(self, active=None, *args):
+		super().__init__(*args)
+		self._active = active
+
+	@property
+	def active(self):
+		return self._active
+
+	@active.setter
+	def active(self, value):
+		if value in self:
+			self._active = value
+		else:
+			raise ValueError("Active Item must be in list")
+
+
 class Unit(object):
 	"""
 	This class is a unit with stats
@@ -53,7 +70,7 @@ class Unit(object):
 		self.affinity     = affinity           # elemental affinity. determines compatibility with other units.
 		self.condition    = condition          # health conditions.
 		self.wrank        = wrank              # weapons' levels.
-		self.items        = []                 # list of items
+		self.items        = Items()            # list of items
 		self.played       = False              # wether unit was used or not in a turn
 		self.color        = None               # team color
 		self.coord        = None
@@ -130,31 +147,18 @@ Unit: "%s"
 
 		return surface
 
-	def get_active_weapon(self):
-		"""Returns the active weapon if it exists, None otherwise."""
-		for item in self.items:
-			if item.active:
-				return item
-		return None
-
-	def deactivate_items(self):
-		for i in self.items:
-			i.active = False
-
-	def give_weapon(self, weapon, active=True):
+	def give_weapon(self, weapon, activate=True):
 		"""
 		Gives a weapon to the unit. The weapon becomes active by default if
 		its rank is lower or equals to the rank of the unit. 
 		"""
 		self.items.append(weapon)
-		if active:
-			self.deactivate_items()
-		weapon_class = weapon.__class__.__name__
-		try:
-			weapon.active = (weapon.rank <= self.wrank[weapon_class])
-		except KeyError:
-			weapon.active = False
-			print("Unit %s can't use a %s" % (self.name, weapon_class))
+		if activate:
+			weapon_class = weapon.__class__.__name__
+			if weapon_class in self.wrank and weapon.rank <= self.wrank[weapon_class]:
+				self.items.active = weapon
+			else:
+				print("Unit %s can't use a %s" % (self.name, weapon_class))
 		self.modified = True
 
 	def inflict_damage(self, dmg):
@@ -166,7 +170,7 @@ Unit: "%s"
 		self.modified = True
 
 	def get_weapon_range(self):
-		active_weapon = self.get_active_weapon()
+		active_weapon = self.items.active
 		if active_weapon:
 			return active_weapon.min_range, active_weapon.max_range
 		return 1, 1
@@ -206,7 +210,7 @@ Unit: "%s"
 		4 -> hit
 		"""
 
-		active_weapon = self.get_active_weapon()
+		active_weapon = self.items.active
 
 		if active_weapon is None or active_weapon.uses == 0:
 			print(_("%s attacks %s with his bare hands") % (self.name, enemy.name))

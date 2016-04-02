@@ -121,8 +121,8 @@ def attack(attacking, defending):
 	attacking_team = units_manager.get_team(attacking.color)
 	defending_team = units_manager.get_team(defending.color)
 
-	att_weapon = attacking.get_active_weapon()
-	def_weapon = defending.get_active_weapon()
+	att_weapon = attacking.items.active
+	def_weapon = defending.items.active
 
 	attacking.prepare_battle()
 	defending.prepare_battle()
@@ -343,7 +343,7 @@ class Sidebar(object):
 			render(_("Allowed: %s") % (", ".join(terrain.allowed)), WHITE),
 		] if terrain else []
 
-		weapon = unit.get_active_weapon() if unit else None
+		weapon = unit.items.active if unit else None
 		weapon_name = weapon.name if weapon else _("No Weapon")
 		u_info = [
 			render(unit.name, unit.color),
