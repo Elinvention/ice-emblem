@@ -13,6 +13,7 @@ pygame.display.set_icon(resources.load_image('icon.png'))
 
 resolution = (1280, 720)
 min_resolution = (800, 600)
+fps = 60
 mode = pygame.RESIZABLE
 window = pygame.display.set_mode(resolution, mode)
 pygame.display.set_caption("Ice Emblem " + VERSION)
@@ -75,3 +76,10 @@ def fadeout(fadeout_time, percent=0):
 		state_time = pygame.time.get_ticks() - start
 		events.pump()
 
+def tick(_fps=None):
+	if _fps is None:
+		return clock.tick(fps)
+	return clock.tick(_fps)
+
+def flip():
+	pygame.display.flip()
