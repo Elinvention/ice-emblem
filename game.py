@@ -521,27 +521,29 @@ class MapMenu(room.Room):
 
 class VictoryScreen(room.Room):
 	def __init__(self):
-		pass
+		super().__init__()
 
 	def begin(self):
 		print(_("%s wins") % winner.name)
-		victory = MAIN_MENU_FONT.render(self.winner.name + ' wins!', 1, winner.color)
-		thank_you = MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
+		self.victory = MAIN_MENU_FONT.render(winner.name + ' wins!', 1, winner.color)
+		self.thank_you = MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
+		pygame.mixer.stop()
+		resources.play_music('Victory Track.ogg')
+		display.fadeout(1000)
 
 	def draw(self):
 		window.fill(BLACK)
 		wr = window.get_rect()
-		window.blit(victory, victory.get_rect(centery=wr.centery-50, centerx=wr.centerx))
-		window.blit(thank_you, thank_you.get_rect(centery=wr.centery-50, centerx=wr.centerx))
+		window.blit(self.victory, self.victory.get_rect(centery=wr.centery-50, centerx=wr.centerx))
+		window.blit(self.thank_you, self.thank_you.get_rect(centery=wr.centery+50, centerx=wr.centerx))
 		pygame.display.flip()
 		pygame.event.clear()
-		events.wait()
+		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
+		e = events.wait()
+		print(e.type, pygame.event.event_name(e.type))
 
 	def loop(self, events):
-		pygame.mixer.stop()
-		resources.load_music('Victory Track.ogg')
-		pygame.mixer.music.play()
-		display.fadeout(1000)
+		return True
 
 	def end(self):
 		pygame.mixer.music.fadeout(2000)
@@ -551,7 +553,6 @@ class VictoryScreen(room.Room):
 
 class Game(room.Room):
 	def __init__(self):
-		self.winner = None
 		super().__init__()
 
 	def begin(self):
@@ -581,7 +582,7 @@ class Game(room.Room):
 			pygame.time.set_timer(events.CLOCK, (1000 - time % 1000))
 			events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
 			events.wait()
-		return self.winner is not None
+		return winner is not None
 
 	def end(self):
 		pygame.time.set_timer(events.CLOCK, 0);
