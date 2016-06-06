@@ -4,11 +4,9 @@ import display
 
 
 class Room(object):
-	wait = True
-	context = "default"
-
 	def __init__(self):
-		pass
+		self.wait = True
+		self.context = "default"
 
 	def begin(self):
 		pass
@@ -36,9 +34,15 @@ def run_next_room(dequeue=True):
 
 def run_room(room):
 	room.begin()
+	room.draw()
 	def loop(_events):
-		room.draw()
-		return room.loop(_events)
+		done = room.loop(_events)
+		if not done:
+			room.draw()
+			display.draw_fps()
+			display.flip()
+			display.tick()
+		return done
 	events.event_loop(loop, room.wait, room.context)
 	room.end()
 

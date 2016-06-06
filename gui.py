@@ -25,12 +25,16 @@ import logging
 from pygame.locals import *
 from colors import *
 import events
+import room
+import display
 
 
-class GUI(object):
+class GUI(room.Room):
 	EVENT_TYPES = [MOUSEBUTTONDOWN, KEYDOWN, MOUSEMOTION]
 	def __init__(self, rect):
+		super().__init__()
 		self.rect = rect
+		self.user_interacted = False
 
 	def handle_keydown(self, event):
 		if event.type != KEYDOWN:
@@ -48,14 +52,18 @@ class GUI(object):
 		events.register(MOUSEMOTION, self.handle_mouse_motion, context)
 		events.register(MOUSEBUTTONDOWN, self.handle_click, context)
 		events.register(KEYDOWN, self.handle_keydown, context)
+		self.context = context
 
-	def unregister(self, context="default"):
-		events.unregister(MOUSEMOTION, self.handle_mouse_motion, context)
-		events.unregister(MOUSEBUTTONDOWN, self.handle_click, context)
-		events.unregister(KEYDOWN, self.handle_keydown, context)
+	def unregister(self):
+		events.unregister(MOUSEMOTION, self.handle_mouse_motion, self.context)
+		events.unregister(MOUSEBUTTONDOWN, self.handle_click, self.context)
+		events.unregister(KEYDOWN, self.handle_keydown, self.context)
 
-	def draw(self, surface):
+	def draw(self):
 		raise NotImplementedError("GUI.draw is not implemented")
+
+	def loop(self, _events):
+		return self.user_interacted
 
 	def get_pos(self):
 		return self.rect.topleft
@@ -128,9 +136,11 @@ class Menu(GUI):
 		elif event.key == K_ESCAPE:
 			if self.callback is not None:
 				self.choice = -1
+				self.user_interacted = True
 				self.callback()
 		elif (event.key == K_RETURN or event.key == K_SPACE) and self.index is not None:
 			self.choice = self.index
+			self.user_interacted = True
 			if self.menu_entries[self.index][1] is not None:
 				return self.menu_entries[self.index][1]()
 
@@ -176,12 +186,14 @@ class Menu(GUI):
 				if rect.collidepoint(event.pos):
 					self.clicked = True
 					self.choice = i
+					self.user_interacted = True
 					if self.menu_entries[i][1] is not None:
 						return self.menu_entries[i][1]()
 		elif event.button == 3:
 			if self.callback is not None:
 				self.choice = -1
 				self.callback()
+				self.user_interacted = True
 
 	def handle_mouse_motion(self, event):
 		super().handle_mouse_motion(event)
@@ -195,7 +207,7 @@ class Menu(GUI):
 		if not hover:
 			self.set_index(None)
 
-	def draw(self, dest):
+	def draw(self):
 		tmp = pygame.Surface(self.rect.size).convert_alpha()
 		tmp.fill(self.bg_color)
 		linesize = self.font.get_linesize()
@@ -203,7 +215,7 @@ class Menu(GUI):
 		for i, entry in enumerate(self.rendered_entries):
 			tmp.blit(entry, (self.padding[3], i * linesize + self.padding[0]))
 
-		dest.blit(tmp, self.rect)
+		display.window.blit(tmp, self.rect)
 
 
 class HorizontalMenu(Menu):
@@ -229,7 +241,7 @@ class HorizontalMenu(Menu):
 			i += 1
 		return x, self.padding[0] + self.rect.y
 
-	def draw(self, dest):
+	def draw(self):
 		tmp = pygame.Surface(self.rect.size)
 		tmp.fill(self.bg_color)
 
@@ -238,7 +250,7 @@ class HorizontalMenu(Menu):
 			tmp.blit(entry, (x, self.padding[0]))
 			x += entry.get_width() + 10
 
-		dest.blit(tmp, self.rect)
+		display.window.blit(tmp, self.rect)
 
 
 class Button(GUI):
@@ -256,6 +268,9 @@ class Button(GUI):
 		super().__init__(pygame.Rect(pos, (w,h)))
 		self.clicked = False
 		self._focus = False
+
+	def loop(self, _events):
+		return self.clicked
 
 	def handle_mouse_motion(self, event):
 		super().handle_mouse_motion(event)
@@ -288,11 +303,11 @@ class Button(GUI):
 	def handle_keydown(self, event):
 		super().handle_keydown(event)
 
-	def draw(self, surface):
+	def draw(self):
 		btn = pygame.Surface(self.rect.size)
 		btn.fill(self.bg_color)
 		btn.blit(self.rendered_text, (self.padding[1], self.padding[0]))
-		surface.blit(btn, self.rect.topleft)
+		display.window.blit(btn, self.rect.topleft)
 
 
 class CheckBox(Button):
@@ -309,7 +324,7 @@ class CheckBox(Button):
 					self.callback(self.checked)
 				self.clicked = True
 
-	def draw(self, surface):
+	def draw(self):
 		btn = pygame.Surface(self.rect.size)
 		btn.fill(self.bg_color)
 		btn_pos = (self.padding[1] + self.rect.h, self.padding[0])
@@ -320,7 +335,7 @@ class CheckBox(Button):
 		else:
 			checkbox.fill(RED)
 		btn.blit(checkbox, (self.padding[1], self.padding[0]))
-		surface.blit(btn, self.rect.topleft)
+		display.window.blit(btn, self.rect.topleft)
 
 class Label(GUI):
 	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
@@ -335,13 +350,13 @@ class Label(GUI):
 		self.bg_color = bg_color
 		super().__init__(pygame.Rect(pos, (w, h)))
 
-	def draw(self, surface):
+	def draw(self):
 		tmp = pygame.Surface(self.rect.size)
 		tmp.fill(MENU_BG)
 		for i, line in enumerate(self.text):
 			y = i * (self.font.get_linesize() + self.leading)
 			tmp.blit(line, (self.padding, self.padding + y))
-		surface.blit(tmp, self.rect)
+		display.window.blit(tmp, self.rect)
 
 class Dialog(Label):
 	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
@@ -365,9 +380,9 @@ class Dialog(Label):
 		super().unregister(context)
 		self.ok_btn.unregister(context)
 
-	def draw(self, surface):
-		super().draw(surface)
-		self.ok_btn.draw(surface)
+	def draw(self):
+		super().draw()
+		self.ok_btn.draw()
 
 class Modal(Label):
 	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
@@ -402,10 +417,10 @@ class Modal(Label):
 		self.yes_btn.unregister(context)
 		self.no_btn.register(context)
 
-	def draw(self, surface):
-		super().draw(surface)
-		self.yes_btn.draw(surface)
-		self.no_btn.draw(surface)
+	def draw(self):
+		super().draw()
+		self.yes_btn.draw()
+		self.no_btn.draw()
 
 
 if __name__ == '__main__':
@@ -425,11 +440,11 @@ if __name__ == '__main__':
 
 	def event_loop(_events):
 		screen.fill(BLACK)
-		d.draw(screen)
-		l.draw(screen)
-		m.draw(screen)
+		d.draw()
+		l.draw()
+		m.draw()
 		a = Label("ANSWER: " + ("YES" if m.answer else "NO"), f, m.rect.bottomleft)
-		a.draw(screen)
+		a.draw()
 		pygame.display.flip()
 		clock.tick(60)
 		return d.ok
