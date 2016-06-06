@@ -112,6 +112,7 @@ def experience_animation(unit, bg):
 		events.pump()
 
 	sounds.stop('exp')
+	events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
 	events.wait(timeout=2000)
 
 
@@ -307,10 +308,13 @@ def move(who, where):
 	loaded_map.move(who, where)
 
 def play_actions(actions):
+	allowed = list(events.allowed)
+	pygame.time.set_timer(events.CLOCK, 0)
 	for action in actions:
 		action()
 		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
 		events.wait(5000)
+	events.set_allowed(allowed)
 
 import action
 action.Move.fun = staticmethod(move)
@@ -411,7 +415,6 @@ class MainMenu(room.Room):
 	def loop(self, _events):
 		for event in _events:
 			if event.type == events.INTERRUPT:
-				print("INTERRUPT")
 				return True
 		return False
 
@@ -580,6 +583,9 @@ class Game(room.Room):
 			events.wait()
 		return self.winner is not None
 
+	def end(self):
+		pygame.time.set_timer(events.CLOCK, 0);
+
 	def blit_info(self):
 		coord = loaded_map.cursor.coord
 		unit = loaded_map.get_unit(coord)
@@ -594,6 +600,7 @@ class Game(room.Room):
 		self.sidebar.endturn_btn.unregister()
 
 	def enable_controls(self):
+		events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
 		events.register(MOUSEBUTTONDOWN, self.handle_click)
 		events.register(MOUSEMOTION, self.handle_mouse_motion)
 		events.register(KEYDOWN, self.handle_keyboard)
@@ -615,7 +622,9 @@ class Game(room.Room):
 		pygame.display.flip()
 		pygame.mixer.music.fadeout(1000)
 		active_team.play_music('map')
+		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
 		events.wait(timeout=5000)
+		events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
 
 	def action_menu(self, pos):
 		"""
