@@ -523,6 +523,23 @@ class Map(object):
 
 		self.move_x, self.move_y = 0, 0
 		self.path = Pathfinder(self)
+		self.return_path = None  # stores the path to undo a move
+
+	@property
+	def curr_unit(self):
+		return self.terrains[self.curr_sel].unit
+
+	@curr_unit.setter
+	def curr_unit(self, unit):
+		self.curr_sel = unit.coord
+
+	@property
+	def prev_unit(self):
+		return self.terrains[self.prev_sel].unit
+
+	@prev_unit.setter
+	def prev_unit(self, unit):
+		self.prev_sel = unit.coord
 
 	def __getitem__(self, coord):
 		return self.terrains[coord]
@@ -576,24 +593,21 @@ class Map(object):
 			path = self.path.shortest_path(unit.coord, target, unit.movement)
 		px_path = list(map(lambda x: (x[0] * self.tw, x[1] * self.th), path))
 		sprite = self.find_sprite(unit=unit)
-		clock = pygame.time.Clock()
-		i = 0
 
 		def event_loop(_events):
-			nonlocal i
 			self.draw(display.window)
 			pygame.display.flip()
-			delta = clock.tick(60)
-			reached = sprite.move_animation(delta, px_path[i])
-			if reached and i < len(px_path) - 1:
-				i += 1
+			delta = display.tick()
+			reached = sprite.move_animation(delta, px_path[0])
+			if reached and len(px_path) > 1:
+				px_path.pop(0)
 				reached = False
-				#print(i, i >= len(px_path) - 1)
-			return reached and i >= len(px_path) - 1
+			return reached
 
 		events.block_all()
 		events.event_loop(event_loop, False, "move")
 		events.allow_all()
+		return path
 
 	def move(self, unit, new_coord):
 		"""
@@ -603,7 +617,10 @@ class Map(object):
 		if unit.coord != new_coord:
 			if self.get_unit(new_coord) is not None:
 				raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
-			self.move_animation(unit, new_coord)
+			self.return_path = self.move_animation(unit, new_coord)
+			self.return_path.pop()
+			self.return_path.reverse()
+			self.return_path.append(unit.coord)
 			self.terrains[unit.coord].unit = None
 			self.terrains[new_coord].unit = unit
 			print(_('Unit %s moved from %s to %s') % (unit.name, unit.coord, new_coord))
@@ -665,7 +682,7 @@ class Map(object):
 	def update_arrow(self, target):
 		if self.curr_sel and target:
 			if target in self.move_area:
-				path = self.path.shortest_path(self.curr_sel, target, self.get_unit(self.curr_sel).movement)
+				path = self.path.shortest_path(self.curr_sel, target, self.curr_unit.movement)
 				self.arrow.update(path, self.curr_sel)
 		else:
 			self.arrow.update([])
@@ -688,7 +705,7 @@ class Map(object):
 		If the unit is not specified it is assumed to be the currently selected unit.
 		"""
 		if unit is None:
-			unit = self.get_unit(self.curr_sel)
+			unit = self.curr_unit
 		min_range, max_range = unit.get_weapon_range()
 		area = self.area(unit.coord, max_range, min_range)
 		nearby_list = []
@@ -708,31 +725,32 @@ class Map(object):
 		self.update_highlight()
 
 	def can_selection_move(self):
-		prev_unit = self.get_unit(self.prev_sel)
-		curr_unit = self.get_unit(self.curr_sel)
+		prev_unit = self.prev_unit
+		curr_unit = self.curr_unit
 
 		return (prev_unit is not None and not prev_unit.played and
 			self.units_manager.active_team.is_mine(prev_unit) and
 			self.curr_sel in self.move_area)
 
 	def handle_click(self, event):
+		ret = []
 		if event.button == 1:
 			try:
 				coord = self.mouse2cell(event.pos)
 			except ValueError:
-				return []
-			ret = self.select(coord)
-			self.update_highlight()
-			return ret
+				pass
+			else:
+				ret = self.select(coord)
+				self.update_highlight()
 		elif event.button == 3:
 			self.reset_selection()
-			return []
 		elif event.button == 4:  # Mouse wheel up
 			if self.tilemap.zoom <= 5.0:
 				self.tilemap.zoom += 0.05
 		elif event.button == 5:
 			if self.tilemap.zoom > 0.2:
 				self.tilemap.zoom -= 0.05
+		return ret
 
 	def handle_mouse_motion(self, event):
 		try:
@@ -817,12 +835,9 @@ class Map(object):
 			self.prev_sel = self.curr_sel
 		else:
 			# Something has been previously selected
-			prev_unit = self.get_unit(self.prev_sel)
-			curr_unit = self.get_unit(self.curr_sel)
-
-			if prev_unit is not None and curr_unit is not None:
+			if self.prev_unit is not None and self.curr_unit is not None:
 				# Selected a unit two times
-				if self.prev_sel == self.curr_sel and not prev_unit.played and active_team.is_mine(prev_unit):
+				if self.prev_sel == self.curr_sel and not self.prev_unit.played and active_team.is_mine(self.prev_unit):
 					# Two times on the same playable unit. Show the action menu.
 					return True
 				else:
@@ -833,32 +848,37 @@ class Map(object):
 					self.move_attack_area(self.curr_sel)
 			elif self.can_selection_move():
 				# Move the previously selected unit to the currently selected coordinate.
-				self.move(self.get_unit(self.prev_sel), self.curr_sel)
+				self.move(self.prev_unit, self.curr_sel)
 				return True
 			else:
 				# Previously something irrelevant was chosen
 				self.reset_selection()
 				self.curr_sel = self.prev_sel = coord
 
-				if curr_unit is not None and not curr_unit.played:
+				if self.curr_unit is not None and not self.curr_unit.played:
 					# Selected a unit: show its move and attack area
 					self.update_move_area(coord)
 					self.move_attack_area(coord)
 		return False
 
 	def wait(self):
-		unit = self.get_unit(self.curr_sel)
-		unit.played = True
+		self.curr_unit.played = True
 		self.reset_selection()
 
 	def attack(self):
-		unit = self.get_unit(self.curr_sel)
 		self.move_area = []
 		self.attack_area = [u.coord for u in self.nearby_enemies()]
 		self.update_highlight()
 
 	def move_undo(self):
-		self.move(self.get_unit(self.curr_sel), self.prev_sel)
+		if self.curr_sel != self.prev_sel:
+			unit = self.curr_unit
+			if self.return_path:
+				self.move_animation(unit, self.prev_sel, self.return_path)
+				self.return_path = None
+			self.terrains[self.prev_sel].unit = unit
+			self.terrains[self.curr_sel].unit = None
+			unit.move(self.prev_sel)
 		self.reset_selection()
 
 	def is_attack_click(self, mouse_pos):
