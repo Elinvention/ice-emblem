@@ -11,7 +11,6 @@ sounds = {}
 
 
 def parse_cfg(fpath):
-	print(fpath)
 	try:
 		with open(fpath, 'r') as f:
 			__logger.debug('Found config file %s' % fpath)
