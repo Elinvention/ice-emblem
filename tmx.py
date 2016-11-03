@@ -247,11 +247,10 @@ class Layer(object):
 
 	Note that empty cells will be set to None instead of a Cell instance.
 	'''
-	def __init__(self, name, visible, map):
+	def __init__(self, name, visible, offset, map):
 		self.name = name
 		self.visible = visible
-		self.position = (0, 0)
-		# TODO get from TMX?
+		self.offset = offset
 		self.px_width = map.px_width
 		self.px_height = map.px_height
 		self.tile_width = map.tile_width
@@ -280,7 +279,8 @@ class Layer(object):
 
 	@classmethod
 	def fromxml(cls, tag, map):
-		layer = cls(tag.attrib['name'], int(tag.attrib.get('visible', 1)), map)
+		offset = (int(tag.attrib.get('offsetx', 0)), int(tag.attrib.get('offsety', 0)))
+		layer = cls(tag.attrib['name'], int(tag.attrib.get('visible', 1)), offset, map)
 
 		data_tag = tag.find('data')
 		if data_tag is None:
@@ -308,17 +308,13 @@ class Layer(object):
 	def update(self, dt, *args):
 		pass
 
-	def set_view(self, x, y, w, h, viewport_ox=0, viewport_oy=0):
-		self.view_x, self.view_y = x, y
+	def set_view(self, w, h):
 		self.view_w, self.view_h = w, h
-		x -= viewport_ox
-		y -= viewport_oy
-		self.position = (x, y)
 
 	def draw(self, surface):
 		'''Draw this layer, limited to the current viewport, to the Surface.
 		'''
-		ox, oy = self.position
+		ox, oy = self.offset
 		w, h = self.view_w, self.view_h
 		for x in range(ox, ox + w + self.tile_width, self.tile_width):
 			i = x // self.tile_width
@@ -563,7 +559,7 @@ class ObjectLayer(object):
 			int(tag.attrib.get('visible', 1)))
 		for object in tag.findall('object'):
 			layer.objects.append(Object.fromxml(object, map))
-		for c in tag.findall('property'):
+		for c in tag.find('properties').findall('property'):
 			# store additional properties.
 			name = c.attrib['name']
 			value = c.attrib['value']
@@ -577,22 +573,17 @@ class ObjectLayer(object):
 	def update(self, dt, *args):
 		pass
 
-	def set_view(self, x, y, w, h, viewport_ox=0, viewport_oy=0):
-		self.view_x, self.view_y = x, y
+	def set_view(self, w, h):
 		self.view_w, self.view_h = w, h
-		x -= viewport_ox
-		y -= viewport_oy
-		self.position = (x, y)
 
 	def draw(self, surface):
 		'''Draw this layer, limited to the current viewport, to the Surface.
 		'''
 		if not self.visible:
 			return
-		ox, oy = self.position
 		w, h = self.view_w, self.view_h
 		for object in self.objects:
-			object.draw(surface, self.view_x, self.view_y)
+			object.draw(surface, 0, 0)
 
 	def find(self, *properties):
 		'''Find all cells with the given properties set.
@@ -655,17 +646,10 @@ class SpriteLayer(pygame.sprite.AbstractGroup):
 		super(SpriteLayer, self).__init__()
 		self.visible = True
 
-	def set_view(self, x, y, w, h, viewport_ox=0, viewport_oy=0):
-		self.view_x, self.view_y = x, y
+	def set_view(self, w, h):
 		self.view_w, self.view_h = w, h
-		x -= viewport_ox
-		y -= viewport_oy
-		self.dx = viewport_ox
-		self.dy = viewport_oy
-		self.position = (x, y)
 
 	def draw(self, screen):
-		ox, oy = self.position
 		w, h = self.view_w, self.view_h
 
 		for sprite in self.sprites():
@@ -674,7 +658,7 @@ class SpriteLayer(pygame.sprite.AbstractGroup):
 			area = pygame.Rect((0, 0),
 							   (sprite.rect.width,
 								sprite.rect.height))
-			screen.blit(sprite.image, (sx-ox, sy-oy), area)
+			screen.blit(sprite.image, (sx, sy), area)
 
 class Layers(list):
 	def __init__(self):
@@ -730,15 +714,23 @@ class TileMap(object):
 		self.view_w, self.view_h = size     # viewport size
 		self.view_x, self.view_y = origin   # viewport offset
 		self.viewport = Rect(origin, size)
+		self.zoom = 1.0
+		self.px_w_zoom = 0
+		self.px_h_zoom = 0
 
 	def update(self, dt, *args):
 		for layer in self.layers:
 			layer.update(dt, *args)
 
 	def draw(self, screen):
+		surface = pygame.Surface((self.px_width, self.px_height))
+		surface.fill((255, 255, 255))
 		for layer in self.layers:
 			if layer.visible:
-				layer.draw(screen)
+				layer.draw(surface)
+		scale = int(self.px_width * self.zoom), int(self.px_height * self.zoom)
+		scaled = pygame.transform.scale(surface, scale)
+		screen.blit(scaled, (-self.childs_ox, -self.childs_oy))
 
 	@classmethod
 	def load(cls, filename, viewport):
@@ -767,8 +759,7 @@ class TileMap(object):
 
 		return tilemap
 
-	_old_focus = None
-	def set_focus(self, fx, fy, force=False):
+	def set_focus(self, fx, fy):
 		'''Determine the viewport based on a desired focus pixel in the
 		Layer space (fx, fy) and honoring any bounding restrictions of
 		child layers.
@@ -781,38 +772,33 @@ class TileMap(object):
 		fx, fy = int(fx), int(fy)
 		self.fx, self.fy = fx, fy
 
-		a = (fx, fy)
-
-		# check for NOOP (same arg passed in)
-		if not force and self._old_focus == a:
-			return
-		self._old_focus = a
-
 		# get our viewport information, scaled as appropriate
-		w = int(self.view_w)
-		h = int(self.view_h)
+		w, h = self.view_w, self.view_h
 		w2, h2 = w//2, h//2
 
-		if self.px_width <= w:
+		self.px_w_zoom = int(self.px_width * self.zoom)
+		self.px_h_zoom = int(self.px_height * self.zoom)
+
+		if self.px_w_zoom <= w:
 			# this branch for centered view and no view jump when
 			# crossing the center; both when world width <= view width
-			restricted_fx = self.px_width / 2
+			restricted_fx = self.px_w_zoom / 2
 		else:
 			if (fx - w2) < 0:
 				restricted_fx = w2       # hit minimum X extent
-			elif (fx + w2) > self.px_width:
-				restricted_fx = self.px_width - w2       # hit maximum X extent
+			elif (fx + w2) > self.px_w_zoom:
+				restricted_fx = self.px_w_zoom - w2       # hit maximum X extent
 			else:
 				restricted_fx = fx
-		if self.px_height <= h:
+		if self.px_h_zoom <= h:
 			# this branch for centered view and no view jump when
 			# crossing the center; both when world height <= view height
-			restricted_fy = self.px_height / 2
+			restricted_fy = self.px_h_zoom / 2
 		else:
 			if (fy - h2) < 0:
 				restricted_fy = h2       # hit minimum Y extent
-			elif (fy + h2) > self.px_height:
-				restricted_fy = self.px_height - h2       # hit maximum Y extent
+			elif (fy + h2) > self.px_h_zoom:
+				restricted_fy = self.px_h_zoom - h2       # hit maximum Y extent
 			else:
 				restricted_fy = fy
 
@@ -829,7 +815,7 @@ class TileMap(object):
 		self.childs_oy = y - self.view_y
 
 		for layer in self.layers:
-			layer.set_view(x, y, w, h, self.view_x, self.view_y)
+			layer.set_view(w, h)
 
 	def force_focus(self, fx, fy):
 		'''Force the manager to focus on a point, regardless of any managed layer
@@ -840,7 +826,7 @@ class TileMap(object):
 		# therefore also its children).
 		# The result is that all chilren will have their viewport set, defining
 		# which of their pixels should be visible.
-		self.fx, self.fy = list(map(int, (fx, fy)))
+		fx, fy = int(fx), int(fy)
 		self.fx, self.fy = fx, fy
 
 		# get our view size
@@ -857,7 +843,7 @@ class TileMap(object):
 		self.childs_oy = y - self.view_y
 
 		for layer in self.layers:
-			layer.set_view(x, y, w, h, self.view_x, self.view_y)
+			layer.set_view(w, h)
 
 	def pixel_from_screen(self, x, y):
 		'''Look up the Layer-space pixel matching the screen-space pixel.
@@ -872,15 +858,18 @@ class TileMap(object):
 		screen_y = y - self.childs_oy
 		return int(screen_x), int(screen_y)
 
-	def index_at(self, x, y=None):
+	def index_at(self, x, y):
 		'''Return the map index at the (screen-space) pixel position.
 		'''
-		if y is None:
-			a, b = x
-		else:
-			a, b = x, y
-		sx, sy = self.pixel_from_screen(a, b)
-		return int(sx//self.tile_width), int(sy//self.tile_height)
+		sx, sy = self.pixel_from_screen(x, y)
+		return int(sx // (self.tile_width * self.zoom)), int(sy // (self.tile_height * self.zoom))
+
+	def pixel_at(self, x, y):
+		'''
+		Return the top left (screen space) pixel position of map index.
+		'''
+		sx, sy = int(x * self.tile_width * self.zoom), int(y * self.tile_height * self.zoom)
+		return self.pixel_to_screen(sx, sy)
 
 def load(filename, viewport):
 	return TileMap.load(filename, viewport)
@@ -890,3 +879,4 @@ if __name__ == '__main__':
 	pygame.init()
 	pygame.display.set_mode((640, 480))
 	t = load(sys.argv[1], (0, 0))
+

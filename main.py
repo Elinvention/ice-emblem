@@ -22,142 +22,110 @@
 
 
 import pygame
-import csv
 import argparse
 import traceback
 import logging
 import os
 import sys
-
-from item import Item, Weapon
-from map import Map
-from unit import Unit, Player
-from game import Game
-
+import gettext
+import utils
 from colors import *
 
+import resources
 
-def main(screen):
-	
-	parser = argparse.ArgumentParser(description='Ice Emblem, the free software clone of Fire Emblem')
-	parser.add_argument('-s','--skip', action='store_true', help='Skip main menu', required=False)
-	parser.add_argument('-m','--map', action='store', help='Which map to load', default=None, required=False)
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+VERSION = utils.read('VERSION').strip('\n')
+
+# Gettext work around for Windows
+if sys.platform.startswith('win'):
+	logging.debug('Windows detected')
+	import locale
+	if os.getenv('LANG') is None:
+		logging.debug('Windows did not provide the LANG environment variable.')
+		lang, enc = locale.getdefaultlocale()
+		os.environ['LANG'] = lang
+		logging.debug('Language: %s' % lang)
+gettext.install('ice-emblem', resources.LOCALE_PATH)  # load translations
+
+
+try:
+	# command-line argument parsing
+	parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
+	parser.add_argument('--version', action='version', version='Ice Emblem '+VERSION)
+	parser.add_argument('-s', '--skip', action='store_true', help=_('Skip main menu'), required=False)
+	parser.add_argument('-m', '--map', action='store', help=_('Which map to load'), default=None, required=False)
+	parser.add_argument('-l', '--logging', action='store', help=_('Choose logging level'), default=20, type=int, required=False)
+	parser.add_argument('-f', '--file', action='store', help=_('Log file'), default=None, required=False)
 	args = parser.parse_args()
 
-	logging.basicConfig(level=logging.DEBUG)
-	logging.info('Welcome to Ice Emblem 0.1!\n')
+	# log to screen
+	logging.basicConfig(level=args.logging, filename=args.file, filemode='a')
+	logging.info(_('Welcome to %s!') % ('Ice Emblem ' + VERSION))
+	logging.info(_('You are using Pygame version %s.') % pygame.version.ver)
+	if pygame.version.vernum < (1, 9, 2):
+		logging.warning(_('You are running a version of Pygame that might be outdated.'))
+		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	colors = dict(selected=(255, 200, 0, 100), move=(0, 0, 255, 75), attack=(255, 0, 0, 75), played=(100, 100, 100, 150))
-	music = dict(overworld='music/Ireland\'s Coast - Video Game.ogg', battle='music/The Last Encounter Short Loop.ogg', menu='music/Beyond The Clouds (Dungeon Plunder).ogg')
-
-	units = {}
-	with open('data/characters.txt', 'r') as f:
-		reader = csv.reader(f, delimiter='\t')
-		reader.__next__()
-		for row in reader:
-			units[row[0]] = (Unit(row[0], row[1], row[2], row[3],
-				row[4], row[5], row[6], row[7], row[8], row[9], row[10],
-				row[11], row[12], row[13], row[14], row[15], row[16],
-				row[17]))
-			logging.debug(row[0] + " loaded")
-
-	weapons = {}
-	with open('data/weapons.txt', 'r') as f:
-		reader = csv.reader(f, delimiter='\t')
-		fields = reader.__next__()
-		for row in reader:
-			weapons[row[0]] = (Weapon(row[0], row[1], row[2], row[3],
-				row[4], row[5], row[6], row[7], row[8], row[9], None))
-			logging.debug(row[0] + " loaded")
-
-	units['Boss'].give_weapon(weapons['Biga Feroce'])
-	units['Pirate Tux'].give_weapon(weapons['Stuzzicadenti'])
-	units['Soldier'].give_weapon(weapons['Bronze Sword'])
-	units['Pirate'].give_weapon(weapons['Bronze Bow'])
-	units['Ninja'].give_weapon(weapons['Knife'])
-	units['Skeleton'].give_weapon(weapons['Nosferatu'])
-
-	player1_units = [units['Boss'], units['Skeleton'], units['Soldier']]
-	player2_units = [units['Pirate Tux'], units['Ninja'], units['Pirate']]
-
-	player1 = Player("Blue Team", BLUE, True, player1_units)
-	player2 = Player("Red Team", RED, False, player2_units)
+	import display
+	import map
+	import game
 
 	map_file = None
 	if args.map is not None:
-		map_file = os.path.join('maps', args.map + '.tmx')
-		logging.debug('Loading map: ' + map_file)
+		map_file = resources.map_path(args.map)
+		logging.debug(_('Loading map: %s') % map_file)
 	elif args.skip:
-		map_file = os.path.join('maps', 'default.tmx')
-		logging.debug('Loading default map: ' + map_file)
+		map_file = resources.map_path('default.tmx')
+		logging.debug(_('Loading default map: %s') % map_file)
 	else:
-		logging.debug('No map on command line: choose tha map via the main menu')
-
-	MAIN_GAME = Game(screen, units, [player1, player2], map_file, music, colors)
-
-	# If the player keeps pressing the same key for 200 ms, a KEYDOWN
-	# event will be generated every 50 ms
-	pygame.key.set_repeat(200, 50)
+		logging.debug(_('No map on command line: choose the map via the main menu'))
 
 	if not args.skip:
-		MAIN_GAME.main_menu()
-		pygame.mixer.stop()
+		game.main_menu()
 
-	MAIN_GAME.play_overworld_music()
+	game.play()
 
-	done = False
-	while not done:
-		for event in pygame.event.get():  # User did something
-			if event.type == pygame.QUIT:  # If user clicked close
-				done = True
-			else:
-				MAIN_GAME.handle_event(event)
+except (KeyboardInterrupt, SystemExit):
+	# game was interrupted by the user
+	print(_("Interrupted by user, exiting."))
 
-		if MAIN_GAME.winner is not None:
-			MAIN_GAME.victory_screen()
-			done = True
-		else:
-			MAIN_GAME.screen.fill(BLACK)
-			MAIN_GAME.blit_map()
-			MAIN_GAME.blit_info()
-			MAIN_GAME.blit_fps()
-			pygame.display.flip()
-			MAIN_GAME.clock.tick(25)
+	# we're not playing anymore, go away
+	utils.return_to_os()
 
+except:
+	# other error
+	kind_error_message = _("""
+Oops, something went wrong. Dumping brain contents:
 
-if __name__ == '__main__':
-	try:
-		pygame.init()
-		screen = pygame.display.set_mode((800, 600), pygame.RESIZABLE)
-		pygame.display.set_caption("Ice Emblem")
-		main(screen)
+%s
+%s
+%s
 
-	except (KeyboardInterrupt, SystemExit):
-		# game was interrupted by the user
-		print("Interrupted by user, exiting.")
+Please open a report on our issue tracker lacated at %s
+along with a short description of what you did when this crash happened
+so that the error can be fixed.
 
-		# we're not playing anymore, go away
-		pygame.quit()
-		sys.exit(0)
+Thank you!
+-- the Ice Emblem team
 
-	except:
-		# other error
-		print("\nOops, something went wrong. Dumping brain contents: ")
-		print("~" * 80)
-		traceback.print_exc(file=sys.stdout)
-		print("\n" + "~" * 80)
-		print("\nPlease mail this stack trace to elia.argentieri@openmailbox.org")
-		print("along with a short description of what you did when this crash happened, ")
-		print("so that the error can be fixed. Thank you! -- the Ice Emblem team\n")
+""") % ('-' * 80 + '\n', traceback.format_exc(), '-' * 80, "https://gitlab.com/Elinvention/ice-emblem/issues")
 
-		# we're not playing anymore, go away
-		pygame.quit()
-		sys.exit(0)
+	print(kind_error_message)
 
-	# we got here, so everything was normal
-	print()
-	print("~" * 80)
-	print("Game terminated normally.")
+	fname = args.file if args.file else "traceback.log"
+	with open(fname, 'a') as f:
+		traceback.print_exc(file=f)
+		f.write('\n' + '-' * 80 + '\n\n')
 
-	pygame.quit()
-	sys.exit(0)
+	# we're not playing anymore, go away
+	utils.return_to_os()
+
+# we got here, so everything was normal
+print()
+print("-" * 80)
+print(_("Game terminated normally."))
+
+utils.return_to_os()
+

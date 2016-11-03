@@ -1,0 +1,332 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Ice Emblem 0.1\n"
+"POT-Creation-Date: 2015-08-21 21:29+0200\n"
+"PO-Revision-Date: 2015-09-03 13:05+0200\n"
+"Last-Translator: Elia Argentieri <elia.argentieri@openmailbox.org>\n"
+"Language-Team: \n"
+"Language: it_IT\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+"X-Generator: Poedit 1.8.3\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: game.py:152 game.py:732
+msgid "%s phase"
+msgstr "Fase %s"
+
+#: game.py:158
+msgid "Def: %d"
+msgstr "Dif: %d"
+
+#: game.py:159
+msgid "Avoid: %d"
+msgstr "Elusione: %d"
+
+#: game.py:160
+msgid "Allowed: %s"
+msgstr "Permesse: %s"
+
+#: game.py:175
+msgid "No units"
+msgstr "Nessuna unità"
+
+#: game.py:248
+msgid "Blue Team"
+msgstr "Squadra Blu"
+
+#: game.py:249
+msgid "Red Team"
+msgstr "Squadra Rossa"
+
+#: game.py:288
+msgid "Main game loop started"
+msgstr "Il ciclo principale del gioco è stato avviato"
+
+#: game.py:312
+msgid "Returning to main menu"
+msgstr "Ritorno al menù principale"
+
+#: game.py:378
+msgid "Settings menu"
+msgstr "Menù delle impostazioni"
+
+#: game.py:380
+msgid "Go Back"
+msgstr "Indietro"
+
+#: game.py:382
+msgid "Toggle Fullscreen"
+msgstr "Attiva/disattiva schermo intero"
+
+#: game.py:409
+msgid "PRESENTS"
+msgstr "PRESENTA"
+
+#: game.py:419
+msgid "Click to Start"
+msgstr "Fai click per iniziare"
+
+#: game.py:420
+msgid "License"
+msgstr "Licenza"
+
+#: game.py:420
+msgid "Settings"
+msgstr "Impostazioni"
+
+#: game.py:454
+msgid "Choose a map!"
+msgstr "Scegli una mappa!"
+
+#: game.py:508
+msgid "EXP: %d"
+msgstr "ESP: %d"
+
+#: game.py:509
+msgid "LV: %d"
+msgstr "LV: %d"
+
+#: game.py:536
+msgid "%s is going to attack %d %s"
+msgstr "%s sta per attaccare %d %s"
+
+#: game.py:537 game.py:538
+msgid "time"
+msgstr "volta"
+
+#: game.py:537 game.py:538
+msgid "times"
+msgstr "volte"
+
+#: game.py:558
+msgid "MISS"
+msgstr "MANCATO"
+
+#: game.py:559
+msgid "NULL"
+msgstr "NULLO"
+
+#: game.py:560
+msgid "TRIPLE"
+msgstr "TRIPLO"
+
+#: game.py:739
+msgid "%s wins"
+msgstr "%s ha vinto"
+
+#: game.py:746
+msgid "Thank you for playing Ice Emblem!"
+msgstr "Grazie per aver giocato ad Ice Emblem!"
+
+#: game.py:854 map.py:698 map.py:709
+msgid "Attack"
+msgstr "Attacca"
+
+#: item.py:190
+msgid "%s is broken"
+msgstr "%s si è rotto"
+
+#: main.py:54
+msgid "Ice Emblem, the free software clone of Fire Emblem"
+msgstr "Ice Emblem, il clone libero di Fire Emblem"
+
+#: main.py:55
+msgid "Skip main menu"
+msgstr "Salta il menù principale"
+
+#: main.py:56
+msgid "Which map to load"
+msgstr "Quale mappa caricare"
+
+#: main.py:61
+msgid "Welcome to %s!"
+msgstr "Benvenuto su %s!"
+
+#: main.py:62
+msgid "You are using Pygame version %s."
+msgstr "Stai usando la versione %s di Pygame"
+
+#: main.py:64
+msgid "You are running a version of Pygame that might be outdated."
+msgstr "Stai usando una versione di Pygame che potrebbe essere obsoleta."
+
+#: main.py:65
+msgid "Ice Emblem is tested only with Pygame 1.9.2+."
+msgstr "Ice Emblem è testato soltanto con Pygame 1.9.2+."
+
+#: main.py:89
+msgid "Loading map: %s"
+msgstr "Carico la mappa %s"
+
+#: main.py:92
+msgid "Loading default map: %s"
+msgstr "Carico la mappa predefinita: %s"
+
+#: main.py:94
+msgid "No map on command line: choose the map via the main menu"
+msgstr "Nessuna mappa specificata da riga di comando: sceglierne una dal menu"
+
+#: main.py:109
+msgid "Interrupted by user, exiting."
+msgstr "Interruzione dell'utente, chiudo."
+
+#: main.py:116
+msgid ""
+"\n"
+"Oops, something went wrong. Dumping brain contents:\n"
+"\n"
+"%s\n"
+"%s\n"
+"%s\n"
+"\n"
+"Please open a report on our issue tracker lacated at %s\n"
+"along with a short description of what you did when this crash happened\n"
+"so that the error can be fixed.\n"
+"\n"
+"Thank you!\n"
+"-- the Ice Emblem team\n"
+"\n"
+msgstr ""
+"\n"
+"Oops, qualcosa è andato storto. Ecco il contenuto della mia mente:\n"
+"\n"
+"%s\n"
+"%s\n"
+"%s\n"
+"\n"
+"Per favore apri una segnalazione sul nostro tracciatore di problemi che si trova all'indirizzo %s\n"
+"insieme ad una breve descrizione di ciò che hai fatto quando è avvenuto questo problema,\n"
+"così che questo problema possa essere risolto.\n"
+"\n"
+"Grazie!\n"
+"-- la squadra di Ice Emblem\n"
+"\n"
+
+#: main.py:140
+msgid "Game terminated normally."
+msgstr "Il gioco è terminato normalmente."
+
+#: map.py:90
+msgid "Unknown"
+msgstr "Sconosciuto"
+
+#: map.py:94 map.py:465 unit.py:284
+msgid "any"
+msgstr "tutte"
+
+#: map.py:467
+msgid "none"
+msgstr "nessuno"
+
+#: map.py:515
+msgid "Unit %s moved from %s to %s"
+msgstr "L'unità %s si è spostata da %s a %s"
+
+#: map.py:589
+msgid "Selection reset"
+msgstr "Reset della selezione"
+
+#: map.py:698 map.py:700 map.py:709 map.py:711
+msgid "Wait"
+msgstr "Attendi"
+
+#: unit.py:67
+msgid "Couldn't load %s! Loading default image"
+msgstr "Impossibile caricare %s! Caricata l'immagine di default."
+
+#: unit.py:150
+msgid "%s died"
+msgstr "%s è morto"
+
+#: unit.py:195
+msgid "%s attacks %s with his bare hands"
+msgstr "%s attacca %s a mani nude"
+
+#: unit.py:200
+msgid "%s attacks %s with %s"
+msgstr "%s attacca %s con %s"
+
+#: unit.py:222
+msgid "%s inflicts %s %d damages"
+msgstr "%s infligge a %s %d danni"
+
+#: unit.py:263
+msgid "%s gained %d experience points! EXP: %d"
+msgstr "%s ha gudagnato %d punti esperienza! ESP: %d"
+
+#: unit.py:274
+msgid "%s levelled up!"
+msgstr "%s è salito di livello!"
+
+#: unit.py:353
+msgid "Team %s ends its turn"
+msgstr "La squadra %s termina il suo turno."
+
+#: unit.py:359
+msgid "Team %s begins its turn"
+msgstr "La squadra %s inizia il suo turno"
+
+#: utils.py:48
+msgid "%s loaded"
+msgstr "%s è stato caricato"
+
+#~ msgid "MISSED"
+#~ msgstr "MANCATO"
+
+#~ msgid "VOID ATTACK"
+#~ msgstr "ATTACCO NULLO"
+
+#~ msgid ""
+#~ "\n"
+#~ "Oops, something went wrong. Dumping brain contents:\n"
+#~ "\n"
+#~ "%s\n"
+#~ "%s\n"
+#~ "%s\n"
+#~ "\n"
+#~ "Please mail this stack trace to %s\n"
+#~ "along with a short description of what you did when this crash happened\n"
+#~ "so that the error can be fixed.\n"
+#~ "\n"
+#~ "Thank you!\n"
+#~ "-- the Ice Emblem team\n"
+#~ "\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Oops, qualcosa è andato storto. Ecco il contenuto della mia mente:\n"
+#~ "\n"
+#~ "%s\n"
+#~ "%s\n"
+#~ "%s\n"
+#~ "\n"
+#~ "Per favore, manda questa pila di chiamate a %s\n"
+#~ "insieme ad una breve descrizione di ciò che hai fatto quando si è verificato questo errore così che possa essere risolto.\n"
+#~ "\n"
+#~ "Grazie!\n"
+#~ "-- la squadra di Ice Emblem\n"
+#~ "\n"
+
+#~ msgid "Unit %s moved from %d:%d to %d:%d"
+#~ msgstr "L'unità %s si è spostata da %d:%d a %d:%d"
+
+#~ msgid "Couldn't load %s"
+#~ msgstr "Impossibile caricare %s"
+
+#~ msgid "%s misses %s"
+#~ msgstr "%s manca %s"
+
+#~ msgid "Player %s ends its turn"
+#~ msgstr "Il giocatore %s termina il suo turno"
+
+#~ msgid "Player %s begins its turn"
+#~ msgstr "Il giocatore %s inizia il suo turno"

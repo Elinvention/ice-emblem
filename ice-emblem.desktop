@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Ice Emblem
+Comment=A turn based strategy game similar to IntelligentSystems's Fire Emblem
+Comment[it]=Videogioco di strategia a turni simile a Fire Emblem di IntelligentSystems
+Exec=ice-emblem
+Icon=ice-emblem.svg
+Terminal=true
+Type=Application
+Categories=Game;StrategyGame;

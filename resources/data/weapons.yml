@@ -1,0 +1,109 @@
+---
+
+- Lance:
+    name: Biga Feroce
+    rank: E
+    might: 5
+    weight: 10
+    hit: 75
+    critical: 3
+    range:
+        min: 1
+        max: 2
+    uses: 20
+    worth: 100
+    experience: 20
+    effective:
+
+- Lance:
+    name: Stuzzicadenti
+    rank: E
+    might: 2
+    weight: 1
+    hit: 100
+    critical: 20
+    range:
+        min: 1
+        max: 1
+    uses: 5
+    worth: 1
+    experience: 1
+    effective:
+
+- Sword:
+    name: Bronze Sword
+    rank: E
+    might: 8
+    weight: 11
+    hit: 90
+    critical: 5
+    range:
+        min: 1
+        max: 1
+    uses: 20
+    worth: 150
+    experience: 15
+    effective:
+
+- Bow:
+    name: Bronze Bow
+    rank: E
+    might: 6
+    weight: 5
+    hit: 100
+    critical: 2
+    range:
+        min: 2
+        max: 2
+    uses: 30
+    worth: 100
+    experience: 5
+    effective:
+
+- Bow:
+    name: Long Bow
+    rank: D
+    might: 5
+    weight: 7
+    hit: 90
+    critical: 2
+    range:
+        min: 2
+        max: 3
+    uses: 20
+    worth: 500
+    experience: 20
+    effective:
+
+- Sword:
+    name: Knife
+    rank: E
+    might: 3
+    weight: 6
+    hit: 80
+    critical: 15
+    range:
+        min: 1
+        max: 1
+    uses: 40
+    worth: 100
+    experience: 25
+    effective:
+
+- DarkTome:
+    name: Nosferatu
+    rank: D
+    might: 15
+    weight: 8
+    hit: 40
+    critical: 1
+    range:
+        min: 1
+        max: 3
+    uses: 40
+    worth: 800
+    experience: 40
+    effective:
+
+...
+
