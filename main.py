@@ -68,8 +68,6 @@ try:
 		logging.warning(_('You are running a version of Pygame that might be outdated.'))
 		logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
-	import display
-	import map
 	import game
 
 	map_file = None

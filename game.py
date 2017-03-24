@@ -24,8 +24,8 @@ from pygame.locals import *
 import os
 import logging
 import traceback
-import random
 
+import display
 import resources
 import sounds
 import events
@@ -34,7 +34,6 @@ import gui
 import utils
 import ai
 import room
-import display
 from display import window
 from colors import *
 
@@ -81,10 +80,9 @@ def load_map(map_path):
 def kill(unit):
 	loaded_map.kill_unit(unit=unit)
 	units_manager.kill_unit(unit)
-
-		self.winner = None
-		self.state = 0
-		self.prev_coord = None
+	self.winner = None
+	self.state = 0
+	self.prev_coord = None
 
 def experience_animation(unit, bg):
 	img_pos = utils.center(window.get_rect(), unit.image.get_rect())
@@ -180,7 +178,6 @@ def attack(attacking, defending):
 	life_block_used.fill(RED)
 
 	collide = screen_rect.centerx, att_rect.bottom - 1
-	broken = False
 	for _round in range(at + dt + 1):
 		animate_miss = False
 		outcome = 0
@@ -215,7 +212,7 @@ def attack(attacking, defending):
 
 				att_rect = att_rect_origin.copy()
 				def_rect = def_rect_origin.copy()
-				miss_target = def_rect_origin.y - 50
+				#miss_target = def_rect_origin.y - 50
 
 			if animate_miss:
 				t = (animation_time - animate_miss) / 1000

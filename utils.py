@@ -24,7 +24,6 @@
 import pygame
 import sys
 import yaml
-import logging
 import os.path
 
 

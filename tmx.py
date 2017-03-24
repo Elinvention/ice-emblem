@@ -581,7 +581,6 @@ class ObjectLayer(object):
 		'''
 		if not self.visible:
 			return
-		w, h = self.view_w, self.view_h
 		for object in self.objects:
 			object.draw(surface, 0, 0)
 
@@ -650,8 +649,6 @@ class SpriteLayer(pygame.sprite.AbstractGroup):
 		self.view_w, self.view_h = w, h
 
 	def draw(self, screen):
-		w, h = self.view_w, self.view_h
-
 		for sprite in self.sprites():
 			sx, sy = sprite.rect.topleft
 			# Only the sprite's defined width and height will be drawn

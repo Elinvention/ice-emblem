@@ -21,7 +21,6 @@
 
 
 import pygame
-import logging
 from pygame.locals import *
 from colors import *
 import events
@@ -424,8 +423,6 @@ class Modal(Label):
 
 
 if __name__ == '__main__':
-	import events
-
 	pygame.init()
 	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 	pygame.display.set_caption("Ice Emblem GUI Test")

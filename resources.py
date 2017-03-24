@@ -35,11 +35,7 @@ def load_font(fname, size):
 	return pygame.font.Font(path, size)
 
 def load_sprite(fname):
-	if '.' not in fname:
-		for f in os.listdir(SPRITES_PATH):
-			if f == fname + '.png' or f == fname + '.jpg':
-				fname = f
-	path = os.path.join(SPRITES_PATH, fname)
+	path = sprite_path(fname)
 	__load_log(path)
 	return pygame.image.load(path)
 
@@ -49,7 +45,7 @@ def load_data(fname):
 	return open(path, 'r')
 
 def load_music(fname):
-	path = os.path.join(MUSIC_PATH, fname)
+	path = music_path(fname)
 	__load_log(path)
 	pygame.mixer.music.load(path)
 
@@ -71,6 +67,14 @@ def music_path(fname):
 
 def data_path(fname):
 	return os.path.join(DATA_PATH, fname)
+
+def sprite_path(fname):
+	"""Return the path to a sprite by filename with or without file extension"""
+	if '.' not in fname:
+		for f in os.listdir(SPRITES_PATH):
+			if f == fname + '.png' or f == fname + '.jpg':
+				fname = f
+	return os.path.join(SPRITES_PATH,  fname)
 
 def list_sounds():
 	return os.listdir(SOUNDS_PATH)

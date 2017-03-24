@@ -46,6 +46,7 @@ def block_all():
 	"""
 	All event types are blocked.
 	"""
+	global allowed
 	pygame.event.set_allowed(None)
 	pygame.event.set_allowed(ALWAYS_ALLOWED)
 	allowed = set(ALWAYS_ALLOWED)

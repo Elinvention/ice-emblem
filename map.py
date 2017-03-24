@@ -24,7 +24,6 @@ import resources
 import sounds
 import tmx
 import pygame
-import os.path
 import logging
 import utils
 import heapq
@@ -34,7 +33,6 @@ import events
 import display
 from colors import *
 
-from arrow import Arrow
 
 class UnitSprite(pygame.sprite.Sprite):
 	"""
@@ -56,7 +54,7 @@ class UnitSprite(pygame.sprite.Sprite):
 		pos = x * w, y * h
 
 		self.image = pygame.Surface(size).convert_alpha()
-		self.rect = rect = pygame.Rect(pos, size)
+		self.rect = pygame.Rect(pos, size)
 
 		self.update()
 
@@ -87,7 +85,6 @@ class UnitSprite(pygame.sprite.Sprite):
 		logging.debug("Sprite update: %s" % self.unit.name)
 
 		w, h = self.rect.size
-		w2, h2 = w // 2, h // 2
 		mw, mh = img_max_size = (w, h - 5)
 		mw2, mh2 = mw // 2, mh // 2
 
@@ -121,11 +118,6 @@ class Terrain(object):
 		self.allowed = tile.properties.get('allowed', _('any')).split(',')
 		self.surface = tile.surface
 		self.unit = unit
-
-		# this part is a hacky way to reuse this class to render the map
-		# instead of built in tmx.py method. Probabily something con be
-		# done to reduce code duplication and memory
-		self.nodes = [[] for _ in range(self.w)]
 
 class Cursor(pygame.sprite.Sprite):
 	def __init__(self, tilemap, img, *groups):
@@ -730,11 +722,8 @@ class Map(object):
 		self.update_highlight()
 
 	def can_selection_move(self):
-		prev_unit = self.prev_unit
-		curr_unit = self.curr_unit
-
-		return (prev_unit is not None and not prev_unit.played and
-			self.units_manager.active_team.is_mine(prev_unit) and
+		return (self.prev_unit is not None and not self.prev_unit.played and
+			self.units_manager.active_team.is_mine(self.prev_unit) and
 			self.curr_sel in self.move_area)
 
 	def handle_click(self, event):

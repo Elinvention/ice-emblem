@@ -51,7 +51,7 @@ def stop(sound):
 	try:
 		sounds[sound].stop()
 	except AttributeError:
-		for s in self.sounds[sound]:
+		for s in sounds[sound]:
 			s.stop()
 
 def get(sound):

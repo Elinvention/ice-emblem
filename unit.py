@@ -22,7 +22,6 @@
 
 import resources
 import pygame
-import os.path
 import random
 import logging
 import utils
@@ -80,7 +79,7 @@ class Unit(object):
 			new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
 			self.image = pygame.transform.smoothscale(self.image, new_size)
 		except pygame.error as e:
-			logging.warning(_("Couldn't load %s! Loading default image") % path)
+			logging.warning(_("Couldn't load %s! Loading default image") % resources.sprite_path(self.name))
 			self.image = resources.load_image('no_image.png').convert_alpha()
 
 	def __repr__(self):
