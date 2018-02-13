@@ -80,9 +80,6 @@ def load_map(map_path):
 def kill(unit):
 	loaded_map.kill_unit(unit=unit)
 	units_manager.kill_unit(unit)
-	self.winner = None
-	self.state = 0
-	self.prev_coord = None
 
 def experience_animation(unit, bg):
 	img_pos = utils.center(window.get_rect(), unit.image.get_rect())
@@ -310,8 +307,8 @@ def move(who, where):
 def play_actions(actions):
 	allowed = list(events.allowed)
 	pygame.time.set_timer(events.CLOCK, 0)
-	for action in actions:
-		action()
+	for _action in actions:
+		_action()
 		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
 		events.wait(5000)
 	events.set_allowed(allowed)
@@ -411,6 +408,10 @@ class MainMenu(room.Room):
 		self.hmenu.register(self.context)
 		events.bind_keys((K_RETURN, K_SPACE), events.post_interrupt, self.context)
 		events.bind_click((1,), events.post_interrupt, self.hmenu.rect, False, self.context)
+
+	def begin(self):
+		events.block_all()
+		events.add_allowed([MOUSEMOTION,  MOUSEBUTTONDOWN, KEYDOWN,  events.INTERRUPT])
 
 	def loop(self, _events):
 		for event in _events:

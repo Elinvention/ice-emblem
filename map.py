@@ -601,9 +601,7 @@ class Map(object):
 				reached = False
 			return reached
 
-		events.block_all()
 		events.event_loop(event_loop, False, "move")
-		events.allow_all()
 		return path
 
 	def move(self, unit, new_coord):
