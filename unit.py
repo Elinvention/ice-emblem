@@ -80,7 +80,7 @@ class Unit(object):
 			self.image = pygame.transform.smoothscale(self.image, new_size)
 		except pygame.error as e:
 			logging.warning(_("Couldn't load %s! Loading default image") % resources.sprite_path(self.name))
-			self.image = resources.load_image('no_image.png').convert_alpha()
+			self.image = resources.load_sprite('no_image.png').convert_alpha()
 
 	def __repr__(self):
 		return "<Unit %s at %s>" % (self.name, self.coord)

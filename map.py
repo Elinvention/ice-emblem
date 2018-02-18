@@ -438,8 +438,8 @@ class Map(object):
 		self.terrains = {}
 		self.sprites = tmx.SpriteLayer()
 
-		yaml_units = utils.parse_yaml(resources.data_path('units.yml'), unit)
-		yaml_weapons = utils.parse_yaml(resources.data_path('weapons.yml'), item)
+		yaml_units = utils.parse_yaml(resources.DATA_PATH / 'units.yml', unit)
+		yaml_weapons = utils.parse_yaml(resources.DATA_PATH / 'weapons.yml', item)
 
 		teams = {}
 
@@ -465,7 +465,7 @@ class Map(object):
 				boss = yaml_units[layer.properties['boss']]
 				def get(key):
 					v = layer.properties.get(key, None)
-					return resources.music_path(v) if v else None
+					return str(resources.MUSIC_PATH / v) if v else None
 				music = {'map': get('map_music'), 'battle': get('battle_music')}
 			except AttributeError:
 				pass

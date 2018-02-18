@@ -1,5 +1,4 @@
 import pygame
-import os
 import resources
 import logging
 import random
@@ -17,25 +16,21 @@ def parse_cfg(fpath):
 			for line in f:
 				k, v = line.split('=')
 				if k == 'volume' and 0 <= float(v) <= 1.0:
-					sounds[root].set_volume(float(v))
+					sounds[fpath.stem].set_volume(float(v))
 	except FileNotFoundError:
 		pass
 
 
 for f in resources.list_sounds():
-	p = os.path.join(resources.SOUNDS_PATH, f)
-	root, ext = os.path.splitext(f)
-	if os.path.isfile(p) and ext in extensions:
-		sounds[root] = pygame.mixer.Sound(p)
-		parse_cfg(os.path.join(resources.SOUNDS_PATH, root + '.cfg'))
-	elif os.path.isdir(p):
-		lsdir = os.listdir(p)
-		sounds[f] = []
-		for fd in lsdir:
-			root, ext = os.path.splitext(fd)
-			if ext in extensions:
-				sounds[f].append(pygame.mixer.Sound(os.path.join(p, fd)))
-				parse_cfg(os.path.join(p, root + '.cfg'))
+	if f.is_file() and f.suffix in extensions:
+		sounds[f.stem] = pygame.mixer.Sound(str(f))
+		parse_cfg(f.with_suffix('.cfg'))
+	elif f.is_dir():
+		sounds[f.name] = []
+		for fd in f.iterdir():
+			if fd.suffix in extensions:
+				sounds[f.name].append(pygame.mixer.Sound(str(fd)))
+				parse_cfg(fd.with_suffix('.cfg'))
 
 __logger.debug("Sounds initialized!")
 
@@ -53,6 +48,8 @@ def stop(sound):
 	except AttributeError:
 		for s in sounds[sound]:
 			s.stop()
+	except KeyError:
+		__logger.error("Could not stop sound %s.", sound)
 
 def get(sound):
 	if isinstance(sounds[sound], pygame.mixer.Sound):

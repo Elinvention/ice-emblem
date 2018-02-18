@@ -21,7 +21,6 @@
 
 import pygame
 from pygame.locals import *
-import os
 import logging
 import traceback
 
@@ -36,13 +35,10 @@ import ai
 import room
 from display import window
 from colors import *
+from fonts import MAIN_MENU_FONT, MAIN_FONT, SMALL_FONT
 
 
 TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
-font_name = os.path.join('Medieval Sharp', 'MedievalSharp.ttf')
-MAIN_MENU_FONT = resources.load_font(font_name, 48)
-MAIN_FONT = resources.load_font(font_name, 36)
-SMALL_FONT = resources.load_font(font_name, 24)
 
 
 loaded_map = None
@@ -61,7 +57,7 @@ def load_map(map_path):
 					team.ai = ai.AI(loaded_map, units_manager, team)
 			events.register(VIDEORESIZE, loaded_map.handle_videoresize)
 		except:
-			msg = _("Can't load map %s! Probabily the format is not ok.\n%s") % (resources.map_path(files[menu.choice][0]), traceback.format_exc())
+			msg = _("Can't load map %s! Probabily the format is not ok.\n%s") % (map_path, traceback.format_exc())
 			logging.error(msg)
 			dialog = gui.Dialog(msg, SMALL_FONT, (100, 100))
 			events.new_context("MapError")
