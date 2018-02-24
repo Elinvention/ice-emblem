@@ -750,10 +750,17 @@ def main_menu():
 	room.queue_room(MainMenu())
 	room.run()
 
-def play():
+def play(map_file):
+	global loaded_map, units_manager, winner
 	while True:
-		ice = Game()
-		room.queue_room(ice)
+		if map_file is None:
+			room.queue_room(SplashScreen())
+			room.queue_room(MainMenu())
+		else:
+			load_map(map_file)
+		room.queue_room(Game())
 		room.queue_room(VictoryScreen())
 		room.run()
-
+		loaded_map = None
+		units_manager = None
+		winner = None

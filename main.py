@@ -80,10 +80,7 @@ try:
 	else:
 		logging.debug(_('No map on command line: choose the map via the main menu'))
 
-	if not args.skip:
-		game.main_menu()
-
-	game.play()
+	game.play(map_file)
 
 except (KeyboardInterrupt, SystemExit):
 	# game was interrupted by the user
