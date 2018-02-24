@@ -601,6 +601,7 @@ class Map(object):
 				reached = False
 			return reached
 
+		display.tick()
 		events.event_loop(event_loop, False, "move")
 		return path
 
