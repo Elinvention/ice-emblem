@@ -3,7 +3,7 @@ from pygame.locals import *
 import utils
 import display
 import logging
-from typing import List
+from typing import List, Set
 
 """
 This module should provide a uniform and comfortable way to register callback
@@ -28,7 +28,21 @@ CLOCK = USEREVENT + 3
 
 EMPTYEVENT = pygame.event.Event(NOEVENT, {})
 
-allowed = set()
+
+def get_allowed() -> Set[int]:
+	"""
+	Queries pygame and returns the set of allowed event types.
+	"""
+	blocked = map(pygame.event.get_blocked, range(0, NUMEVENTS))
+	allowed = map(lambda x: not x, blocked)
+	return set(i for i, v in enumerate(allowed) if v)
+
+def get_blocked() -> Set[int]:
+	"""
+	Queries pygame and returns the set of blocked event types.
+	"""
+	blocked = map(pygame.event.get_blocked, range(0, NUMEVENTS))
+	return set(i for i, v in enumerate(blocked) if v)
 
 def allow_all():
 	"""
@@ -38,19 +52,13 @@ def allow_all():
 	# workaround to re-enable all events except SYSWMEVENT
 	pygame.event.set_allowed(list(range(NOEVENT, NUMEVENTS)))
 	pygame.event.set_blocked(SYSWMEVENT)
-	allowed = set(range(NOEVENT, NUMEVENTS))
-	allowed.remove(SYSWMEVENT)
-
-allow_all()
 
 def block_all():
 	"""
 	All event types are blocked.
 	"""
-	global allowed
 	pygame.event.set_allowed(None)
 	pygame.event.set_allowed(ALWAYS_ALLOWED)
-	allowed = set(ALWAYS_ALLOWED)
 
 def post(events):
 	"""
@@ -60,29 +68,9 @@ def post(events):
 		pygame.event.post(e)
 
 def post_interrupt(*args):
-	# To be removed when it will be possible to bind arguments to callback functions
 	pygame.event.post(pygame.event.Event(INTERRUPT, {}))
 
-def get_allowed():
-	"""
-	Queries pygame and returns the list of allowed event types.
-	"""
-	global allowed
-	blocked = list(map(pygame.event.get_blocked, range(0, NUMEVENTS)))
-	allowed = list(map(lambda x: not x, blocked))
-	allowed = set(i for i, v in enumerate(allowed) if v)
-	return allowed
-
-def get_blocked():
-	"""
-	Queries pygame and returns the list of blocked event types.
-	"""
-	global allowed
-	blocked = list(map(pygame.event.get_blocked, range(0, NUMEVENTS)))
-	allowed = set(i for i, v in enumerate(allowed) if v)
-	return blocked
-
-def names(event_types):
+def names(event_types: List[int]) -> List[str]:
 	"""
 	Returns a list of event type names from a list of event types
 	"""
@@ -90,22 +78,20 @@ def names(event_types):
 
 def set_allowed(event_types: List[int]):
 	"""
-	evnt_types must be a list of event types that will be allowed.
+	event_types must be a list of event types that will be allowed.
 	All other event types will be blocked.
 	Allowed events that would be discarded by pygame are kept and reposted.
 	"""
-	global allowed
 
 	event_types.extend(ALWAYS_ALLOWED)
 
-	if set(event_types) == allowed:
+	if set(event_types) == get_allowed():
 		return
 
 	discarded_events = pygame.event.get()
 
 	block_all()
-	if event_types:
-		pygame.event.set_allowed(event_types)
+	pygame.event.set_allowed(event_types)
 
 	post([e for e in discarded_events if e.type in event_types])
 
@@ -114,10 +100,9 @@ def set_blocked(event_types: List[int]):
 	This is the opposite of set_allowed.
 	Allowed events that would be discarded by pygame are kept and reposted.
 	"""
-	global allowed
 	event_types -= ALWAYS_ALLOWED
 
-	if allowed.isdisjoint(set(event_types)):
+	if get_allowed().isdisjoint(set(event_types)):
 		return
 
 	discarded_events = pygame.event.get()
@@ -133,11 +118,8 @@ def add_allowed(event_types: List[int]):
 	Adds allowed event types without touching the others.
 	Allowed events that would be discarded by pygame are kept and reposted.
 	"""
-	global allowed
 	discarded = pygame.event.get()
-	pygame.event.set_allowed(list(event_types))
-	allowed.update(set(event_types))
-	assert(get_allowed() == allowed)
+	pygame.event.set_allowed(event_types)
 	post([e for e in discarded if e.type in event_types])
 
 def add_blocked(event_types: List[int]):
@@ -145,10 +127,8 @@ def add_blocked(event_types: List[int]):
 	This is the opposite of add_allowed.
 	Allowed events that would be discarded by pygame are kept and reposted.
 	"""
-	global allowed
 	discarded = pygame.event.get()
-	pygame.event.set_blocked(list(event_types))
-	allowed.difference_update(set(event_types))
+	pygame.event.set_blocked(event_types)
 	post([e for e in discarded if e.type in event_types])
 
 def pump(context="default"):
@@ -168,7 +148,7 @@ def wait(timeout=-1, context="default"):
 		pygame.time.set_timer(TIMEOUT, timeout)
 		add_allowed([TIMEOUT])
 
-	if pygame.event.peek(list(allowed)):  # if we don't have to wait process all events
+	if pygame.event.peek(list(get_allowed())):  # if we don't have to wait process all events
 		for event in pygame.event.get():  # with get we can process many events per frame
 			process_event(event, context)
 	else:
@@ -188,7 +168,7 @@ def event_loop(callback, wait=True, context="default"):
 	"""
 	done = callback([EMPTYEVENT])
 	while not done:
-		if wait and not pygame.event.peek(list(allowed)):
+		if wait and not pygame.event.peek(list(get_allowed())):
 			events = [pygame.event.wait()]
 		else:
 			events = pygame.event.get()
