@@ -48,30 +48,17 @@ winner = None
 
 def load_map(map_path):
 	global loaded_map, units_manager
-	if map_path is not None:
-		try:
-			loaded_map = map.Map(map_path)
-			units_manager = loaded_map.units_manager
-			for team in units_manager.teams:
-				if team.ai:
-					team.ai = ai.AI(loaded_map, units_manager, team)
-			events.register(VIDEORESIZE, loaded_map.handle_videoresize)
-		except:
-			msg = _("Can't load map %s! Probabily the format is not ok.\n%s") % (map_path, traceback.format_exc())
+	try:
+		loaded_map = map.Map(map_path)
+		units_manager = loaded_map.units_manager
+		for team in units_manager.teams:
+			if team.ai:
+				team.ai = ai.AI(loaded_map, units_manager, team)
+		events.register(VIDEORESIZE, loaded_map.handle_videoresize)
+	except:
+			msg = _("Can't load map %s! Probably the format is not ok.\n%s") % (map_path, traceback.format_exc())
 			logging.error(msg)
-			dialog = gui.Dialog(msg, SMALL_FONT, (100, 100))
-			events.new_context("MapError")
-			dialog.register("MapError")
-			def event_loop(_events):
-				dialog.draw()
-				display.clock.tick(60)
-				pygame.display.flip()
-				return dialog.ok
-			events.event_loop(event_loop, True, "MapError")
-	else:
-		loaded_map = None
-		units_manager = None
-
+			room.run_room(gui.Dialog(msg, SMALL_FONT, pos=(100, 100)))
 
 def kill(unit):
 	loaded_map.kill_unit(unit=unit)
@@ -300,27 +287,48 @@ def attack(attacking, defending):
 def move(who, where):
 	loaded_map.move(who, where)
 
-def play_actions(actions):
-	allowed = list(events.allowed)
-	pygame.time.set_timer(events.CLOCK, 0)
-	for _action in actions:
-		_action()
-		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
-		events.wait(5000)
-	events.set_allowed(allowed)
-
 import action
 action.Move.fun = staticmethod(move)
 action.Attack.fun = staticmethod(attack)
 
+
+def battle_wrapper(coord):
+	defending = loaded_map.get_unit(coord)
+	attacking = loaded_map.get_unit(loaded_map.curr_sel)
+
+	# enemy chosen by the user... let the battle begin!
+	attack(attacking, defending)
+
+	loaded_map.reset_selection()
+
+def switch_turn(*args):
+	active_team = units_manager.switch_turn()
+	loaded_map.reset_selection()
+	window.fill(BLACK)
+	loaded_map.draw(window)
+	sidebar.update()
+	phase_str = _('%s phase') % active_team.name
+	phase = MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
+	window.blit(phase, utils.center(window.get_rect(), phase.get_rect()))
+	pygame.display.flip()
+	pygame.mixer.music.fadeout(1000)
+	active_team.play_music('map')
+	events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
+	events.wait(timeout=5000)
+
+
 class Sidebar(object):
-	def __init__(self, font, switch_turn):
+	def __init__(self, font):
 		self.rect = pygame.Rect((window.get_width() - 250, 0), (250, window.get_height()))
 		self.start_time = pygame.time.get_ticks()
 		self.font = font
-		self.endturn_btn = gui.Button(_("End Turn"), self.font, switch_turn)
+		self.endturn_btn = gui.Button(_("End Turn"), self.font, callback=switch_turn)
 
-	def update(self, unit, terrain, coord, team):
+	def update(self):
+		coord = loaded_map.cursor.coord
+		unit = loaded_map.get_unit(coord)
+		terrain = loaded_map[coord]
+		team = units_manager.active_team
 		render = lambda x, y: self.font.render(x, True, y)
 		self.rect.h = window.get_height()
 		self.rect.x = window.get_width() - self.rect.w
@@ -365,6 +373,7 @@ class Sidebar(object):
 		window.blit(sidebar, self.rect)
 		self.endturn_btn.draw()
 
+sidebar = None
 
 class SplashScreen(room.Room):
 	def __init__(self):
@@ -393,23 +402,21 @@ class SplashScreen(room.Room):
 
 class MainMenu(room.Room):
 	def __init__(self):
-		super().__init__()
-		self.context = "MainMenu"
-		events.new_context(self.context)
+		super().__init__(allowed_events=[MOUSEMOTION,  MOUSEBUTTONDOWN, KEYDOWN,  events.INTERRUPT])
 		self.image = resources.load_image('Ice Emblem.png')
 		self.rect = self.image.get_rect()
 		self.click_to_start = MAIN_MENU_FONT.render(_("Click to Start"), 1, ICE)
 		self.hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], SMALL_FONT)
 		self.hmenu.rect.bottomright = window.get_size()
-		self.hmenu.register(self.context)
-		events.bind_keys((K_RETURN, K_SPACE), events.post_interrupt, self.context)
-		events.bind_click((1,), events.post_interrupt, self.hmenu.rect, False, self.context)
+		self.add_child(self.hmenu)
 
 	def begin(self):
-		events.block_all()
-		events.add_allowed([MOUSEMOTION,  MOUSEBUTTONDOWN, KEYDOWN,  events.INTERRUPT])
+		super().begin()
+		self.bind_keys((K_RETURN, K_SPACE), events.post_interrupt)
+		self.bind_click((1,), events.post_interrupt, self.hmenu.rect, False)
 
 	def loop(self, _events):
+		super().loop(_events)
 		for event in _events:
 			if event.type == events.INTERRUPT:
 				return True
@@ -422,21 +429,21 @@ class MainMenu(room.Room):
 		rect = self.click_to_start.get_rect(centery=window.get_rect().centery+200, centerx=window.get_rect().centerx)
 		window.blit(self.click_to_start, rect)
 		self.hmenu.rect.bottomright = window.get_size()
-		self.hmenu.draw()
+		super().draw()
 
 	def end(self):
+		super().end()
 		window.fill(BLACK)
-		window.blit(self.image, (0, 0))
+		window.blit(self.image, self.rect)
 
-		map_menu = MapMenu(self.image)
 		while not loaded_map:
-			room.run_room(map_menu)
+			room.run_room(MapMenu(self.image))
 
 		pygame.mixer.music.fadeout(2000)
 		display.fadeout(2000)
 		pygame.mixer.music.stop() # Make sure mixer is not busy
 
-	def show_license(self):
+	def show_license(self, obj, choice):
 		events.new_context("License")
 		gpl_image = resources.load_image('GNU GPL.jpg')
 		gpl_image = pygame.transform.smoothscale(gpl_image, window.get_size())
@@ -446,7 +453,7 @@ class MainMenu(room.Room):
 		events.wait(context="License")
 		events.allow_all()
 
-	def settings_menu(self):
+	def settings_menu(self, obj, choice):
 		room.run_room(SettingsMenu())
 
 
@@ -454,30 +461,26 @@ class SettingsMenu(room.Room):
 
 	def __init__(self):
 		super().__init__()
-		self.context = "SettingsMenu"
-		self.back_btn = gui.Button(_("Go Back"), MAIN_FONT, events.post_interrupt)
-		self.fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), MAIN_FONT, lambda e: display.toggle_fullscreen())
-
-	def begin(self):
-		events.new_context(self.context)
-		logging.debug(_("Settings menu"))
+		self.back_btn = gui.Button(_("Go Back"), MAIN_FONT, callback=events.post_interrupt)
+		self.fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), MAIN_FONT, callback=lambda _, _a: display.toggle_fullscreen())
 		def res_setter(res):
-			return lambda: display.set_resolution(res)
+			return lambda _, _a: display.set_resolution(res)
 		resolutions = [("{0[0]}x{0[1]}".format(res), res_setter(res)) for res in pygame.display.list_modes()]
 		self.resolutions_menu = gui.Menu(resolutions, MAIN_FONT)
-		events.bind_keys((K_ESCAPE,), events.post_interrupt, self.context)
-		self.back_btn.register(self.context)
-		self.fullscreen_btn.register(self.context)
-		self.resolutions_menu.register(self.context)
+		self.add_child(self.back_btn)
+		self.add_child(self.fullscreen_btn)
+		self.add_child(self.resolutions_menu)
+
+	def begin(self):
+		super().begin()
+		self.bind_keys((K_ESCAPE,), events.post_interrupt)
 
 	def draw(self):
 		window.fill(BLACK)
 		self.back_btn.rect.bottomright = window.get_size()
 		self.fullscreen_btn.rect.midtop = window.get_rect(top=50).midtop
 		self.resolutions_menu.rect.midtop = window.get_rect(top=100).midtop
-		self.back_btn.draw()
-		self.fullscreen_btn.draw()
-		self.resolutions_menu.draw()
+		super().draw()
 
 	def loop(self, _events):
 		for event in _events:
@@ -485,25 +488,17 @@ class SettingsMenu(room.Room):
 				return True
 		return False
 
-	def kill(self, unit):
-		self.map.remove_unit(unit)
-		self.whose_unit(unit).units.remove(unit)
 
 class MapMenu(room.Room):
 	def __init__(self, image):
 		super().__init__()
-		self.context = "MapMenu"
 		self.image = image
 		self.rect = self.image.get_rect()
-		events.new_context(self.context)
 		self.files = [(f, None) for f in resources.list_maps()]
 		self.choose_label = MAIN_FONT.render(_("Choose a map!"), True, ICE, MENU_BG)
-		self.menu = gui.Menu(self.files, MAIN_FONT, None, (25, 25))
+		self.menu = gui.Menu(self.files, MAIN_FONT, padding=(25, 25))
 		self.menu.rect.center = window.get_rect().center
-
-	def begin(self):
-		events.allow_all()
-		self.menu.register(self.context)
+		self.add_child(self.menu)
 
 	def draw(self):
 		window.fill(BLACK)
@@ -511,20 +506,25 @@ class MapMenu(room.Room):
 		window.blit(self.image, self.rect)
 		window.blit(self.choose_label, self.choose_label.get_rect(top=50, centerx=window.get_rect().centerx))
 		self.menu.rect.center = window.get_rect().center
-		self.menu.draw()
+		super().draw()
 
 	def loop(self, _events):
 		return self.menu.choice is not None
 
 	def end(self):
-		load_map(resources.map_path(self.files[self.menu.choice][0]))
+		super().end()
+		map_path = resources.map_path(self.files[self.menu.choice][0])
+		load_map(map_path)
+
 
 class VictoryScreen(room.Room):
 	def __init__(self):
-		super().__init__()
+		super().__init__(allowed_events=[MOUSEBUTTONDOWN, KEYDOWN])
 
 	def begin(self):
+		super().begin()
 		print(_("%s wins") % winner.name)
+		pygame.event.clear()
 		self.victory = MAIN_MENU_FONT.render(winner.name + ' wins!', 1, winner.color)
 		self.thank_you = MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, ICE)
 		pygame.mixer.stop()
@@ -536,96 +536,54 @@ class VictoryScreen(room.Room):
 		wr = window.get_rect()
 		window.blit(self.victory, self.victory.get_rect(centery=wr.centery-50, centerx=wr.centerx))
 		window.blit(self.thank_you, self.thank_you.get_rect(centery=wr.centery+50, centerx=wr.centerx))
-		pygame.display.flip()
-		pygame.event.clear()
-		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
-		e = events.wait()
-		print(e.type, pygame.event.event_name(e.type))
+		super().draw()
 
-	def loop(self, events):
+	def loop(self, _events):
 		return True
 
 	def end(self):
+		super().end()
+		events.wait()
 		pygame.mixer.music.fadeout(2000)
 		display.fadeout(2000)
 		pygame.mixer.music.stop()
 
 
-class Game(room.Room):
-	def __init__(self):
-		super().__init__()
+class PlayerTurn(room.Room):
+	def __init__(self, team):
+		super().__init__(allowed_events=[KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
+		self.add_child(sidebar.endturn_btn)
+		self.team = team
 
 	def begin(self):
-		units_manager.active_team.play_music('map')
-		self.sidebar = Sidebar(SMALL_FONT, self.switch_turn)
-		if not units_manager.active_team.ai:
-			self.enable_controls()
+		super().begin()
+		self.register(MOUSEBUTTONDOWN, self.handle_click)
+		self.register(MOUSEMOTION, self.handle_mouse_motion)
+		self.register(KEYDOWN, self.handle_keyboard)
 
 	def draw(self):
 		window.fill(BLACK)
 		loaded_map.draw(window)
-		self.blit_info()
+		sidebar.update()
 
 	def loop(self, _events):
-		"""
-		Main loop.
-		"""
-		self.check_turn()
-		if callable(units_manager.active_team.ai):
-			actions = units_manager.active_team.ai()
-			play_actions(actions)
-		elif loaded_map.move_x != 0 or loaded_map.move_y != 0:
-			events.pump()
+		return self.team != units_manager.active_team or self.team.is_turn_over()
+
+	def handle_mouse_motion(self, event):
+		loaded_map.handle_mouse_motion(event)
+
+	def handle_click(self, event):
+		if loaded_map.handle_click(event):
+			self.action_menu(event.pos)
+
+	def handle_keyboard(self, event):
+		if event.key == pygame.K_ESCAPE:
+			self.pause_menu()
 		else:
-			# we want to wait but update the clock!
-			time = pygame.time.get_ticks() - self.sidebar.start_time
-			pygame.time.set_timer(events.CLOCK, (1000 - time % 1000))
-			events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
-			events.wait()
-		return winner is not None
-
-	def end(self):
-		pygame.time.set_timer(events.CLOCK, 0);
-
-	def blit_info(self):
-		coord = loaded_map.cursor.coord
-		unit = loaded_map.get_unit(coord)
-		terrain = loaded_map[coord]
-		turn = units_manager.active_team
-		self.sidebar.update(unit, terrain, coord, turn)
-
-	def disable_controls(self):
-		events.unregister(MOUSEBUTTONDOWN, self.handle_click)
-		events.unregister(MOUSEMOTION, self.handle_mouse_motion)
-		events.unregister(KEYDOWN, self.handle_keyboard)
-		self.sidebar.endturn_btn.unregister()
-
-	def enable_controls(self):
-		events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
-		events.register(MOUSEBUTTONDOWN, self.handle_click)
-		events.register(MOUSEMOTION, self.handle_mouse_motion)
-		events.register(KEYDOWN, self.handle_keyboard)
-		self.sidebar.endturn_btn.register()
-
-	def switch_turn(self):
-		active_team = units_manager.switch_turn()
-		if not active_team.ai:
-			self.enable_controls()
-		else:
-			self.disable_controls()
-		loaded_map.reset_selection()
-		window.fill(BLACK)
-		loaded_map.draw(window)
-		self.blit_info()
-		phase_str = _('%s phase') % active_team.name
-		phase = MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
-		window.blit(phase, utils.center(window.get_rect(), phase.get_rect()))
-		pygame.display.flip()
-		pygame.mixer.music.fadeout(1000)
-		active_team.play_music('map')
-		events.set_allowed([MOUSEBUTTONDOWN, KEYDOWN])
-		events.wait(timeout=5000)
-		events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN, MOUSEMOTION, events.CLOCK])
+			if loaded_map.handle_keyboard(event):
+				pos = loaded_map.tilemap.pixel_at(*loaded_map.cursor.coord)
+				pos = (pos[0] + loaded_map.tilemap.tile_width, pos[1] + loaded_map.tilemap.tile_height)
+				self.action_menu(pos)
 
 	def action_menu(self, pos):
 		"""
@@ -638,7 +596,7 @@ class Game(room.Room):
 				nonlocal done
 				# user must click on an enemy unit
 				if event.button == 1 and loaded_map.is_attack_click(event.pos):
-					self.battle_wrapper(loaded_map.cursor.coord)
+					battle_wrapper(loaded_map.cursor.coord)
 					done = True
 				elif event.button == 3:
 					loaded_map.move_undo()
@@ -648,7 +606,7 @@ class Game(room.Room):
 				nonlocal done
 				# user must choose an enemy unit
 				if event.key == pygame.K_SPACE and loaded_map.is_enemy_cursor():
-					self.battle_wrapper(loaded_map.cursor.coord)
+					battle_wrapper(loaded_map.cursor.coord)
 					done = True
 				elif event.key == pygame.K_ESCAPE:
 					loaded_map.move_undo()
@@ -670,47 +628,35 @@ class Game(room.Room):
 		def items():
 			events.new_context("ItemsMenu")
 			unit = loaded_map.curr_unit
-			entries = [(i.name, lambda: unit.set_active(i)) for i in unit.items]
-			menu = gui.Menu(entries, SMALL_FONT, loaded_map.move_undo, (5, 10), pos)
-			menu.register("ItemsMenu")
+			def setitem(item):
+				def set(*args):
+					unit.items.active = item
+					unit.played = True
+				return set
+			entries = [(i.name, setitem(i)) for i in unit.items]
+			menu = gui.Menu(entries, SMALL_FONT, callback=lambda *_: loaded_map.move_undo(), padding=(5, 10), pos=pos)
 			self.draw()
 			room.run_room(menu)
 
 		actions = [
-			(_("Attack"), attack),
-			(_("Items"), items),
-			(_("Wait"), loaded_map.wait),
+			(_("Attack"), lambda *_: attack()),
+			(_("Items"), lambda *_: items()),
+			(_("Wait"), lambda *_: loaded_map.wait()),
 		] if len(loaded_map.nearby_enemies()) > 0 else [
-			(_("Items"), items),
-			(_("Wait"), loaded_map.wait),
+			(_("Items"), lambda *_: items()),
+			(_("Wait"), lambda *_: loaded_map.wait()),
 		]
 
 		events.new_context("ActionMenu")
 		loaded_map.still_attack_area(loaded_map.curr_sel)
 		loaded_map.update_highlight()
 		loaded_map.draw(window)
-		self.blit_info()
+		sidebar.update()
 
-		menu = gui.Menu(actions, SMALL_FONT, loaded_map.move_undo, (5, 10), pos)
-		menu.register("ActionMenu")
-		events.add_allowed(gui.Menu.EVENT_TYPES)
+		menu = gui.Menu(actions, SMALL_FONT, callback=lambda *_: loaded_map.move_undo(), padding=(5, 10), pos=pos, context="ActionMenu")
 		room.run_room(menu)
 
 		return menu.choice
-
-	def battle_wrapper(self, coord):
-		defending = loaded_map.get_unit(coord)
-		attacking = loaded_map.get_unit(loaded_map.curr_sel)
-
-		# enemy chosen by the user... let the battle begin!
-		attack(attacking, defending)
-
-		loaded_map.reset_selection()
-
-	def reset(self):
-		pygame.mixer.fadeout(1000)
-		display.fadeout(1000)
-		self.done = True
 
 	def pause_menu(self):
 		events.new_context("PauseMenu")
@@ -719,37 +665,73 @@ class Game(room.Room):
 			('Return to Main Menu', self.reset),
 			('Return to O.S.', utils.return_to_os)
 		]
-		menu = gui.Menu(menu_entries, MAIN_FONT)
+		menu = gui.Menu(menu_entries, MAIN_FONT, context="PauseMenu")
 		menu.rect.center = window.get_rect().center
-		menu.register("PauseMenu")
 		room.run_room(menu)
 
-	def check_turn(self):
-		if units_manager.active_team.is_turn_over():
-			self.switch_turn()
+	def reset(self):
+		pygame.mixer.fadeout(1000)
+		display.fadeout(1000)
+		room.stop()
 
-	def handle_mouse_motion(self, event):
-		loaded_map.handle_mouse_motion(event)
 
-	def handle_click(self, event):
-		if loaded_map.handle_click(event):
-			self.action_menu(event.pos)
+class AITurn(room.Room):
+	def __init__(self,  actions):
+		super().__init__(wait=False)
+		self.actions = actions
+		self.time = 0
 
-	def handle_keyboard(self, event):
-		if event.key == pygame.K_ESCAPE:
-			self.pause_menu()
+	def begin(self):
+		super().begin()
+		events.set_allowed([KEYDOWN, MOUSEBUTTONDOWN])
+		display.tick()
+
+	def draw(self):
+		window.fill(BLACK)
+		loaded_map.draw(window)
+
+	def loop(self, _events):
+		self.time += display.clock.get_time()
+		if self.time > 2000 and len(self.actions) > 0:
+			_action = self.actions.pop(0)
+			_action()
+			self.time = 0
+		return len(self.actions) == 0
+
+
+class Game(room.Room):
+	def __init__(self):
+		super().__init__(wait=False)
+
+	def begin(self):
+		global sidebar
+		units_manager.active_team.play_music('map')
+		sidebar = Sidebar(SMALL_FONT)
+
+	def draw(self):
+		window.fill(BLACK)
+		loaded_map.draw(window)
+		sidebar.update()
+
+	def loop(self, _events):
+		"""
+		Main loop.
+		"""
+		active_team = units_manager.active_team
+		if callable(active_team.ai):
+			actions = active_team.ai()
+			room.run_room(AITurn(actions))
 		else:
-			if loaded_map.handle_keyboard(event):
-				pos = loaded_map.tilemap.pixel_at(*loaded_map.cursor.coord)
-				pos = (pos[0] + loaded_map.tilemap.tile_width, pos[1] + loaded_map.tilemap.tile_height)
-				self.action_menu(pos)
+			room.run_room(PlayerTurn(active_team))
+		if winner is None and active_team == units_manager.active_team:
+			switch_turn()
+		return winner is not None
 
+	def end(self):
+		super().end()
+		pygame.time.set_timer(events.CLOCK, 0);
 
-def main_menu():
-	room.queue_room(SplashScreen())
-	room.queue_room(MainMenu())
-	room.run()
-
+import unit
 def play(map_file):
 	global loaded_map, units_manager, winner
 	while True:

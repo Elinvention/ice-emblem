@@ -23,17 +23,49 @@
 import pygame
 from pygame.locals import *
 from colors import *
-import events
 import room
 import display
+import utils
 
 
 class GUI(room.Room):
-	EVENT_TYPES = [MOUSEBUTTONDOWN, KEYDOWN, MOUSEMOTION]
-	def __init__(self, rect):
-		super().__init__()
-		self.rect = rect
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
 		self.user_interacted = False
+		self._padding = (0, 0, 0, 0)
+		self._content_size = (0, 0)
+		self.rect = pygame.Rect(kwargs.get('pos',  (0, 0)), (0, 0))
+		self.padding = kwargs.get('padding', (0, 0, 0, 0))
+
+	@property
+	def content_size(self):
+		return self._content_size
+
+	@content_size.setter
+	def content_size(self, size):
+		self._content_size = size
+		self.update_size()
+
+	@property
+	def padding(self):
+		return self._padding
+
+	@padding.setter
+	def padding(self, padding):
+		self._padding = padding
+		if isinstance(padding, int):
+			self._padding = (padding,) * 4
+		elif len(padding) == 2:
+			self._padding = padding * 2
+		elif len(padding) == 4:
+			self._padding = padding
+		else:
+			raise ValueError("padding shold be either an int or a couple or a quadruple")
+		self.update_size()
+
+	def update_size(self):
+		self.rect.size = (self.padding[1] + self.padding[3] + self.content_size[0],
+						self.padding[0] + self.padding[2] + self.content_size[1])
 
 	def handle_keydown(self, event):
 		if event.type != KEYDOWN:
@@ -47,16 +79,17 @@ class GUI(room.Room):
 		if event.type != MOUSEMOTION:
 			raise ValueError("Event type must be MOUSEMOTION")
 
-	def register(self, context="default"):
-		events.register(MOUSEMOTION, self.handle_mouse_motion, context)
-		events.register(MOUSEBUTTONDOWN, self.handle_click, context)
-		events.register(KEYDOWN, self.handle_keydown, context)
-		self.context = context
+	def begin(self):
+		self.register(MOUSEMOTION, self.handle_mouse_motion)
+		self.register(MOUSEBUTTONDOWN, self.handle_click)
+		self.register(KEYDOWN, self.handle_keydown)
+		super().begin()
 
-	def unregister(self):
-		events.unregister(MOUSEMOTION, self.handle_mouse_motion, self.context)
-		events.unregister(MOUSEBUTTONDOWN, self.handle_click, self.context)
-		events.unregister(KEYDOWN, self.handle_keydown, self.context)
+	def end(self):
+		self.unregister(MOUSEMOTION, self.handle_mouse_motion)
+		self.unregister(MOUSEBUTTONDOWN, self.handle_click)
+		self.unregister(KEYDOWN, self.handle_keydown)
+		super().end()
 
 	def draw(self):
 		raise NotImplementedError("GUI.draw is not implemented")
@@ -81,33 +114,24 @@ class Menu(GUI):
 	K_INDEX_INCREASE = K_DOWN
 	K_INDEX_DECREASE = K_UP
 
-	def __init__(self, menu_entries, font, callback=None,
-			padding=(0, 0, 0, 0), pos=(0, 0),
-			txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
-
+	def __init__(self, menu_entries, font, **kwargs):
+		super().__init__(**kwargs)
 		self.menu_entries = menu_entries
 		self.n_entries = len(menu_entries)
 		self.rendered_entries = []
 		self.font = font
-		self.callback = callback
-		self.txt_color = txt_color
-		self.sel_color = sel_color
-		self.bg_color = bg_color
+
+		self.callback = kwargs.get('callback', None)
+		self.txt_color = kwargs.get('txt_color', ICE)
+		self.sel_color = kwargs.get('sel_color', MENU_SEL)
+		self.bg_color = kwargs.get('bg_color', MENU_BG)
+		self.leading = kwargs.get('leading', 10)
 
 		for entry in menu_entries:
 			render = font.render(entry[0], True, self.txt_color).convert_alpha()
 			self.rendered_entries.append(render)
 
-		if len(padding) == 2:
-			self.padding = (padding[0], padding[1], padding[0], padding[1])
-		elif len(padding) == 4:
-			self.padding = padding
-		else:
-			raise ValueError("Margins shold be a couple or a quadruple")
-
-		size = self.get_width(), self.get_height()
-		rect = pygame.Rect(pos, size)
-		super().__init__(rect)
+		self.compute_content_size()
 
 		self.prev_index = self.index = None
 		self.choice = None
@@ -116,15 +140,18 @@ class Menu(GUI):
 	def __getitem__(self, key):
 		return self.menu_entries[key]
 
-	def get_width(self):
-		max_width = 0
+	def compute_content_size(self):
+		w = 0
 		for entry in self.rendered_entries:
-			max_width = max(max_width, entry.get_width())
-		return max_width + self.padding[1] + self.padding[3]
+			w = max(w, entry.get_width())
+		h = self.font.get_linesize() * self.n_entries + self.leading * (self.n_entries - 1)
+		print(w, h)
+		self.content_size = w, h
 
-	def get_height(self):
-		return (self.font.get_linesize() * self.n_entries +
-				self.padding[0] + self.padding[2])
+	def call_callback(self, i):
+		callback = self.menu_entries[i][1]
+		if callable(callback):
+			callback(self, self.menu_entries[i][0])
 
 	def handle_keydown(self, event):
 		super().handle_keydown(event)
@@ -136,12 +163,11 @@ class Menu(GUI):
 			if self.callback is not None:
 				self.choice = -1
 				self.user_interacted = True
-				self.callback()
+				self.callback(self)
 		elif (event.key == K_RETURN or event.key == K_SPACE) and self.index is not None:
 			self.choice = self.index
 			self.user_interacted = True
-			if self.menu_entries[self.index][1] is not None:
-				return self.menu_entries[self.index][1]()
+			self.call_callback(self.index)
 
 	def set_index(self, index):
 		if index is None:
@@ -174,7 +200,7 @@ class Menu(GUI):
 
 	def get_entry_pos(self, i):
 		return (self.padding[3] + self.rect.x,
-				self.padding[0] + self.rect.y + i * self.font.get_linesize())
+				self.padding[0] + self.rect.y + i * (self.font.get_linesize() + self.leading))
 
 	def handle_click(self, event):
 		super().handle_click(event)
@@ -186,12 +212,11 @@ class Menu(GUI):
 					self.clicked = True
 					self.choice = i
 					self.user_interacted = True
-					if self.menu_entries[i][1] is not None:
-						return self.menu_entries[i][1]()
+					self.call_callback(i)
 		elif event.button == 3:
 			if self.callback is not None:
 				self.choice = -1
-				self.callback()
+				self.callback(self)
 				self.user_interacted = True
 
 	def handle_mouse_motion(self, event):
@@ -212,7 +237,7 @@ class Menu(GUI):
 		linesize = self.font.get_linesize()
 
 		for i, entry in enumerate(self.rendered_entries):
-			tmp.blit(entry, (self.padding[3], i * linesize + self.padding[0]))
+			tmp.blit(entry, (self.padding[3], i * (linesize + self.leading) + self.padding[0]))
 
 		display.window.blit(tmp, self.rect)
 
@@ -220,23 +245,22 @@ class Menu(GUI):
 class HorizontalMenu(Menu):
 	K_INDEX_INCREASE = K_LEFT
 	K_INDEX_DECREASE = K_RIGHT
-	def __init__(self, menu_entries, font, callback=None, padding=(0, 0, 0, 0), pos=(0, 0)):
-		super().__init__(menu_entries, font, callback, padding, pos)
+	def __init__(self, menu_entries, font, **kwargs):
+		super().__init__(menu_entries, font, **kwargs)
 
-	def get_width(self):
-		width = 0
+	def compute_content_size(self):
+		w = 0
 		for entry in self.rendered_entries:
-			width += entry.get_width() + 10
-		return width + self.padding[1] + self.padding[3]
-
-	def get_height(self):
-		return self.font.get_linesize() + self.padding[0] + self.padding[2]
+			w += entry.get_width()
+		w += self.leading * (self.n_entries - 1)
+		h = self.font.get_linesize()
+		self.content_size = w, h
 
 	def get_entry_pos(self, index):
 		x = self.padding[3] + self.rect.x
 		i = 0
 		while i < index:
-			x += self.rendered_entries[i].get_width() + 10
+			x += self.rendered_entries[i].get_width() + self.leading
 			i += 1
 		return x, self.padding[0] + self.rect.y
 
@@ -253,20 +277,24 @@ class HorizontalMenu(Menu):
 
 
 class Button(GUI):
-	def __init__(self, text, font, callback=None, padding=(0,0,0,0), pos=(0,0), txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
-		self.text = text
-		self.rendered_text = font.render(text, True, txt_color)
+	def __init__(self, text, font, **kwargs):
+		super().__init__(**kwargs)
 		self.font = font
-		self.callback = callback
-		self.padding = padding
-		self.txt_color = txt_color
-		self.sel_color = sel_color
-		self.bg_color = bg_color
-		w = self.rendered_text.get_width() + padding[1] + padding[3]
-		h = self.rendered_text.get_height() + padding[0] + padding[2]
-		super().__init__(pygame.Rect(pos, (w,h)))
 		self.clicked = False
 		self._focus = False
+		self.callback = kwargs.get('callback', None)
+		self.txt_color = kwargs.get('txt_color', ICE)
+		self.sel_color = kwargs.get('sel_color', MENU_SEL)
+		self.bg_color = kwargs.get('bg_color', MENU_BG)
+		self.set_text(text)
+
+	def set_text(self, text):
+		self.text = text
+		self.rendered_text = self.font.render(text, True, self.txt_color, self.sel_color if self._focus else self.bg_color)
+		self.compute_content_size()
+
+	def compute_content_size(self):
+		self.content_size = self.rendered_text.get_size()
 
 	def loop(self, _events):
 		return self.clicked
@@ -296,7 +324,7 @@ class Button(GUI):
 		if event.button == 1:
 			if self.rect.collidepoint(event.pos):
 				if self.callback is not None:
-					self.callback()
+					self.callback(self)
 				self.clicked = True
 
 	def handle_keydown(self, event):
@@ -305,94 +333,123 @@ class Button(GUI):
 	def draw(self):
 		btn = pygame.Surface(self.rect.size)
 		btn.fill(self.bg_color)
-		btn.blit(self.rendered_text, (self.padding[1], self.padding[0]))
+		btn.blit(self.rendered_text, (self.padding[3], self.padding[0]))
 		display.window.blit(btn, self.rect.topleft)
 
 
 class CheckBox(Button):
-	def __init__(self, text, font, on_change, checked=False, padding=(0,0,0,0), pos=(0,0), txt_color=ICE, sel_color=MENU_SEL, bg_color=MENU_BG):
-		super().__init__(text, font, on_change, padding, pos, txt_color, sel_color, bg_color)
+	def __init__(self, text, font, checked=False, **kwargs):
+		super().__init__(text, font, **kwargs)
 		self.checked = checked
-		self.rect.w += 40
+		self.compute_content_size()
+
+	def compute_content_size(self):
+		super().compute_content_size()
+		self.content_size = (self.content_size[0] + self.content_size[1], self.content_size[1])
 
 	def handle_click(self, event):
 		if event.button == 1:
 			if self.rect.collidepoint(event.pos):
 				self.checked = not self.checked
 				if self.callback is not None:
-					self.callback(self.checked)
+					self.callback(self, self.checked)
 				self.clicked = True
 
 	def draw(self):
 		btn = pygame.Surface(self.rect.size)
 		btn.fill(self.bg_color)
-		btn_pos = (self.padding[1] + self.rect.h, self.padding[0])
+		btn_pos = (self.padding[3] + self.content_size[1], self.padding[0])
 		btn.blit(self.rendered_text, btn_pos)
-		checkbox = pygame.Surface((self.rect.h, self.rect.h))
+		checkbox = pygame.Surface((self.content_size[1],) * 2)
 		if self.checked:
 			checkbox.fill(GREEN)
 		else:
 			checkbox.fill(RED)
-		btn.blit(checkbox, (self.padding[1], self.padding[0]))
+		btn.blit(checkbox, (self.padding[3], self.padding[0]))
 		display.window.blit(btn, self.rect.topleft)
 
+
 class Label(GUI):
-	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
+	def __init__(self, text, font, **kwargs):
+		super().__init__(**kwargs)
 		self.font = font
-		lines = text.split('\n')
-		self.text = [ font.render(r, True, txt_color) for r in lines ]
-		w = max(l.get_width() for l in self.text) + padding * 2
-		h = (font.get_linesize() + leading) * len(lines) + padding * 2
-		self.padding = padding
-		self.leading = leading
-		self.txt_color = txt_color
-		self.bg_color = bg_color
-		super().__init__(pygame.Rect(pos, (w, h)))
+		self.leading = kwargs.get('leading', 10)
+		self.txt_color = kwargs.get('txt_color', WHITE)
+		self.bg_color = kwargs.get('bg_color', MENU_BG)
+		self.set_text(text)
 
 	def draw(self):
 		tmp = pygame.Surface(self.rect.size)
 		tmp.fill(MENU_BG)
 		for i, line in enumerate(self.text):
 			y = i * (self.font.get_linesize() + self.leading)
-			tmp.blit(line, (self.padding, self.padding + y))
+			tmp.blit(line, (self.padding[1], self.padding[0] + y))
 		display.window.blit(tmp, self.rect)
 
+	def set_text(self, text):
+		lines = text.split('\n')
+		self.text = [ self.font.render(r, True, self.txt_color) for r in lines ]
+		self.compute_content_size()
+
+	def compute_content_size(self):
+		w = max(l.get_width() for l in self.text)
+		h = self.font.get_linesize() * len(self.text) + self.leading * (len(self.text) - 1)
+		self.content_size = w, h
+
+
 class Dialog(Label):
-	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
-		super().__init__(text, font, pos, padding, leading, txt_color, bg_color)
+	def __init__(self, text, font, **kwargs):
 		self.ok = False
-		self.ok_btn = Button("OK", font, self.dismiss, pos=self.rect.midbottom)
-		self.ok_btn.rect.move_ip(-self.ok_btn.rect.w//2, -padding)
-		self.rect.w = max(self.rect.w, self.ok_btn.get_width() + padding * 2)
-		self.rect.h += self.ok_btn.get_height()
-		self.padding = padding
-		self.leading = leading
+		self.ok_btn = Button("OK", font, callback=lambda _:self.dismiss())
+		self.callback = kwargs.get('callback', None)
+		super().__init__(text, font, **kwargs)
+		self.ok_btn.rect.midbottom = self.rect.midbottom
+		self.add_child(self.ok_btn)
 
 	def dismiss(self):
 		self.ok = True
-
-	def register(self, context="default"):
-		super().register(context)
-		self.ok_btn.register(context)
-
-	def unregister(self, context="default"):
-		super().unregister(context)
-		self.ok_btn.unregister(context)
+		if callable(self.callback):
+			self.callback(self)
 
 	def draw(self):
 		super().draw()
-		self.ok_btn.draw()
+		self.draw_children()
+
+	def loop(self, _events):
+		return self.ok
+
+	def set_text(self, text):
+		super().set_text(text)
+		self.ok_btn.rect.midbottom = self.rect.midbottom
+
+	def compute_content_size(self):
+		super().compute_content_size()
+		self.content_size = self.content_size[0], self.content_size[1] + self.ok_btn.rect.h
 
 class Modal(Label):
-	def __init__(self, text, font, pos, padding=10, leading=10, txt_color=WHITE, bg_color=MENU_BG):
-		super().__init__(text, font, pos, padding, leading, txt_color, bg_color)
+	def __init__(self, text, font, **kwargs):
+		super().__init__(text, font, **kwargs)
+		self.callback = kwargs.get('callback', None)
 		self.answer = None
-		self.yes_btn = Button("Yes", font, lambda: setattr(self, 'answer', True), pos=self.rect.midbottom)
-		self.yes_btn.rect.move_ip(-self.yes_btn.rect.w - 20, -padding)
-		self.no_btn = Button("No", font, lambda: setattr(self, 'answer', False), pos=self.rect.midbottom)
-		self.no_btn.rect.move_ip(20, -padding)
-		self.rect.w = max(self.rect.w, self.no_btn.get_width() + self.yes_btn.get_width() + padding * 2)
-		self.rect.h += max(self.yes_btn.get_height(), self.no_btn.get_height())
+		self.yes_btn = Button("Yes", font, callback=lambda _: self.yes(), pos=self.rect.midbottom)
+		self.yes_btn.rect.move_ip(-self.yes_btn.rect.w - 20, -self.padding[3])
+		self.no_btn = Button("No", font, callback=lambda _: self.no(), pos=self.rect.midbottom)
+		self.no_btn.rect.move_ip(20, -self.padding[3])
+		w = max(self.content_size[0], self.no_btn.get_width() + self.yes_btn.get_width())
+		h = self.content_size[1] + max(self.yes_btn.get_height(), self.no_btn.get_height())
+		self.content_size = (w, h)
+		self.add_child(self.yes_btn)
+		self.add_child(self.no_btn)
+
+	def yes(self):
+		self.answer = True
+		if callable(self.callback):
+			self.callback(self, self.answer)
+
+	def no(self):
+		self.answer = False
+		if callable(self.callback):
+			self.callback(self, self.answer)
 
 	def handle_keydown(self, event):
 		super().handle_keydown(event)
@@ -406,47 +463,47 @@ class Modal(Label):
 		elif event.key == K_SPACE:
 			self.answer = self.yes_btn.is_focused()
 
-	def register(self, context="default"):
-		super().register(context)
-		self.yes_btn.register(context)
-		self.no_btn.register(context)
-
-	def unregister(self, context="default"):
-		super().unregister(context)
-		self.yes_btn.unregister(context)
-		self.no_btn.register(context)
-
 	def draw(self):
 		super().draw()
-		self.yes_btn.draw()
-		self.no_btn.draw()
+		self.draw_children()
+
+	def loop(self, _events):
+		return self.answer is not None
 
 
 if __name__ == '__main__':
+	import logging
+	logging.basicConfig(level=0)
 	pygame.init()
 	screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
 	pygame.display.set_caption("Ice Emblem GUI Test")
-	clock = pygame.time.Clock()
 
 	f = pygame.font.SysFont("Liberation Sans", 24)
-	d = Dialog("Lorem ipsum dolor sit amet. ASD. LOL.\n\nTROLOL", f, (50, 100))
-	l = Label("TEST LABEL\nASDASDASD\nLOL\n\n\nTROLOL", f, (500, 100))
-	m = Modal("Rispondi SI o NO?\n\nFORSE?", f, (800, 400))
-	d.register()
-	m.register()
+	d = Dialog("Lorem ipsum dolor sit amet. ASD. LOL.\n\nTROLOL", f, callback=lambda self: self.set_text("Hai premuto OK"), pos=(50, 100))
+	l = Label("TEST LABEL\nASDASDASD\nLOL\n\n\nTROLOL", f, pos=(50, 400))
+	a = Label("NO ANSWER", f)
+	m = Modal("Rispondi SI o NO?\n\nFORSE?", f, callback=lambda _,ans: a.set_text("SI" if ans else "NO"), pos=(800, 100))
+	a.rect.topleft = m.rect.bottomleft
+	q = Button("Quit", f, callback=utils.return_to_os)
+	c = Label("SELEZIONA DAL MENU", f)
+	setc = lambda _,choice: c.set_text(choice)
+	h = HorizontalMenu([("A", setc), ("B", setc)], f, pos=(800, 300))
+	c.rect.topleft = h.rect.bottomleft
+	s = Label("SELEZIONA DAL MENU", f)
+	sets = lambda _,choice: s.set_text(choice)
+	v = Menu([("A", sets), ("B", sets)] * 2, f, pos=(800, 500))
+	s.rect.topleft = v.rect.bottomleft
+	cb = CheckBox("N", f, False, callback=lambda obj, chk: obj.set_text(str(chk)), pos=(800, 50))
 
-	def event_loop(_events):
-		screen.fill(BLACK)
-		d.draw()
-		l.draw()
-		m.draw()
-		a = Label("ANSWER: " + ("YES" if m.answer else "NO"), f, m.rect.bottomleft)
-		a.draw()
-		pygame.display.flip()
-		clock.tick(60)
-		return d.ok
+	class GUITest(room.Room):
+		def begin(self):
+			self.add_children([d, l, m, a, q, c, h, s, v, cb])
+			super().begin()
+		def draw(self):
+			screen.fill(BLACK)
+			super().draw()
 
-	events.event_loop([MOUSEMOTION, MOUSEBUTTONDOWN, KEYDOWN], event_loop)
+	room.run_room(GUITest())
 
 	if m.answer is not None:
 		print("Answer: %s" % m.answer)
