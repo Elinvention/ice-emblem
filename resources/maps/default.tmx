@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-down" width="15" height="10" tilewidth="32" tileheight="32" nextobjectid="7">
+<map version="1.0" tiledversion="1.0.3" orientation="orthogonal" renderorder="right-down" width="15" height="10" tilewidth="32" tileheight="32" nextobjectid="7">
  <tileset firstgid="1" source="Terrain.tsx"/>
  <layer name="base" width="15" height="10">
   <data encoding="base64" compression="zlib">
@@ -16,6 +16,29 @@
    eJxjYCAMaohQQ0ivGCMDgzgQSzCSrtcMqscCSnsAsScBvXOAWA6Iw4B6woE4AsleDSLMgOlHBoFAHESEGelQ/XORMAgY4jADGWsS8Jchkn4QCAPicCQcQUB/ERK7DE3OHE3/RDQ8CY9eEKhAYgMASFoT3w==
   </data>
  </layer>
+ <objectgroup color="#0000ff" name="Squadra Blu">
+  <properties>
+   <property name="battle_music" value="The Last Encounter Short Loop.ogg"/>
+   <property name="boss" value="Boss"/>
+   <property name="map_music" value="Ireland's Coast - Video Game.ogg"/>
+   <property name="relation" value="20"/>
+  </properties>
+  <object id="4" name="Soldier" type="unit" x="70.5" y="103.5" width="16" height="16">
+   <properties>
+    <property name="weapon" value="Bronze Sword"/>
+   </properties>
+  </object>
+  <object id="3" name="Skeleton" type="unit" x="135.5" y="70.5" width="16" height="16">
+   <properties>
+    <property name="weapon" value="Nosferatu"/>
+   </properties>
+  </object>
+  <object id="5" name="Boss" type="unit" x="38.5" y="38.5" width="16" height="16">
+   <properties>
+    <property name="weapon" value="Long Bow"/>
+   </properties>
+  </object>
+ </objectgroup>
  <objectgroup color="#ff0000" name="Squadra Rossa">
   <properties>
    <property name="AI" value=""/>
@@ -37,29 +60,6 @@
   <object id="6" name="Ninja" type="unit" x="104" y="37" width="16" height="16">
    <properties>
     <property name="weapon" value="Knife"/>
-   </properties>
-  </object>
- </objectgroup>
- <objectgroup color="#0000ff" name="Squadra Blu">
-  <properties>
-   <property name="battle_music" value="The Last Encounter Short Loop.ogg"/>
-   <property name="boss" value="Boss"/>
-   <property name="map_music" value="Ireland's Coast - Video Game.ogg"/>
-   <property name="relation" value="20"/>
-  </properties>
-  <object id="4" name="Soldier" type="unit" x="70.5" y="103.5" width="16" height="16">
-   <properties>
-    <property name="weapon" value="Bronze Sword"/>
-   </properties>
-  </object>
-  <object id="3" name="Skeleton" type="unit" x="135.5" y="70.5" width="16" height="16">
-   <properties>
-    <property name="weapon" value="Nosferatu"/>
-   </properties>
-  </object>
-  <object id="5" name="Boss" type="unit" x="38.5" y="38.5" width="16" height="16">
-   <properties>
-    <property name="weapon" value="Long Bow"/>
    </properties>
   </object>
  </objectgroup>
