@@ -731,7 +731,7 @@ class Game(room.Room):
 		super().end()
 		pygame.time.set_timer(events.CLOCK, 0);
 
-import unit
+
 def play(map_file):
 	global loaded_map, units_manager, winner
 	while True:
