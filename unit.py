@@ -79,7 +79,7 @@ class Unit(object):
 			new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
 			self.image = pygame.transform.smoothscale(self.image, new_size)
 		except pygame.error as e:
-			logging.warning(_("Couldn't load %s! Loading default image") % resources.sprite_path(self.name))
+			logging.warning(_("Couldn't load %s! Loading default image"), resources.sprite_path(self.name))
 			self.image = resources.load_sprite('no_image.png').convert_alpha()
 
 	def __repr__(self):
@@ -321,7 +321,7 @@ class Flying(Unit):
 
 class Water(Unit):
 	def __init__(self, *args):
-		super().__init__(name, *args)
+		super().__init__(*args)
 
 
 class Team(object):
@@ -377,11 +377,9 @@ class Team(object):
 	def end_turn(self):
 		for unit in self.units:
 			unit.played = False
-		self.my_turn = False
 		print(_("Team %s ends its turn") % self.name)
 
 	def begin_turn(self):
-		self.my_turn = True
 		for unit in self.units:
 			unit.played = False
 		print(_("Team %s begins its turn") % self.name)

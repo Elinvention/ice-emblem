@@ -40,26 +40,26 @@ class AI(object):
 		self.refresh()
 		actions = []
 		for unit in self.own_units:
-			self.logger.info(" Thinking what to do with %s..." % unit.name)
+			self.logger.info("Thinking what to do with %s...", unit.name)
 			attackable_enemies = self.map.nearby_enemies(unit)
-			self.logger.info(" Nearby attackable enemies: %s" % attackable_enemies )
+			self.logger.info("Nearby attackable enemies: %s", attackable_enemies)
 			if len(attackable_enemies) > 0:
 				target = self.best_target(attackable_enemies)
-				self.logger.debug(" %s attack %s." % (unit.name, target.name))
+				self.logger.debug("%s attacks %s.", unit.name, target.name)
 				actions.append(action.Attack(unit, target))
 			else:
 				enemies = self.enemies_in_walkable_area(unit)
-				self.logger.debug("Units next to %s: %s" % (unit.name, enemies))
+				self.logger.debug("Units next to %s: %s", unit.name, enemies)
 				if len(enemies) > 0:
 					target = self.best_target(enemies)
 					path = self.path.shortest_path(unit.coord, target.coord, unit.movement)
 					if path:
 						dest = path[-1]
-						self.logger.debug("%s can reach %s from %s." % (unit.name, target.name, dest))
+						self.logger.debug("%s will reach %s from %s.", unit.name, target.name, dest)
 						actions.append(action.Move(unit, dest))
 						actions.append(action.Attack(unit, target))
 					else:
-						self.logger.debug("%s can't reach %s. Wait." % (unit.name, target.name))
+						self.logger.debug("%s can't reach %s. Wait.", unit.name, target.name)
 						unit.played = True
 				else:
 					target = self.nearest_enemy(unit)
@@ -69,6 +69,7 @@ class AI(object):
 						dest = path[-1]
 						actions.append(action.Move(unit, dest))
 					unit.played = True
+		self.logger.debug("Computed actions: %s", list(map(str, actions)))
 		return actions
 
 	def nearest_enemy(self, unit):
@@ -86,7 +87,7 @@ class AI(object):
 		"""
 		move_area = self.path.area(unit.coord, unit.movement, False)
 		min_range, max_range = unit.get_weapon_range()
-		enemies = []
+		enemies = set()
 		for (x, y) in move_area:
 			for i in range(x - max_range, x + max_range + 1):
 				for j in range(y - max_range, y + max_range + 1):
@@ -94,7 +95,7 @@ class AI(object):
 						try:
 							enemy = self.map.get_unit((i, j))
 							if enemy and self.units_manager.are_enemies(enemy, unit):
-								enemies.append(enemy)
+								enemies.add(enemy)
 						except KeyError:
 							pass
 		return enemies

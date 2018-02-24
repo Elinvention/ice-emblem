@@ -125,7 +125,7 @@ def attack(attacking, defending):
 	dist = utils.distance(attacking.coord, defending.coord)
 	at, dt = attacking.number_of_attacks(defending, dist)
 
-	print("\r\n" + "#" * 12 + " " + _("Fight!!!") + " " + "#" * 12)
+	print(f"\r\n{'#' * 12} {attacking.name} vs {defending.name} {'#' * 12}")
 	att_str = _("%s is going to attack %d %s")
 	print(att_str % (attacking.name, at, _("time") if at == 1 else _("times")))
 	print(att_str % (defending.name, dt, _("time") if dt == 1 else _("times")))

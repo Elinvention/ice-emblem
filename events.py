@@ -11,7 +11,7 @@ functions to one or more types of event.
 """
 
 
-__contexts = {
+_contexts = {
 	"default": {
 		QUIT: [utils.return_to_os],
 		VIDEORESIZE: [display.handle_videoresize],
@@ -200,7 +200,7 @@ def process_event(event, context="default"):
 	"""
 	Process a single event by calling the associated callback functions.
 	"""
-	callbacks = __contexts[context]
+	callbacks = _contexts[context]
 	if event.type in callbacks:
 		for callback in callbacks[event.type]:
 			callback(event)
@@ -209,7 +209,7 @@ def register(event_type, callback, context="default"):
 	"""
 	Bind a callback function to an event type.
 	"""
-	callbacks = __contexts[context]
+	callbacks = _contexts[context]
 	if event_type in callbacks:
 		if callback not in callbacks[event_type]:
 			callbacks[event_type].append(callback)
@@ -221,16 +221,13 @@ def unregister(event_type, callback=None, context="default"):
 	"""
 	Unregister the latest or the specified callback function from event_type.
 	"""
-	callbacks = __contexts[context]
-	for key in callbacks:
-		if key == event_type:
-			if callback:
-				if callback in callbacks[key]:
-					callbacks[key].remove(callback)
-			elif len(callbacks[key]) > 0:
-				callbacks[key].pop()
-			__logger.debug('%s: %s unregistered %s' % (context, pygame.event.event_name(event_type), callback))
-			break
+	callbacks = _contexts[context]
+	if callback:
+		if callback in callbacks[event_type]:
+			callbacks[event_type].remove(callback)
+	elif len(callbacks[key]) > 0:
+		callbacks[key].pop()
+	__logger.debug('%s: %s unregistered %s',  context, pygame.event.event_name(event_type), callback)
 
 def bind_keys(keys, callback, context="default"):
 	"""
@@ -268,7 +265,7 @@ def new_context(context="default"):
 	Adds a new default context.
 	"""
 	__logger.debug('%s reset' % context)
-	__contexts[context] = {
+	_contexts[context] = {
 		QUIT: [utils.return_to_os],
 		VIDEORESIZE: [display.handle_videoresize],
 	}
