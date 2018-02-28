@@ -28,9 +28,8 @@ import logging
 import os
 import sys
 import gettext
-import utils
-from colors import *
 
+import utils
 import resources
 
 

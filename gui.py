@@ -116,22 +116,14 @@ class Menu(GUI):
 
 	def __init__(self, menu_entries, font, **kwargs):
 		super().__init__(**kwargs)
-		self.menu_entries = menu_entries
-		self.n_entries = len(menu_entries)
-		self.rendered_entries = []
 		self.font = font
-
 		self.callback = kwargs.get('callback', None)
 		self.txt_color = kwargs.get('txt_color', ICE)
 		self.sel_color = kwargs.get('sel_color', MENU_SEL)
 		self.bg_color = kwargs.get('bg_color', MENU_BG)
 		self.leading = kwargs.get('leading', 10)
 
-		for entry in menu_entries:
-			render = font.render(entry[0], True, self.txt_color).convert_alpha()
-			self.rendered_entries.append(render)
-
-		self.compute_content_size()
+		self.menu_entries = menu_entries
 
 		self.prev_index = self.index = None
 		self.choice = None
@@ -144,9 +136,19 @@ class Menu(GUI):
 		w = 0
 		for entry in self.rendered_entries:
 			w = max(w, entry.get_width())
-		h = self.font.get_linesize() * self.n_entries + self.leading * (self.n_entries - 1)
-		print(w, h)
+		h = self.font.get_linesize() * len(self.menu_entries) + self.leading * (len(self.menu_entries) - 1)
 		self.content_size = w, h
+
+	@property
+	def menu_entries(self):
+		return self._menu_entries
+
+	@menu_entries.setter
+	def menu_entries(self, entries):
+		self._menu_entries = entries
+		self.rendered_entries = [self.font.render(entry[0], True, self.txt_color).convert_alpha() for entry in entries]
+		self.compute_content_size()
+		self.prev_index = self.index = None
 
 	def call_callback(self, i):
 		callback = self.menu_entries[i][1]
@@ -180,7 +182,7 @@ class Menu(GUI):
 			return
 
 		self.prev_index = self.index
-		self.index = index % self.n_entries
+		self.index = index % len(self.menu_entries)
 
 		if self.index != self.prev_index:
 			for i, entry in enumerate(self.menu_entries):
@@ -252,7 +254,7 @@ class HorizontalMenu(Menu):
 		w = 0
 		for entry in self.rendered_entries:
 			w += entry.get_width()
-		w += self.leading * (self.n_entries - 1)
+		w += self.leading * (len(self.menu_entries) - 1)
 		h = self.font.get_linesize()
 		self.content_size = w, h
 
@@ -491,7 +493,7 @@ if __name__ == '__main__':
 	c.rect.topleft = h.rect.bottomleft
 	s = Label("SELEZIONA DAL MENU", f)
 	sets = lambda _,choice: s.set_text(choice)
-	v = Menu([("A", sets), ("B", sets)] * 2, f, pos=(800, 500))
+	v = Menu([("A", sets), ("B", sets)] * 2, f, pos=(800, 500), padding=(20, 120))
 	s.rect.topleft = v.rect.bottomleft
 	cb = CheckBox("N", f, False, callback=lambda obj, chk: obj.set_text(str(chk)), pos=(800, 50))
 

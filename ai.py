@@ -36,9 +36,8 @@ class AI(object):
 		self.enemy_units = units_manager.get_enemies(team)
 		self.logger = logging.getLogger('AI')
 
-	def __call__(self):
+	def __iter__(self):
 		self.refresh()
-		actions = []
 		for unit in self.own_units:
 			self.logger.info("Thinking what to do with %s...", unit.name)
 			attackable_enemies = self.map.nearby_enemies(unit)
@@ -46,7 +45,7 @@ class AI(object):
 			if len(attackable_enemies) > 0:
 				target = self.best_target(attackable_enemies)
 				self.logger.debug("%s attacks %s.", unit.name, target.name)
-				actions.append(action.Attack(unit, target))
+				yield action.Attack(unit, target)
 			else:
 				enemies = self.enemies_in_walkable_area(unit)
 				self.logger.debug("Units next to %s: %s", unit.name, enemies)
@@ -56,8 +55,8 @@ class AI(object):
 					if path:
 						dest = path[-1]
 						self.logger.debug("%s will reach %s from %s.", unit.name, target.name, dest)
-						actions.append(action.Move(unit, dest))
-						actions.append(action.Attack(unit, target))
+						yield action.Move(unit, dest)
+						yield action.Attack(unit, target)
 					else:
 						self.logger.debug("%s can't reach %s. Wait.", unit.name, target.name)
 						unit.played = True
@@ -67,10 +66,8 @@ class AI(object):
 					self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target.name, path))
 					if path:
 						dest = path[-1]
-						actions.append(action.Move(unit, dest))
+						yield action.Move(unit, dest)
 					unit.played = True
-		self.logger.debug("Computed actions: %s", list(map(str, actions)))
-		return actions
 
 	def nearest_enemy(self, unit):
 		"""

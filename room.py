@@ -6,6 +6,7 @@ import logging
 
 class Room(object):
 	def __init__(self, **kwargs):
+		self.fps = kwargs.get('fps', display.fps)
 		self.wait = kwargs.get('wait', True)
 		self.context = kwargs.get('context', self.__class__.__name__)
 		self.logger = logging.getLogger(self.context)
@@ -95,7 +96,7 @@ def run_room(room):
 			room.draw()
 			display.draw_fps()
 			display.flip()
-			display.tick()
+			display.tick(room.fps)
 		return done
 	events.event_loop(loop, room.wait, room.context)
 	if not quit:

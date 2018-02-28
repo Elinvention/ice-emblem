@@ -139,21 +139,20 @@ class Cursor(pygame.sprite.Sprite):
 				cx, cy = ((cx - 1) % self.tilemap.width, cy)
 			elif event.key == pygame.K_RIGHT:
 				cx, cy = ((cx + 1) % self.tilemap.width, cy)
-
-			self.rect.x = cx * self.tilemap.tile_width
-			self.rect.y = cy * self.tilemap.tile_height
-			self.coord = cx, cy
-
-			sounds.play('cursor')
+			self.point((cx, cy))
 		elif event.type == pygame.MOUSEMOTION:
 			cx, cy = self.tilemap.index_at(*event.pos)
 			if 0 <= cx < self.tilemap.width and 0 <= cy < self.tilemap.height:
 				self.rect.x = cx * self.tilemap.tile_width
 				self.rect.y = cy * self.tilemap.tile_height
-				if (cx, cy) != self.coord:
-					sounds.play('cursor')
-					self.coord = cx, cy
+				self.point((cx, cy))
 
+	def point(self, coord):
+		if coord != self.coord:
+			sounds.play('cursor')
+			self.coord = coord
+			self.rect.x = coord[0] * self.tilemap.tile_width
+			self.rect.y = coord[1] * self.tilemap.tile_height
 
 class CellHighlight(pygame.sprite.Sprite):
 	def __init__(self, tilemap, *groups):
@@ -420,6 +419,18 @@ class Pathfinder(object):
 		return [(i, j) for j in h for i in w if self.dist[(i, j)] <= max_distance]
 
 
+def manhattan_path(source, target):
+	yield source
+	if source[0] < target[0]:
+		yield from manhattan_path((source[0] + 1, source[1]), target)
+	elif source[0] > target[0]:
+		yield from manhattan_path((source[0] - 1, source[1]), target)
+	elif source[1] < target[1]:
+		yield from manhattan_path((source[0], source[1] + 1), target)
+	elif source[1] > target[1]:
+		yield from manhattan_path((source[0], source[1] - 1), target)
+
+
 class Map(object):
 	"""
 	This class should handle every aspect related to the Map in Ice Emblem.
@@ -541,6 +552,12 @@ class Map(object):
 	def __getitem__(self, coord):
 		return self.terrains[coord]
 
+	def simulate_move(self, target):
+		path = manhattan_path(self.cursor.coord, target)
+		for next in path:
+			self.cursor.point(next)
+			yield 10
+
 	def is_obstacle(self, coord, unit=None):
 		terrain = self.terrains[coord]
 		try:
@@ -628,13 +645,12 @@ class Map(object):
 		sprite = self.find_sprite(**kwargs)
 		self.sprites.remove(sprite)
 
-	def update_move_area(self, coord):
+	def update_move_area(self):
 		"""
 		Updates the area which will be highlighted on the map to show
 		which nodes can be reached by the selected unit.
 		"""
-		unit = self.get_unit(coord)
-		self.move_area = self.path.area(coord, unit.movement)
+		self.move_area = self.path.area(self.curr_sel, self.curr_unit.movement)
 
 	def get_unit(self, coord):
 		return self.terrains[coord].unit
@@ -653,27 +669,25 @@ class Map(object):
 					if min_range <= utils.distance((x, y), (i, j)) <= max_range:
 						self.attack_area.append((i, j))
 
-	def move_attack_area(self, coord):
+	def move_attack_area(self):
 		"""
 		Updates the area which will be highlighted on the map to show
-		how far the selected unit can attack.
+		how far the selected unit can move and attack.
 		"""
-		min_range, max_range = self.get_unit(coord).get_weapon_range()
+		min_range, max_range = self.curr_unit.get_weapon_range()
 		self.attack_area = []
-
 		for (x, y) in self.move_area:
 			self.__set_attack_area((x, y), min_range, max_range)
 
-	def still_attack_area(self, coord):
+	def still_attack_area(self):
 		"""
 		Update the area which will be highlighted on the map to show
-		how far the unit attack with her weapon
+		how far the selected unit can attack with her weapon
 		"""
-		min_range, max_range = self.get_unit(coord).get_weapon_range()
+		min_range, max_range = self.curr_unit.get_weapon_range()
 		self.attack_area = []
 		self.move_area = []
-
-		self.__set_attack_area(coord, min_range, max_range)
+		self.__set_attack_area(self.curr_sel, min_range, max_range)
 
 	def update_arrow(self, target):
 		if self.curr_sel and target:
@@ -823,8 +837,8 @@ class Map(object):
 				self.attack_area = []
 			else:
 				# Show the currently selected unit's move and attack area
-				self.update_move_area(coord)
-				self.move_attack_area(coord)
+				self.update_move_area()
+				self.move_attack_area()
 			self.prev_sel = self.curr_sel
 		else:
 			# Something has been previously selected
@@ -837,8 +851,8 @@ class Map(object):
 					# Two different units
 					# show the current unit's move and attack area
 					self.prev_sel = self.curr_sel
-					self.update_move_area(self.curr_sel)
-					self.move_attack_area(self.curr_sel)
+					self.update_move_area()
+					self.move_attack_area()
 			elif self.can_selection_move():
 				# Move the previously selected unit to the currently selected coordinate.
 				self.move(self.prev_unit, self.curr_sel)
@@ -850,17 +864,19 @@ class Map(object):
 
 				if self.curr_unit is not None and not self.curr_unit.played:
 					# Selected a unit: show its move and attack area
-					self.update_move_area(coord)
-					self.move_attack_area(coord)
+					self.update_move_area()
+					self.move_attack_area()
 		return False
 
 	def wait(self):
 		self.curr_unit.played = True
 		self.reset_selection()
 
-	def attack(self):
+	def prepare_attack(self, unit=None):
+		if unit:
+			self.curr_unit = unit
 		self.move_area = []
-		self.attack_area = [u.coord for u in self.nearby_enemies()]
+		self.attack_area = [u.coord for u in self.nearby_enemies(unit)]
 		self.update_highlight()
 
 	def move_undo(self):
