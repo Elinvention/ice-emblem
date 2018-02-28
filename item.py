@@ -22,84 +22,84 @@
 
 
 class Item(object):
-	"""Generic item class"""
-	def __init__(self, name, worth, uses, description=""):
-		self.name 	=	name
-		self.descr	=	description
-		self.worth	=	int(worth)  # Price
-		self.muses	=	int(uses)   # max number of uses
-		self.uses 	=	int(uses)   # number of remaining uses
+    """Generic item class"""
+    def __init__(self, name, worth, uses, description=""):
+        self.name     =    name
+        self.descr    =    description
+        self.worth    =    int(worth)  # Price
+        self.muses    =    int(uses)   # max number of uses
+        self.uses     =    int(uses)   # number of remaining uses
 
-	def use(self):
-		self.uses -= 1
-		if self.uses <= 0:
-			self.uses = 0
-			print("%s is broken" % self.name)
-		return self.uses
+    def use(self):
+        self.uses -= 1
+        if self.uses <= 0:
+            self.uses = 0
+            print("%s is broken" % self.name)
+        return self.uses
 
-	def __str__(self):
-		return "Item:\r\n\tName: \"%s\"\r\n\tDescription: \"%s\"" % \
-			(self.name, self.descr)
+    def __str__(self):
+        return "Item:\r\n\tName: \"%s\"\r\n\tDescription: \"%s\"" % \
+            (self.name, self.descr)
 
 
 class Weapon(Item):
-	bonus_weapons = []
-	bonus_units = []
-	"""Swords, Lances, Axes, Bows, Tomes, Staffs"""
-	def __init__(self, name, rank, might, weight, hit, critical, range,
-				uses, worth, experience, effective, description=""):
-		super().__init__(name, worth, uses, description)
-		self.rank      = rank               # rank necessary to use it
-		self.might     = int(might)         # damage
-		self.weight    = int(weight)        # weight affects on speed
-		self.hit       = int(hit)           # probability to hit the enemy
-		self.crit      = int(critical)          # probability of triple damage
-		self.min_range = int(range['min'])  # min attack distance
-		self.max_range = int(range['max'])  # max attack distancez
-		self.exp       = int(experience)    # exp increases unit's weapon rank
-		self.effective = effective
+    bonus_weapons = []
+    bonus_units = []
+    """Swords, Lances, Axes, Bows, Tomes, Staffs"""
+    def __init__(self, name, rank, might, weight, hit, critical, range,
+                uses, worth, experience, effective, description=""):
+        super().__init__(name, worth, uses, description)
+        self.rank      = rank               # rank necessary to use it
+        self.might     = int(might)         # damage
+        self.weight    = int(weight)        # weight affects on speed
+        self.hit       = int(hit)           # probability to hit the enemy
+        self.crit      = int(critical)          # probability of triple damage
+        self.min_range = int(range['min'])  # min attack distance
+        self.max_range = int(range['max'])  # max attack distancez
+        self.exp       = int(experience)    # exp increases unit's weapon rank
+        self.effective = effective
 
-	def __str__(self):
-		return """
+    def __str__(self):
+        return """
 Weapon "%s":
-	Description: "%s"
-	Rank: %c
-	Might: %d
-	Weight: %d
-	Hit: %d
-	Crit: %d
-	Range: %d-%d
-	Uses: %d/%d
-	Worth: %d
-	Exp: %d
+    Description: "%s"
+    Rank: %c
+    Might: %d
+    Weight: %d
+    Hit: %d
+    Crit: %d
+    Range: %d-%d
+    Uses: %d/%d
+    Worth: %d
+    Exp: %d
 """ % (self.name, self.descr, self.rank, self.might, self.weight,
-		self.hit, self.crit, self.min_range, self.max_range, self.uses, self.muses,
-		self.worth, self.exp)
+        self.hit, self.crit, self.min_range, self.max_range, self.uses, self.muses,
+        self.worth, self.exp)
 
-	def get_might(self, enemy):
-		if isinstance(enemy, self.bonus_class):
-			might = self.might + (self.might / 10)
-			print("%s is advantaged over %s" % (self.bonus_class.__name__, enemy.__class__.__name__))
-		else:
-			might = self.might
+    def get_might(self, enemy):
+        if isinstance(enemy, self.bonus_class):
+            might = self.might + (self.might / 10)
+            print("%s is advantaged over %s" % (self.bonus_class.__name__, enemy.__class__.__name__))
+        else:
+            might = self.might
 
-		for effect in self.effective:
-			if isinstance(effect, enemy):
-				might += might / 10
+        for effect in self.effective:
+            if isinstance(effect, enemy):
+                might += might / 10
 
-		return might
+        return might
 
 
 class Sword(Weapon):
-	pass
+    pass
 
 
 class Lance(Weapon):
-	pass
+    pass
 
 
 class Axe(Weapon):
-	pass
+    pass
 
 
 Sword.bonus_weapons.append(Axe)
@@ -108,47 +108,47 @@ Axe.bonus_weapons.append(Lance)
 
 
 class Bow(Weapon):
-	pass
+    pass
 
 
 class LightTome(Weapon):
-	pass
+    pass
 
 
 class DarkTome(Weapon):
-	pass
+    pass
 
 
 class AnimaTome(Weapon):
-	pass
+    pass
 
 
 class Staff(Weapon):
-	pass
+    pass
 
 
 class Armour(Item):
-	"""
-	Not used yet.
-	"""
-	def __init__(self, name, rank, defence, weight, uses, worth, exp, effective, descr=""):
-		super().__init__(name, worth, descr)
-		self.rank   	=	rank    	# rank necessary to use it
-		self.defence	=	int(defence)# damage
-		self.weight 	=	int(weight)	# weight affects on speed
-		self.exp    	=	int(exp)	# exp increases unit's weapon rank
-		self.effective	=	effective
+    """
+    Not used yet.
+    """
+    def __init__(self, name, rank, defence, weight, uses, worth, exp, effective, descr=""):
+        super().__init__(name, worth, descr)
+        self.rank       =    rank        # rank necessary to use it
+        self.defence    =    int(defence)# damage
+        self.weight     =    int(weight)    # weight affects on speed
+        self.exp        =    int(exp)    # exp increases unit's weapon rank
+        self.effective    =    effective
 
-	def __str__(self):
-		return """
+    def __str__(self):
+        return """
 Armour "%s":
-	Description: "%s"
-	Rank: %c
-	Defence: %d
-	Weight: %d
-	Uses: %d/%d
-	Worth: %d
-	Exp: %d
+    Description: "%s"
+    Rank: %c
+    Defence: %d
+    Weight: %d
+    Uses: %d/%d
+    Worth: %d
+    Exp: %d
 """ % (self.name, self.descr, self.rank, self.defence, self.weight,
-		self.uses, self.muses, self.worth, self.exp)
+        self.uses, self.muses, self.worth, self.exp)
 
