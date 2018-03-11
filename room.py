@@ -11,20 +11,27 @@ class Room(object):
         self.context = kwargs.get('context', self.__class__.__name__)
         self.logger = logging.getLogger(self.context)
         self.allowed_events = kwargs.get('allowed_events', [])
-        self.children = []
+        self.children = kwargs.get('children', [])
+        self.parent = None
+
+    def prepare_child(self, child):
+        child.context = self.context
+        child.parent = self
+        for grandchild in child.children:
+            child.prepare_child(grandchild)
 
     def add_child(self, child):
-        child.context = self.context
-        for ch in child.children:
-            ch.context = self.context
+        self.prepare_child(child)
         self.children.append(child)
 
     def remove_child(self, child):
         self.children.remove(child)
+        child.parent = None
 
     def add_children(self, children):
         for child in children:
-            self.add_child(child)
+            self.prepare_child(child)
+        self.children.extend(children)
 
     def begin_children(self):
         for child in self.children:
@@ -39,12 +46,12 @@ class Room(object):
             child.loop(_events)
         return False
 
-    def draw_children(self):
+    def draw_children(self, surface=display.window):
         for child in self.children:
-            child.draw()
+            child.draw(surface)
 
-    def draw(self):
-        self.draw_children()
+    def draw(self, surface=display.window):
+        self.draw_children(surface)
 
     def end_children(self):
         for child in self.children:
@@ -65,6 +72,9 @@ class Room(object):
 
     def bind_click(self, mouse_buttons, callback, area=None, inside=True):
         events.bind_click(mouse_buttons,  callback, area, inside, self.context)
+
+    def wait(self, timeout=-1):
+        events.wait(timeout, self.context)
 
 
 rooms = collections.deque()
