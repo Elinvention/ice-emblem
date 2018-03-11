@@ -71,7 +71,7 @@ class Unit(object):
         self.wrank        = wrank              # weapons' levels.
         self.items        = Items()            # list of items
         self.played       = False              # wether unit was used or not in a turn
-        self.color        = None               # team color
+        self.team         = None               # team
         self.coord        = None
         self.modified     = True
         try:
@@ -146,6 +146,10 @@ Unit: "%s"
 
         return surface
 
+    @property
+    def weapon(self):
+        return self.items.active
+
     def give_weapon(self, weapon, activate=True):
         """
         Gives a weapon to the unit. The weapon becomes active by default if
@@ -177,11 +181,12 @@ Unit: "%s"
     def get_attack_distance(self):
         return self.get_weapon_range() + self.movement
 
-    def number_of_attacks(self, enemy, distance):
+    def number_of_attacks(self, enemy):
         """
         Returns a tuple: how many times this unit can attack the enemy
         and how many times the enemy can attack this unit in a single battle
         """
+        distance = utils.distance(self.coord, enemy.coord)
         self_attacks = enemy_attacks = 1
 
         if self.speed > enemy.speed:
@@ -349,7 +354,7 @@ class Team(object):
         self.relation = relation
         self.ai = ai
         for unit in units:
-            unit.color = color
+            unit.team = self
         self.units = units
         self.boss = boss
         self.music = music
@@ -388,7 +393,7 @@ class Team(object):
         return len(self.units) == 0
 
     def remove_unit(self, unit):
-        unit.color = None
+        unit.team = None
         self.units.remove(unit)
 
     def is_enemy(self, team):
@@ -452,28 +457,20 @@ class UnitsManager(object):
         enemies = []
         for enemy in self.units:
             if enemy not in enemies:
-                enemy_team = self.get_team(enemy.color)
-                if enemy_team.is_enemy(team):
-                    enemies += enemy_team.units
+                if enemy.team.is_enemy(team):
+                    enemies += enemy.team.units
         return enemies
 
-
     def are_enemies(self, unit1, unit2):
-        team1 = self.get_team(unit1.color)
-        team2 = self.get_team(unit2.color)
-        return team1.is_enemy(team2)
+        return unit1.team.is_enemy(unit2.team)
 
     def are_neutrals(self, unit1, unit2):
-        team1 = self.get_team(unit1.color)
-        team2 = self.get_team(unit2.color)
-        return team1.is_neutral(team2)
+        return unit1.team.is_neutral(unit2.team)
 
     def are_allied(self, unit1, unit2):
-        team1 = self.get_team(unit1.color)
-        team2 = self.get_team(unit2.color)
-        return team1.is_allied(team2)
+        return unit1.team.is_allied(unit2.team)
 
     def kill_unit(self, unit):
         self.units.remove(unit)
-        self.get_team(unit.color).units.remove(unit)
+        unit.team = None
 

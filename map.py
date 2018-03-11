@@ -89,7 +89,7 @@ class UnitSprite(pygame.sprite.Sprite):
         mw2, mh2 = mw // 2, mh // 2
 
         self.image.fill((0, 0, 0, 0))
-        pygame.draw.circle(self.image, self.unit.color, (mw2, mh2), mh2, 3)
+        pygame.draw.circle(self.image, self.unit.team.color, (mw2, mh2), mh2, 3)
 
         src_img = self.unit.image
         if src_img is None:
@@ -487,7 +487,7 @@ class Map(object):
             try:
                 for obj in layer.objects:
                     u = yaml_units[obj.name]
-                    team = teams[u.color]
+                    team = teams[u.team.color]
                     UnitSprite(self.tile_size, obj, u, team, self.sprites)
             except (AttributeError):
                 pass

@@ -317,7 +317,7 @@ class Sidebar(object):
         weapon = unit.items.active if unit else None
         weapon_name = weapon.name if weapon else _("No Weapon")
         u_info = [
-            render(unit.name, unit.color),
+            render(unit.name, unit.team.color),
             render(weapon_name, c.WHITE),
         ] if unit else [render(_("No unit"), c.WHITE)]
 
