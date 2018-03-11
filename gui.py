@@ -28,13 +28,32 @@ import display
 import utils
 
 
+class Rect(pygame.Rect):
+    def __init__(self, **kwargs):
+        if 'rect' in kwargs:
+            super().__init__(kwargs['rect'])
+        else:
+            super().__init__(0, 0, 0, 0)
+        for attr in kwargs.keys():
+            if not attr.startswith('_') and attr in dir(self):
+                setattr(self, attr, kwargs[attr])
+
+
+class TupleSum(tuple):
+    def __new__(cls, *args):
+        return tuple.__new__(cls, args)
+    def __add__(self, other):
+        return TupleSum(*([sum(x) for x in zip(self, other)]))
+    def __sub__(self, other):
+        return self.__add__(-i for i in other)
+
+
 class GUI(room.Room):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.user_interacted = False
-        self._padding = (0, 0, 0, 0)
-        self._content_size = (0, 0)
-        self.rect = pygame.Rect(kwargs.get('pos',  (0, 0)), (0, 0))
+        self.rect = Rect(**kwargs)
+        self._content_size = self.rect.size
         self.padding = kwargs.get('padding', (0, 0, 0, 0))
 
     @property
@@ -45,6 +64,11 @@ class GUI(room.Room):
     def content_size(self, size):
         self._content_size = size
         self.update_size()
+
+    def compute_content_size(self):
+        comp = getattr(self.parent, 'compute_content_size', None)
+        if callable(comp):
+            comp()
 
     @property
     def padding(self):
@@ -67,35 +91,40 @@ class GUI(room.Room):
         self.rect.size = (self.padding[1] + self.padding[3] + self.content_size[0],
                         self.padding[0] + self.padding[2] + self.content_size[1])
 
-    def handle_keydown(self, event):
-        if event.type != KEYDOWN:
-            raise ValueError("Event type must be KEYDOWN")
-
-    def handle_click(self, event):
-        if event.type != MOUSEBUTTONDOWN:
-            raise ValueError("Event type must be MOUSEBUTTONDOWN")
-
-    def handle_mouse_motion(self, event):
-        if event.type != MOUSEMOTION:
-            raise ValueError("Event type must be MOUSEMOTION")
-
     def begin(self):
-        self.register(MOUSEMOTION, self.handle_mouse_motion)
-        self.register(MOUSEBUTTONDOWN, self.handle_click)
-        self.register(KEYDOWN, self.handle_keydown)
+        self.bindings = [(evt, getattr(self, method, None)) for evt, method in [
+            (p.MOUSEMOTION, 'handle_mouse_motion'),
+            (p.MOUSEBUTTONDOWN, 'handle_click'),
+            (p.KEYDOWN, 'handle_keydown')
+        ]]
+        for binding in self.bindings:
+            if callable(binding[1]):
+                self.register(*binding)
         super().begin()
 
     def end(self):
-        self.unregister(MOUSEMOTION, self.handle_mouse_motion)
-        self.unregister(MOUSEBUTTONDOWN, self.handle_click)
-        self.unregister(KEYDOWN, self.handle_keydown)
+        for binding in self.bindings:
+            if callable(binding[1]):
+                self.unregister(*binding)
         super().end()
-
-    def draw(self):
-        raise NotImplementedError("GUI.draw is not implemented")
 
     def loop(self, _events):
         return self.user_interacted
+
+    def global_coord(self, coord):
+        coord = TupleSum(*coord)
+        node = self.parent
+        while node is not None:
+            if isinstance(node, GUI):
+                coord += TupleSum(*node.rect.topleft)
+            node = node.parent
+        return coord
+
+    def global_pos(self):
+        return self.global_coord(self.rect.topleft)
+
+    def global_rect(self):
+        return pygame.Rect(self.global_pos(), self.rect.size)
 
     def get_pos(self):
         return self.rect.topleft
@@ -108,6 +137,38 @@ class GUI(room.Room):
 
     def get_height(self):
         return self.rect.h
+
+
+class Container(GUI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
+        self.compute_content_size()
+
+    def compute_content_size(self):
+        size = (0, 0)
+        for child in self.children:
+            size = (max(size[0], child.get_width()), size[1] + child.get_height())
+        self.content_size = size
+        top = self.padding[1]
+        for child in self.children:
+            child.rect.centerx = self.padding[3] + size[0] // 2
+            child.rect.top = top
+            top += child.get_height()
+
+    def add_child(self, child):
+        super().add_child(child)
+        self.compute_content_size()
+
+    def add_children(self, children):
+        super().add_children(children)
+        self.compute_content_size()
+
+    def draw(self, surface=display.window):
+        container = pygame.Surface(self.rect.size)
+        container.fill(self.bg_color)
+        super().draw(container)
+        surface.blit(container, self.rect.topleft)
 
 
 class Menu(GUI):
@@ -200,8 +261,8 @@ class Menu(GUI):
             self.set_index(self.index + amount)
 
     def get_entry_pos(self, i):
-        return (self.padding[3] + self.rect.x,
-                self.padding[0] + self.rect.y + i * (self.font.get_linesize() + self.leading))
+        return self.global_coord((self.padding[3] + self.rect.x,
+                self.padding[0] + self.rect.y + i * (self.font.get_linesize() + self.leading)))
 
     def handle_click(self, event):
         if event.button == 1:
@@ -260,7 +321,7 @@ class HorizontalMenu(Menu):
         while i < index:
             x += self.rendered_entries[i].get_width() + self.leading
             i += 1
-        return x, self.padding[0] + self.rect.y
+        return self.global_coord((x, self.padding[0] + self.rect.y))
 
     def draw(self, surface=display.window):
         tmp = pygame.Surface(self.rect.size)
@@ -298,8 +359,7 @@ class Button(GUI):
         return self.clicked
 
     def handle_mouse_motion(self, event):
-        super().handle_mouse_motion(event)
-        if self.rect.collidepoint(event.pos):
+        if self.global_rect().collidepoint(event.pos):
             self.focus()
         else:
             self.unfocus()
@@ -319,7 +379,7 @@ class Button(GUI):
 
     def handle_click(self, event):
         if event.button == 1:
-            if self.rect.collidepoint(event.pos):
+            if self.global_rect().collidepoint(event.pos):
                 if self.callback is not None:
                     self.callback(self)
                 self.clicked = True
@@ -343,7 +403,7 @@ class CheckBox(Button):
 
     def handle_click(self, event):
         if event.button == 1:
-            if self.rect.collidepoint(event.pos):
+            if self.global_rect().collidepoint(event.pos):
                 self.checked = not self.checked
                 if self.callback is not None:
                     self.callback(self, self.checked)
@@ -361,6 +421,30 @@ class CheckBox(Button):
             checkbox.fill(c.RED)
         btn.blit(checkbox, (self.padding[3], self.padding[0]))
         surface.blit(btn, self.rect.topleft)
+
+
+class LifeBar(GUI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.damage_color = kwargs.get('damage_color', c.RED)
+        self.life_color = kwargs.get('life_color', c.GREEN)
+        self.max = kwargs.get('max', 100)
+        self.value = kwargs.get('value', self.max)
+        print(self.rect)
+
+    def draw(self, surface=display.window):
+        block_size = (self.rect.w // self.max - 1, self.rect.h)
+        life = pygame.Surface(block_size)
+        damage = life.copy()
+        life.fill(self.life_color)
+        damage.fill(self.damage_color)
+        for i in range(self.max):
+            pos = (self.rect.x + i % 30 * (block_size[0] + 1), self.rect.y + i // 30 * (block_size[1] + 1))
+            if i < self.value:
+                surface.blit(life, pos)
+            else:
+                surface.blit(damage, pos)
+        super().draw(surface)
 
 
 class Label(GUI):
@@ -390,77 +474,54 @@ class Label(GUI):
         w = max(l.get_width() for l in self.text)
         h = self.font.get_linesize() * len(self.text) + self.leading * (len(self.text) - 1)
         self.content_size = w, h
+        super().compute_content_size()
 
 
-class Dialog(Label):
+class Dialog(Container):
     def __init__(self, text, font, **kwargs):
+        super().__init__(**kwargs)
         self.ok = False
-        self.ok_btn = Button("OK", font, callback=lambda _:self.dismiss())
+        self.label = Label(text, font)
+        self.ok_btn = Button("OK", font, callback=self.dismiss)
         self.callback = kwargs.get('callback', None)
-        super().__init__(text, font, **kwargs)
-        self.ok_btn.rect.midbottom = self.rect.midbottom
-        self.add_child(self.ok_btn)
+        self.add_children((self.label, self.ok_btn))
 
-    def dismiss(self):
+    def dismiss(self, *_):
         self.ok = True
         if callable(self.callback):
             self.callback(self)
-
-    def draw(self):
-        super().draw()
-        self.draw_children()
 
     def loop(self, _events):
         return self.ok
 
     def set_text(self, text):
-        super().set_text(text)
+        self.label.set_text(text)
         self.ok_btn.rect.midbottom = self.rect.midbottom
+        self.compute_content_size()
 
-    def compute_content_size(self):
-        super().compute_content_size()
-        self.content_size = self.content_size[0], self.content_size[1] + self.ok_btn.rect.h
 
-class Modal(Label):
+class Modal(Container):
     def __init__(self, text, font, **kwargs):
-        super().__init__(text, font, **kwargs)
+        super().__init__(**kwargs)
         self.callback = kwargs.get('callback', None)
         self.answer = None
-        self.yes_btn = Button("Yes", font, callback=lambda _: self.yes(), pos=self.rect.midbottom)
-        self.yes_btn.rect.move_ip(-self.yes_btn.rect.w - 20, -self.padding[3])
-        self.no_btn = Button("No", font, callback=lambda _: self.no(), pos=self.rect.midbottom)
-        self.no_btn.rect.move_ip(20, -self.padding[3])
-        w = max(self.content_size[0], self.no_btn.get_width() + self.yes_btn.get_width())
-        h = self.content_size[1] + max(self.yes_btn.get_height(), self.no_btn.get_height())
-        self.content_size = (w, h)
-        self.add_child(self.yes_btn)
-        self.add_child(self.no_btn)
+        self.label = Label(text, font)
+        self.yesno = HorizontalMenu([("Yes", self.yes), ("No", self.no)], font)
+        self.add_children((self.label, self.yesno))
 
-    def yes(self):
+    def yes(self, *_):
         self.answer = True
         if callable(self.callback):
             self.callback(self, self.answer)
 
-    def no(self):
+    def no(self, *_):
         self.answer = False
         if callable(self.callback):
             self.callback(self, self.answer)
 
     def handle_keydown(self, event):
-        super().handle_keydown(event)
-        if event.key in [K_LEFT, K_RIGHT]:
-            if self.yes_btn.is_focused():
-                self.yes_btn.unfocus()
-                self.no_btn.focus()
-            else:
-                self.yes_btn.focus()
-                self.no_btn.unfocus()
-        elif event.key == K_SPACE:
-            self.answer = self.yes_btn.is_focused()
-
-    def draw(self):
-        super().draw()
-        self.draw_children()
+        if event.key == p.K_SPACE:
+            self.answer = self.yesno.choice == 0
 
     def loop(self, _events):
         return self.answer is not None
@@ -474,28 +535,28 @@ if __name__ == '__main__':
     pygame.display.set_caption("Ice Emblem GUI Test")
 
     f = pygame.font.SysFont("Liberation Sans", 24)
-    d = Dialog("Lorem ipsum dolor sit amet. ASD. LOL.\n\nTROLOL", f, callback=lambda self: self.set_text("Hai premuto OK"), pos=(50, 100))
-    l = Label("TEST LABEL\nASDASDASD\nLOL\n\n\nTROLOL", f, pos=(50, 400))
+    d = Dialog("Dialog\nLorem ipsum dolor sit amet.\n\nTROLOL", f, callback=lambda self: self.set_text("Hai premuto OK"), x=50, y=100)
+    l = Label("TEST LABEL\nASDASDASD\nLOL\n\n\nTROLOL", f, x=50, y=400)
     a = Label("NO ANSWER", f)
-    m = Modal("Rispondi SI o NO?\n\nFORSE?", f, callback=lambda _,ans: a.set_text("SI" if ans else "NO"), pos=(800, 100))
+    m = Modal("Modal\nRispondi SI o NO?\n\nFORSE?", f, callback=lambda _,ans: a.set_text("SI" if ans else "NO"), x=800, y=100)
     a.rect.topleft = m.rect.bottomleft
+    a.rect.top += 10
     q = Button("Quit", f, callback=utils.return_to_os)
-    c = Label("SELEZIONA DAL MENU", f)
-    setc = lambda _,choice: c.set_text(choice)
-    h = HorizontalMenu([("A", setc), ("B", setc)], f, pos=(800, 300))
-    c.rect.topleft = h.rect.bottomleft
-    s = Label("SELEZIONA DAL MENU", f)
-    sets = lambda _,choice: s.set_text(choice)
-    v = Menu([("A", sets), ("B", sets)] * 2, f, pos=(800, 500), padding=(20, 120))
-    s.rect.topleft = v.rect.bottomleft
-    cb = CheckBox("N", f, False, callback=lambda obj, chk: obj.set_text(str(chk)), pos=(800, 50))
+    cb = CheckBox("N", f, False, callback=lambda obj, chk: obj.set_text(str(chk)), x=800, y=50)
+
+    lh = Label("SELEZIONA DAL MENU", f)
+    h = HorizontalMenu([(c, lambda _,choice: lh.set_text(choice)) for c in "Horizontal"], f)
+    lv = Label("SELEZIONA DAL MENU", f, bg_color=c.RED)
+    v = Menu([(c, lambda _,choice: lv.set_text(choice)) for c in "VERTICAL"], f, padding=(10, 60), leading=0, bg_color=c.BLUE)
+
+    container = Container(children=(h, lh, v, lv), x=400, y=300)
 
     class GUITest(room.Room):
         def begin(self):
-            self.add_children([d, l, m, a, q, c, h, s, v, cb])
+            self.add_children([d, l, m, a, q, cb, container])
             super().begin()
         def draw(self):
-            screen.fill(BLACK)
+            screen.fill(c.BLACK)
             super().draw()
 
     room.run_room(GUITest())
