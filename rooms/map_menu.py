@@ -14,8 +14,7 @@ class MapMenu(room.Room):
         self.rect = self.image.get_rect()
         self.files = [(f, None) for f in resources.list_maps()]
         self.choose_label = f.MAIN_FONT.render(_("Choose a map!"), True, c.ICE, c.MENU_BG)
-        self.menu = gui.Menu(self.files, f.MAIN_FONT, padding=(25, 25))
-        self.menu.rect.center = display.window.get_rect().center
+        self.menu = gui.Menu(self.files, f.MAIN_FONT, padding=(25, 25), center=display.window.get_rect().center)
         self.add_child(self.menu)
 
     def draw(self):

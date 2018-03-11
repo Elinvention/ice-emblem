@@ -21,8 +21,8 @@
 
 
 import pygame
-from pygame.locals import *
-from colors import *
+import pygame.locals as p
+import colors as c
 import room
 import display
 import utils
@@ -111,16 +111,16 @@ class GUI(room.Room):
 
 
 class Menu(GUI):
-    K_INDEX_INCREASE = K_DOWN
-    K_INDEX_DECREASE = K_UP
+    K_INDEX_INCREASE = p.K_DOWN
+    K_INDEX_DECREASE = p.K_UP
 
     def __init__(self, menu_entries, font, **kwargs):
         super().__init__(**kwargs)
         self.font = font
         self.callback = kwargs.get('callback', None)
-        self.txt_color = kwargs.get('txt_color', ICE)
-        self.sel_color = kwargs.get('sel_color', MENU_SEL)
-        self.bg_color = kwargs.get('bg_color', MENU_BG)
+        self.txt_color = kwargs.get('txt_color', c.ICE)
+        self.sel_color = kwargs.get('sel_color', c.MENU_SEL)
+        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.leading = kwargs.get('leading', 10)
 
         self.menu_entries = menu_entries
@@ -156,17 +156,16 @@ class Menu(GUI):
             callback(self, self.menu_entries[i][0])
 
     def handle_keydown(self, event):
-        super().handle_keydown(event)
         if event.key == self.K_INDEX_DECREASE:
             self.move_index(-1)
         elif event.key == self.K_INDEX_INCREASE:
             self.move_index(1)
-        elif event.key == K_ESCAPE:
+        elif event.key == p.K_ESCAPE:
             if self.callback is not None:
                 self.choice = -1
                 self.user_interacted = True
                 self.callback(self)
-        elif (event.key == K_RETURN or event.key == K_SPACE) and self.index is not None:
+        elif (event.key == p.K_RETURN or event.key == p.K_SPACE) and self.index is not None:
             self.choice = self.index
             self.user_interacted = True
             self.call_callback(self.index)
@@ -205,7 +204,6 @@ class Menu(GUI):
                 self.padding[0] + self.rect.y + i * (self.font.get_linesize() + self.leading))
 
     def handle_click(self, event):
-        super().handle_click(event)
         if event.button == 1:
             self.clicked = False
             for i, entry in enumerate(self.rendered_entries):
@@ -222,31 +220,29 @@ class Menu(GUI):
                 self.user_interacted = True
 
     def handle_mouse_motion(self, event):
-        super().handle_mouse_motion(event)
         hover = False
         for i, entry in enumerate(self.rendered_entries):
             rect = pygame.Rect(self.get_entry_pos(i), entry.get_size())
-
             if rect.collidepoint(event.pos):
                 self.set_index(i)
                 hover = True
         if not hover:
             self.set_index(None)
 
-    def draw(self):
+    def draw(self, surface=display.window):
         tmp = pygame.Surface(self.rect.size).convert_alpha()
         tmp.fill(self.bg_color)
         linesize = self.font.get_linesize()
 
         for i, entry in enumerate(self.rendered_entries):
             tmp.blit(entry, (self.padding[3], i * (linesize + self.leading) + self.padding[0]))
-
-        display.window.blit(tmp, self.rect)
+        super().draw(tmp)
+        surface.blit(tmp, self.rect)
 
 
 class HorizontalMenu(Menu):
-    K_INDEX_INCREASE = K_LEFT
-    K_INDEX_DECREASE = K_RIGHT
+    K_INDEX_INCREASE = p.K_LEFT
+    K_INDEX_DECREASE = p.K_RIGHT
     def __init__(self, menu_entries, font, **kwargs):
         super().__init__(menu_entries, font, **kwargs)
 
@@ -266,7 +262,7 @@ class HorizontalMenu(Menu):
             i += 1
         return x, self.padding[0] + self.rect.y
 
-    def draw(self):
+    def draw(self, surface=display.window):
         tmp = pygame.Surface(self.rect.size)
         tmp.fill(self.bg_color)
 
@@ -275,7 +271,7 @@ class HorizontalMenu(Menu):
             tmp.blit(entry, (x, self.padding[0]))
             x += entry.get_width() + 10
 
-        display.window.blit(tmp, self.rect)
+        surface.blit(tmp, self.rect)
 
 
 class Button(GUI):
@@ -285,9 +281,9 @@ class Button(GUI):
         self.clicked = False
         self._focus = False
         self.callback = kwargs.get('callback', None)
-        self.txt_color = kwargs.get('txt_color', ICE)
-        self.sel_color = kwargs.get('sel_color', MENU_SEL)
-        self.bg_color = kwargs.get('bg_color', MENU_BG)
+        self.txt_color = kwargs.get('txt_color', c.ICE)
+        self.sel_color = kwargs.get('sel_color', c.MENU_SEL)
+        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.set_text(text)
 
     def set_text(self, text):
@@ -322,21 +318,17 @@ class Button(GUI):
         return self._focus
 
     def handle_click(self, event):
-        super().handle_click(event)
         if event.button == 1:
             if self.rect.collidepoint(event.pos):
                 if self.callback is not None:
                     self.callback(self)
                 self.clicked = True
 
-    def handle_keydown(self, event):
-        super().handle_keydown(event)
-
-    def draw(self):
+    def draw(self, surface=display.window):
         btn = pygame.Surface(self.rect.size)
         btn.fill(self.bg_color)
         btn.blit(self.rendered_text, (self.padding[3], self.padding[0]))
-        display.window.blit(btn, self.rect.topleft)
+        surface.blit(btn, self.rect.topleft)
 
 
 class CheckBox(Button):
@@ -357,18 +349,18 @@ class CheckBox(Button):
                     self.callback(self, self.checked)
                 self.clicked = True
 
-    def draw(self):
+    def draw(self, surface=display.window):
         btn = pygame.Surface(self.rect.size)
         btn.fill(self.bg_color)
         btn_pos = (self.padding[3] + self.content_size[1], self.padding[0])
         btn.blit(self.rendered_text, btn_pos)
         checkbox = pygame.Surface((self.content_size[1],) * 2)
         if self.checked:
-            checkbox.fill(GREEN)
+            checkbox.fill(c.GREEN)
         else:
-            checkbox.fill(RED)
+            checkbox.fill(c.RED)
         btn.blit(checkbox, (self.padding[3], self.padding[0]))
-        display.window.blit(btn, self.rect.topleft)
+        surface.blit(btn, self.rect.topleft)
 
 
 class Label(GUI):
@@ -376,17 +368,18 @@ class Label(GUI):
         super().__init__(**kwargs)
         self.font = font
         self.leading = kwargs.get('leading', 10)
-        self.txt_color = kwargs.get('txt_color', WHITE)
-        self.bg_color = kwargs.get('bg_color', MENU_BG)
+        self.txt_color = kwargs.get('txt_color', c.WHITE)
+        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.set_text(text)
 
-    def draw(self):
+    def draw(self, surface=display.window):
         tmp = pygame.Surface(self.rect.size)
-        tmp.fill(MENU_BG)
+        tmp.fill(self.bg_color)
         for i, line in enumerate(self.text):
             y = i * (self.font.get_linesize() + self.leading)
             tmp.blit(line, (self.padding[1], self.padding[0] + y))
-        display.window.blit(tmp, self.rect)
+        self.draw_children(tmp)
+        surface.blit(tmp, self.rect)
 
     def set_text(self, text):
         lines = text.split('\n')

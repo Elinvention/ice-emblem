@@ -83,3 +83,6 @@ def tick(_fps=None):
 
 def flip():
     pygame.display.flip()
+
+def get_rect():
+    return window.get_rect()

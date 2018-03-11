@@ -40,7 +40,6 @@ import os.path
 import zlib
 import gzip
 
-from pygame.locals import *
 from pygame import Rect
 from xml.etree import ElementTree
 from base64 import b64decode

@@ -30,7 +30,6 @@ import utils
 import ai
 import room
 import rooms
-from display import window
 import colors as c
 import fonts as f
 import state as s
@@ -40,6 +39,7 @@ TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
 
 
 def experience_animation(unit, bg):
+    window = display.window
     img_pos = utils.center(window.get_rect(), unit.image.get_rect())
     exp_pos = (img_pos[0], img_pos[1] + unit.image.get_height() + 50)
 
@@ -270,12 +270,12 @@ def battle_wrapper(coord):
 def switch_turn(*args):
     active_team = s.units_manager.switch_turn()
     s.loaded_map.reset_selection()
-    window.fill(c.BLACK)
-    s.loaded_map.draw(window)
+    display.window.fill(c.BLACK)
+    s.loaded_map.draw(display.window)
     sidebar.update()
     phase_str = _('%s phase') % active_team.name
     phase = f.MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
-    window.blit(phase, utils.center(window.get_rect(), phase.get_rect()))
+    display.window.blit(phase, utils.center(display.window.get_rect(), phase.get_rect()))
     pygame.display.flip()
     pygame.mixer.music.fadeout(1000)
     active_team.play_music('map')
@@ -285,7 +285,7 @@ def switch_turn(*args):
 
 class Sidebar(object):
     def __init__(self, font):
-        self.rect = pygame.Rect((window.get_width() - 250, 0), (250, window.get_height()))
+        self.rect = gui.Rect(w=250, h=display.window.get_height(), right=display.window.get_width())
         self.start_time = pygame.time.get_ticks()
         self.font = font
         self.endturn_btn = gui.Button(_("End Turn"), self.font, callback=switch_turn)
@@ -296,8 +296,8 @@ class Sidebar(object):
         terrain = s.loaded_map[coord]
         team = s.units_manager.active_team
         render = lambda x, y: self.font.render(x, True, y)
-        self.rect.h = window.get_height()
-        self.rect.x = window.get_width() - self.rect.w
+        self.rect.h = display.window.get_height()
+        self.rect.x = display.window.get_width() - self.rect.w
         self.endturn_btn.rect.bottomright = self.rect.bottomright
 
         sidebar = pygame.Surface(self.rect.size)
@@ -336,7 +336,7 @@ class Sidebar(object):
             pos.move_ip(0, 40)
             sidebar.blit(i, pos)
 
-        window.blit(sidebar, self.rect)
+        display.window.blit(sidebar, self.rect)
         self.endturn_btn.draw()
 
 sidebar = None
@@ -355,8 +355,8 @@ class PlayerTurn(room.Room):
         self.register(p.KEYDOWN, self.handle_keyboard)
 
     def draw(self):
-        window.fill(c.BLACK)
-        s.loaded_map.draw(window)
+        display.window.fill(c.BLACK)
+        s.loaded_map.draw(display.window)
         sidebar.update()
 
     def loop(self, _events):
@@ -379,7 +379,7 @@ class PlayerTurn(room.Room):
                 self.action_menu(pos)
 
     def action_menu(self, pos):
-        menu = rooms.ActionMenu(pos=pos, padding=10, leading=5)
+        menu = rooms.ActionMenu(topleft=pos, padding=10, leading=5)
         room.run_room(menu)
         return menu.choice
 
@@ -391,7 +391,7 @@ class PlayerTurn(room.Room):
             ('Return to O.S.', utils.return_to_os)
         ]
         menu = gui.Menu(menu_entries, f.MAIN_FONT, context="PauseMenu")
-        menu.rect.center = window.get_rect().center
+        menu.rect.center = display.window.get_rect().center
         room.run_room(menu)
 
     def reset(self):
@@ -406,8 +406,8 @@ class AITurn(room.Room):
         self.actions = actions
 
     def draw(self):
-        window.fill(c.BLACK)
-        s.loaded_map.draw(window)
+        display.window.fill(c.BLACK)
+        s.loaded_map.draw(display.window)
 
     def loop(self, _events):
         try:
@@ -430,8 +430,8 @@ class Game(room.Room):
         sidebar = Sidebar(f.SMALL_FONT)
 
     def draw(self):
-        window.fill(c.BLACK)
-        s.loaded_map.draw(window)
+        display.window.fill(c.BLACK)
+        s.loaded_map.draw(display.window)
         sidebar.update()
 
     def loop(self, _events):

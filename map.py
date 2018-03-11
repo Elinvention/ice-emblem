@@ -31,7 +31,7 @@ import unit
 import item
 import events
 import display
-from colors import *
+import colors as c
 
 
 class UnitSprite(pygame.sprite.Sprite):
@@ -105,7 +105,7 @@ class UnitSprite(pygame.sprite.Sprite):
         self.image.blit(hp_bar, (0, self.rect.h - 5))
         if self.team.is_boss(self.unit):
             icon = pygame.Surface((3, 3))
-            icon.fill(BLUE)
+            icon.fill(c.BLUE)
             self.image.blit(icon, (0, self.rect.h - 4))
 
 
@@ -161,7 +161,7 @@ class CellHighlight(pygame.sprite.Sprite):
         self.w, self.h = tilemap.width, tilemap.height
         self.tile_size = self.tw, self.th = tilemap.tile_width, tilemap.tile_height
 
-        self.highlight_colors = dict(selected=SELECTED, move=MOVE, attack=ATTACK, played=PLAYED)
+        self.highlight_colors = dict(selected=c.SELECTED, move=c.MOVE, attack=c.ATTACK, played=c.PLAYED)
         self.highlight_surfaces = {}
         for highlight, color in self.highlight_colors.items():
             self.highlight_surfaces[highlight] = pygame.Surface(self.tile_size).convert_alpha()
@@ -719,14 +719,14 @@ class Map(object):
         min_range, max_range = unit.get_weapon_range()
         area = self.area(unit.coord, max_range, min_range)
         nearby_list = []
-        for c in area:
-            c_unit = self.get_unit(c)
+        for u in area:
+            c_unit = self.get_unit(u)
             if c_unit and self.units_manager.are_enemies(c_unit, unit):
                 nearby_list.append(c_unit)
         return nearby_list
 
     def reset_selection(self):
-        logging.debug(_('Selection reset'))
+        logging.debug('Selection reset')
         self.curr_sel = None
         self.prev_sel = None
         self.move_area = []
