@@ -22,6 +22,7 @@
 
 import pygame
 import pygame.locals as p
+
 import colors as c
 import room
 import display
@@ -34,23 +35,35 @@ class Rect(pygame.Rect):
             super().__init__(kwargs['rect'])
         else:
             super().__init__(0, 0, 0, 0)
-        for attr in kwargs.keys():
-            if not attr.startswith('_') and attr in dir(self):
-                setattr(self, attr, kwargs[attr])
+        self.settings = {k: v for k, v in kwargs.items() if not k.startswith('_') and k in dir(self)}
+        self.apply()
+
+    def apply(self):
+        for attr in self.settings:
+            setattr(self, attr, self.settings[attr])
 
 
-class TupleSum(tuple):
+class TupleOp(tuple):
     def __new__(cls, *args):
-        return tuple.__new__(cls, args)
+        return tuple.__new__(cls, *args)
     def __add__(self, other):
-        return TupleSum(*([sum(x) for x in zip(self, other)]))
+        return TupleOp(x + y for x, y in zip(self, other))
     def __sub__(self, other):
         return self.__add__(-i for i in other)
+    def __neg__(self):
+        return TupleOp(-x for x in self)
+    def __mul__(self, other):
+        return TupleOp(x * other for x in self)
+    def __truediv__(self, other):
+        return TupleOp(x / other for x in self)
+    def __floordiv__(self, other):
+        return TupleOp(x // other for x in self)
 
 
 class GUI(room.Room):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.kwargs = kwargs
         self.user_interacted = False
         self.rect = Rect(**kwargs)
         self._content_size = self.rect.size
@@ -64,11 +77,11 @@ class GUI(room.Room):
     def content_size(self, size):
         self._content_size = size
         self.update_size()
+        if isinstance(self.parent, GUI):
+            self.parent.compute_content_size()
 
     def compute_content_size(self):
-        comp = getattr(self.parent, 'compute_content_size', None)
-        if callable(comp):
-            comp()
+        self.rect.apply()
 
     @property
     def padding(self):
@@ -78,6 +91,7 @@ class GUI(room.Room):
     def padding(self, padding):
         self._padding = padding
         if isinstance(padding, int):
+
             self._padding = (padding,) * 4
         elif len(padding) == 2:
             self._padding = padding * 2
@@ -91,32 +105,16 @@ class GUI(room.Room):
         self.rect.size = (self.padding[1] + self.padding[3] + self.content_size[0],
                         self.padding[0] + self.padding[2] + self.content_size[1])
 
-    def begin(self):
-        self.bindings = [(evt, getattr(self, method, None)) for evt, method in [
-            (p.MOUSEMOTION, 'handle_mouse_motion'),
-            (p.MOUSEBUTTONDOWN, 'handle_click'),
-            (p.KEYDOWN, 'handle_keydown')
-        ]]
-        for binding in self.bindings:
-            if callable(binding[1]):
-                self.register(*binding)
-        super().begin()
-
-    def end(self):
-        for binding in self.bindings:
-            if callable(binding[1]):
-                self.unregister(*binding)
-        super().end()
-
-    def loop(self, _events):
+    def loop(self, _events, dt):
+        super().loop(_events, dt)
         return self.user_interacted
 
     def global_coord(self, coord):
-        coord = TupleSum(*coord)
+        coord = TupleOp(coord)
         node = self.parent
         while node is not None:
             if isinstance(node, GUI):
-                coord += TupleSum(*node.rect.topleft)
+                coord += TupleOp(node.rect.topleft)
             node = node.parent
         return coord
 
@@ -143,32 +141,98 @@ class Container(GUI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
+        self.spacing = kwargs.get('spacing', 10)
         self.compute_content_size()
 
     def compute_content_size(self):
         size = (0, 0)
-        for child in self.children:
-            size = (max(size[0], child.get_width()), size[1] + child.get_height())
+        for i, child in enumerate(self.children):
+            size = (max(size[0], child.get_width()), size[1] + child.get_height() + (self.spacing if i > 0 else 0))
         self.content_size = size
         top = self.padding[1]
         for child in self.children:
             child.rect.centerx = self.padding[3] + size[0] // 2
             child.rect.top = top
-            top += child.get_height()
+            top += child.get_height() + self.spacing
+        self.rect.apply()
 
     def add_child(self, child):
         super().add_child(child)
         self.compute_content_size()
 
-    def add_children(self, children):
-        super().add_children(children)
+    def add_children(self, *children):
+        super().add_children(*children)
         self.compute_content_size()
 
     def draw(self, surface=display.window):
-        container = pygame.Surface(self.rect.size)
+        container = pygame.Surface(self.rect.size).convert_alpha()
         container.fill(self.bg_color)
         super().draw(container)
         surface.blit(container, self.rect.topleft)
+
+
+class Tween(Container):
+    def __init__(self, change, duration, **kwargs):
+        super().__init__(wait=False, **kwargs)
+        self.change = TupleOp(change)
+        self.duration = duration
+        self.clock = 0
+        self.easing = getattr(self, kwargs.get('easing', 'linear'))
+        self.callback = kwargs.get('callback', None)
+        self.backward = kwargs.get('backward', False)
+
+    def begin(self):
+        self.initial = TupleOp(self.rect.topleft)
+        self.target = self.initial + TupleOp(self.change)
+
+    @staticmethod
+    def linear(t, initial, change, duration):
+        return initial + change * t / duration
+
+    @staticmethod
+    def inQuad(t, initial, change, duration):
+        return initial + change * (t / duration) ** 2
+
+    @staticmethod
+    def inCubic(t, initial, change, duration):
+        return initial + change * (t / duration) ** 3
+
+    def reset(self, *_):
+        self.clock = 0
+        self.done = False
+
+    def go_backward(self):
+        self.backward = not self.backward
+        self.done = False
+
+    def loop(self, _events, dt):
+        super().loop(_events, dt)
+        if self.clock <= 0:
+            self.done = self.backward
+            self.rect.topleft = self.initial
+            if self.done and callable(self.callback):
+                self.callback(self)
+        elif self.clock < self.duration:
+            self.rect.topleft = self.easing(self.clock, self.initial, self.change, self.duration)
+        else:
+            self.done = not self.backward
+            self.rect.topleft = self.target
+            if self.done and callable(self.callback):
+                self.callback(self)
+        self.clock = self.clock - dt if self.backward else self.clock + dt
+        return self.done
+
+class Image(GUI):
+    def __init__(self, image, **kwargs):
+        self.image = image
+        super().__init__(size=image.get_size(), **kwargs)
+
+    def compute_content_size(self):
+        self.content_size = self.image.get_size()
+        self.rect.apply()
+
+    def draw(self, surface=display.window):
+        surface.blit(self.image, self.rect)
 
 
 class Menu(GUI):
@@ -199,6 +263,7 @@ class Menu(GUI):
             w = max(w, entry.get_width())
         h = self.font.get_linesize() * len(self.menu_entries) + self.leading * (len(self.menu_entries) - 1)
         self.content_size = w, h
+        self.rect.apply()
 
     @property
     def menu_entries(self):
@@ -264,7 +329,7 @@ class Menu(GUI):
         return self.global_coord((self.padding[3] + self.rect.x,
                 self.padding[0] + self.rect.y + i * (self.font.get_linesize() + self.leading)))
 
-    def handle_click(self, event):
+    def handle_mousebuttondown(self, event):
         if event.button == 1:
             self.clicked = False
             for i, entry in enumerate(self.rendered_entries):
@@ -280,7 +345,7 @@ class Menu(GUI):
                 self.callback(self)
                 self.user_interacted = True
 
-    def handle_mouse_motion(self, event):
+    def handle_mousemotion(self, event):
         hover = False
         for i, entry in enumerate(self.rendered_entries):
             rect = pygame.Rect(self.get_entry_pos(i), entry.get_size())
@@ -314,6 +379,7 @@ class HorizontalMenu(Menu):
         w += self.leading * (len(self.menu_entries) - 1)
         h = self.font.get_linesize()
         self.content_size = w, h
+        self.rect.apply()
 
     def get_entry_pos(self, index):
         x = self.padding[3] + self.rect.x
@@ -354,11 +420,12 @@ class Button(GUI):
 
     def compute_content_size(self):
         self.content_size = self.rendered_text.get_size()
+        self.rect.apply()
 
-    def loop(self, _events):
+    def loop(self, _events, dt):
         return self.clicked
 
-    def handle_mouse_motion(self, event):
+    def handle_mousemotion(self, event):
         if self.global_rect().collidepoint(event.pos):
             self.focus()
         else:
@@ -377,7 +444,7 @@ class Button(GUI):
     def is_focused(self):
         return self._focus
 
-    def handle_click(self, event):
+    def handle_mousebuttondown(self, event):
         if event.button == 1:
             if self.global_rect().collidepoint(event.pos):
                 if self.callback is not None:
@@ -400,14 +467,16 @@ class CheckBox(Button):
     def compute_content_size(self):
         super().compute_content_size()
         self.content_size = (self.content_size[0] + self.content_size[1], self.content_size[1])
+        self.rect.apply()
 
-    def handle_click(self, event):
+    def handle_mousebuttondown(self, event):
         if event.button == 1:
             if self.global_rect().collidepoint(event.pos):
                 self.checked = not self.checked
                 if self.callback is not None:
                     self.callback(self, self.checked)
                 self.clicked = True
+                self.handle_mousemotion(event)
 
     def draw(self, surface=display.window):
         btn = pygame.Surface(self.rect.size)
@@ -426,55 +495,72 @@ class CheckBox(Button):
 class LifeBar(GUI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.damage_color = kwargs.get('damage_color', c.RED)
-        self.life_color = kwargs.get('life_color', c.GREEN)
         self.max = kwargs.get('max', 100)
         self.value = kwargs.get('value', self.max)
-        print(self.rect)
+        self.block_size = kwargs.get('block_size', (4, 10))
+        self.blocks_per_row = kwargs.get('blocks_per_row', 30)
+        self._life = pygame.Surface(self.block_size)
+        self._damage = self._life.copy()
+        self._life.fill(kwargs.get('life_color', c.GREEN))
+        self._damage.fill(kwargs.get('damage_color', c.RED))
+        self.compute_content_size()
+
+    def compute_content_size(self):
+        w = self.blocks_per_row * (self.block_size[0] + 1)
+        h = (self.max // self.blocks_per_row + 1) * (self.block_size[1] + 1)
+        self.content_size = w, h
 
     def draw(self, surface=display.window):
-        block_size = (self.rect.w // self.max - 1, self.rect.h)
-        life = pygame.Surface(block_size)
-        damage = life.copy()
-        life.fill(self.life_color)
-        damage.fill(self.damage_color)
         for i in range(self.max):
-            pos = (self.rect.x + i % 30 * (block_size[0] + 1), self.rect.y + i // 30 * (block_size[1] + 1))
-            if i < self.value:
-                surface.blit(life, pos)
+            x = self.rect.x + (i % self.blocks_per_row) * (self.block_size[0] + 1)
+            y = self.rect.y + (i // self.blocks_per_row) * (self.block_size[1] + 1)
+            if i < self.value % (self.max + 1):
+                surface.blit(self._life, (x, y))
             else:
-                surface.blit(damage, pos)
+                surface.blit(self._damage, (x, y))
         super().draw(surface)
 
 
 class Label(GUI):
-    def __init__(self, text, font, **kwargs):
+    def __init__(self, format_string, font, **kwargs):
         super().__init__(**kwargs)
         self.font = font
         self.leading = kwargs.get('leading', 10)
+        self.tabs = kwargs.get('tabs', 100)
         self.txt_color = kwargs.get('txt_color', c.WHITE)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
-        self.set_text(text)
+        self.format_string = format_string
+        self.set_text(format_string)
 
     def draw(self, surface=display.window):
-        tmp = pygame.Surface(self.rect.size)
+        tmp = pygame.Surface(self.rect.size).convert_alpha()
         tmp.fill(self.bg_color)
-        for i, line in enumerate(self.text):
-            y = i * (self.font.get_linesize() + self.leading)
-            tmp.blit(line, (self.padding[1], self.padding[0] + y))
+        for i, line in enumerate(self.rendered_text):
+            y = self.padding[0] + i * (self.font.get_linesize() + self.leading)
+            x = self.padding[1]
+            for tab in line:
+                tmp.blit(tab, (x, y))
+                x += self.tab_space(tab.get_width())
         self.draw_children(tmp)
         surface.blit(tmp, self.rect)
 
     def set_text(self, text):
-        lines = text.split('\n')
-        self.text = [ self.font.render(r, True, self.txt_color) for r in lines ]
+        lines = map(lambda x: x.split('\t'), text.split('\n'))
+        self.rendered_text = [ [self.font.render(t, True, self.txt_color) for t in r] for r in lines ]
         self.compute_content_size()
 
+    def format(self, *args, **kwargs):
+        text = self.format_string.format(*args, **kwargs)
+        self.set_text(text)
+
+    def tab_space(self, tab):
+        return (tab // self.tabs + 1) * self.tabs
+
     def compute_content_size(self):
-        w = max(l.get_width() for l in self.text)
-        h = self.font.get_linesize() * len(self.text) + self.leading * (len(self.text) - 1)
+        w = max((sum((self.tab_space(t.get_width()) for t in l)) if len(l) > 1 else l[0].get_width() for l in self.rendered_text))
+        h = self.font.get_linesize() * len(self.rendered_text) + self.leading * (len(self.rendered_text) - 1)
         self.content_size = w, h
-        super().compute_content_size()
+        self.rect.apply()
 
 
 class Dialog(Container):
@@ -484,14 +570,14 @@ class Dialog(Container):
         self.label = Label(text, font)
         self.ok_btn = Button("OK", font, callback=self.dismiss)
         self.callback = kwargs.get('callback', None)
-        self.add_children((self.label, self.ok_btn))
+        self.add_children(self.label, self.ok_btn)
 
     def dismiss(self, *_):
         self.ok = True
         if callable(self.callback):
             self.callback(self)
 
-    def loop(self, _events):
+    def loop(self, _events, dt):
         return self.ok
 
     def set_text(self, text):
@@ -507,7 +593,7 @@ class Modal(Container):
         self.answer = None
         self.label = Label(text, font)
         self.yesno = HorizontalMenu([("Yes", self.yes), ("No", self.no)], font)
-        self.add_children((self.label, self.yesno))
+        self.add_children(self.label, self.yesno)
 
     def yes(self, *_):
         self.answer = True
@@ -523,7 +609,7 @@ class Modal(Container):
         if event.key == p.K_SPACE:
             self.answer = self.yesno.choice == 0
 
-    def loop(self, _events):
+    def loop(self, _events, dt):
         return self.answer is not None
 
 
@@ -536,24 +622,30 @@ if __name__ == '__main__':
 
     f = pygame.font.SysFont("Liberation Sans", 24)
     d = Dialog("Dialog\nLorem ipsum dolor sit amet.\n\nTROLOL", f, callback=lambda self: self.set_text("Hai premuto OK"), x=50, y=100)
-    l = Label("TEST LABEL\nASDASDASD\nLOL\n\n\nTROLOL", f, x=50, y=400)
+    l = Label("TEST LABEL\nTEST\tTAB\nTAB\tTAB\tTAB\n\n\n\tTROLOL", f, x=50, y=400)
     a = Label("NO ANSWER", f)
     m = Modal("Modal\nRispondi SI o NO?\n\nFORSE?", f, callback=lambda _,ans: a.set_text("SI" if ans else "NO"), x=800, y=100)
     a.rect.topleft = m.rect.bottomleft
     a.rect.top += 10
     q = Button("Quit", f, callback=utils.return_to_os)
-    cb = CheckBox("N", f, False, callback=lambda obj, chk: obj.set_text(str(chk)), x=800, y=50)
+    cb = CheckBox("Click here to toggle", f, False, callback=lambda obj, chk: obj.set_text(str(chk)), x=800, y=50)
 
     lh = Label("SELEZIONA DAL MENU", f)
     h = HorizontalMenu([(c, lambda _,choice: lh.set_text(choice)) for c in "Horizontal"], f)
     lv = Label("SELEZIONA DAL MENU", f, bg_color=c.RED)
     v = Menu([(c, lambda _,choice: lv.set_text(choice)) for c in "VERTICAL"], f, padding=(10, 60), leading=0, bg_color=c.BLUE)
-
     container = Container(children=(h, lh, v, lv), x=400, y=300)
+
+    ta, ti = (800, 0), 10000
+    t1 = Tween(ta, ti, easing='linear', children=[Label("linear", f)], callback=lambda s: s.go_backward())
+    t2 = Tween(ta, ti, easing='inQuad', children=[Label("inQuad", f)], callback=lambda s: s.go_backward())
+    t3 = Tween(ta, ti, easing='inCubic', children=[Label("inCubic", f)], callback=lambda s: s.go_backward())
 
     class GUITest(room.Room):
         def begin(self):
-            self.add_children([d, l, m, a, q, cb, container])
+            self.wait = False
+            #self.add_children(d, l, m, a, q, cb, container, t)
+            self.add_child(Container(w=800, children=[t1, t2, t3]))
             super().begin()
         def draw(self):
             screen.fill(c.BLACK)

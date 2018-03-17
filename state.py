@@ -1,9 +1,9 @@
 import logging
-import pygame
-import events
+import traceback
+
+import display
 import ai
 import room
-import traceback
 import gui
 import fonts as f
 import map
@@ -22,11 +22,10 @@ def load_map(map_path):
         for team in units_manager.teams:
             if team.ai:
                 team.ai = ai.AI(loaded_map, units_manager, team)
-        events.register(pygame.locals.VIDEORESIZE, loaded_map.handle_videoresize)
     except:
-            msg = _("Can't load map %s! Probably the format is not ok.\n%s") % (map_path, traceback.format_exc())
-            logging.error(msg)
-            room.run_room(gui.Dialog(msg, f.SMALL_FONT, pos=(100, 100)))
+        msg = _("Can't load map %s! Probably the format is not ok.\n%s") % (map_path, traceback.format_exc())
+        logging.error(msg)
+        room.run_room(gui.Dialog(msg, f.SMALL_FONT, center=display.get_rect().center))
 
 def kill(unit):
     loaded_map.kill_unit(unit=unit)

@@ -26,7 +26,7 @@ class MapMenu(room.Room):
         self.menu.rect.center = window.get_rect().center
         super().draw()
 
-    def loop(self, _events):
+    def loop(self, _events, dt):
         return self.menu.choice is not None
 
     def end(self):

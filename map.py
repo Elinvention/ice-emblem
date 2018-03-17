@@ -602,7 +602,6 @@ class Map(object):
             raise ValueError('(%d:%d) Cursor out of map')
 
     def move_animation(self, unit, target, path=None):
-        events.new_context("move")
         if not path:
             path = self.path.shortest_path(unit.coord, target, unit.movement)
         px_path = list(map(lambda x: (x[0] * self.tw, x[1] * self.th), path))
@@ -619,7 +618,7 @@ class Map(object):
             return reached
 
         display.tick()
-        events.event_loop(event_loop, False, "move")
+        events.event_loop(event_loop, False)
         return path
 
     def move(self, unit, new_coord):
@@ -739,7 +738,7 @@ class Map(object):
             self.units_manager.active_team.is_mine(self.prev_unit) and
             self.curr_sel in self.move_area)
 
-    def handle_click(self, event):
+    def handle_mousebuttondown(self, event):
         ret = []
         if event.button == 1:
             try:
@@ -759,7 +758,7 @@ class Map(object):
                 self.tilemap.zoom -= 0.05
         return ret
 
-    def handle_mouse_motion(self, event):
+    def handle_mousemotion(self, event):
         try:
             coord = self.mouse2cell(event.pos)
             self.update_arrow(coord)
@@ -784,7 +783,7 @@ class Map(object):
         else:
             self.move_y = 0
 
-    def handle_keyboard(self, event):
+    def handle_keydown(self, event):
         self.cursor.update(event)
         self.update_arrow(self.cursor.coord)
         self.tilemap.set_focus(self.cursor.rect.x, self.cursor.rect.y)

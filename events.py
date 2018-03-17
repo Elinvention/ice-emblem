@@ -1,39 +1,31 @@
+"""
+Wrapper of pygame.event with useful functions
+"""
+
+
 import pygame
-from pygame.locals import *
-import utils
-import display
+import pygame.locals as p
 import logging
 from typing import List, Set
 
-"""
-This module should provide a uniform and comfortable way to register callback
-functions to one or more types of event.
-"""
 
+TIMEOUT = p.USEREVENT + 1
+INTERRUPT = p.USEREVENT + 2
+CLOCK = p.USEREVENT + 3
 
-_contexts = {
-    "default": {
-        QUIT: [utils.return_to_os],
-        VIDEORESIZE: [display.handle_videoresize],
-    }
-}
+ALWAYS_ALLOWED = [p.QUIT, p.VIDEORESIZE]
+
+EMPTYEVENT = pygame.event.Event(p.NOEVENT, {})
+
 
 __logger = logging.getLogger('EventHandler')
-
-ALWAYS_ALLOWED = [QUIT, VIDEORESIZE]
-
-TIMEOUT = USEREVENT + 1
-INTERRUPT = USEREVENT + 2
-CLOCK = USEREVENT + 3
-
-EMPTYEVENT = pygame.event.Event(NOEVENT, {})
 
 
 def get_allowed() -> Set[int]:
     """
     Queries pygame and returns the set of allowed event types.
     """
-    blocked = map(pygame.event.get_blocked, range(0, NUMEVENTS))
+    blocked = map(pygame.event.get_blocked, range(0, p.NUMEVENTS))
     allowed = map(lambda x: not x, blocked)
     return set(i for i, v in enumerate(allowed) if v)
 
@@ -41,7 +33,7 @@ def get_blocked() -> Set[int]:
     """
     Queries pygame and returns the set of blocked event types.
     """
-    blocked = map(pygame.event.get_blocked, range(0, NUMEVENTS))
+    blocked = map(pygame.event.get_blocked, range(0, p.NUMEVENTS))
     return set(i for i, v in enumerate(blocked) if v)
 
 def allow_all():
@@ -50,8 +42,8 @@ def allow_all():
     is blocked by default and at the moment is not needed anyhow)
     """
     # workaround to re-enable all events except SYSWMEVENT
-    pygame.event.set_allowed(list(range(NOEVENT, NUMEVENTS)))
-    pygame.event.set_blocked(SYSWMEVENT)
+    pygame.event.set_allowed(list(range(p.NOEVENT, p.NUMEVENTS)))
+    pygame.event.set_blocked(p.SYSWMEVENT)
 
 def block_all():
     """
@@ -131,14 +123,7 @@ def add_blocked(event_types: List[int]):
     pygame.event.set_blocked(event_types)
     post([e for e in discarded if e.type in event_types])
 
-def pump(context="default"):
-    """
-    Process all new events without waiting.
-    """
-    for event in pygame.event.get():
-        process_event(event, context)
-
-def wait(timeout=-1, context="default"):
+def wait(timeout=-1) -> List:
     """
     If the timeout argument is positive, returns after the specified
     number of milliseconds
@@ -149,18 +134,16 @@ def wait(timeout=-1, context="default"):
         add_allowed([TIMEOUT])
 
     if pygame.event.peek(list(get_allowed())):  # if we don't have to wait process all events
-        for event in pygame.event.get():  # with get we can process many events per frame
-            process_event(event, context)
+        events = pygame.event.get()  # with get we can process many events per frame
     else:
-        event = pygame.event.wait()  # wait and process a single event
-        process_event(event, context)
+        events = [pygame.event.wait()]  # wait and process a single event
 
     if timeout > 0:
         pygame.time.set_timer(TIMEOUT, 0)
 
-    return event
+    return events
 
-def event_loop(callback, wait=True, context="default"):
+def event_loop(callback, wait=True):
     """
     Call a function passing all events as an argument until it returns True.
     If wait is True it calls pygame.event.wait if there are no events in
@@ -172,81 +155,4 @@ def event_loop(callback, wait=True, context="default"):
             events = [pygame.event.wait()]
         else:
             events = pygame.event.get()
-        for event in events:
-            process_event(event, context)
         done = callback(events)
-
-def process_event(event, context="default"):
-    """
-    Process a single event by calling the associated callback functions.
-    """
-    callbacks = _contexts[context]
-    if event.type in callbacks:
-        for callback in callbacks[event.type]:
-            callback(event)
-
-def register(event_type, callback, context="default"):
-    """
-    Bind a callback function to an event type.
-    """
-    callbacks = _contexts[context]
-    if event_type in callbacks:
-        if callback not in callbacks[event_type]:
-            callbacks[event_type].append(callback)
-    else:
-        callbacks[event_type] = [callback]
-    __logger.debug('%s: %s registered %s' % (context, pygame.event.event_name(event_type), callback))
-
-def unregister(event_type, callback=None, context="default"):
-    """
-    Unregister the latest or the specified callback function from event_type.
-    """
-    callbacks = _contexts[context]
-    if callback:
-        if callback in callbacks[event_type]:
-            callbacks[event_type].remove(callback)
-    elif len(callbacks[key]) > 0:
-        callbacks[key].pop()
-    __logger.debug('%s: %s unregistered %s',  context, pygame.event.event_name(event_type), callback)
-
-def bind_keys(keys, callback, context="default"):
-    """
-    Binds a keyboard key to a callback function.
-    """
-    def f(event):
-        for key in keys:
-            if event.key == key:
-                callback()
-    register(KEYDOWN, f, context)
-
-def bind_click(mouse_buttons, callback, area=None, inside=True, context="default"):
-    """
-    Binds a mouse button to a callback functions.
-    The call to the callback can be filtered by area (pygame.Rect) and specify if
-    the event position must be inside or outside that area.
-    """
-    def f(event):
-        for mouse_button in mouse_buttons:
-            if event.button == mouse_button:
-                if area is None:
-                    callback()
-                else:
-                    collide = area.collidepoint(event.pos)
-                    if inside:
-                        if collide:
-                            callback()
-                    else:
-                        if not collide:
-                            callback()
-    register(MOUSEBUTTONDOWN, f, context)
-
-def new_context(context="default"):
-    """
-    Adds a new default context.
-    """
-    __logger.debug('%s reset' % context)
-    _contexts[context] = {
-        QUIT: [utils.return_to_os],
-        VIDEORESIZE: [display.handle_videoresize],
-    }
-

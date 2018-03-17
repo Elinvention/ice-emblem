@@ -59,23 +59,6 @@ def draw_fps(font=None):
     rec = fpslabel.get_rect(top=5, right=screen_w - 5)
     window.blit(fpslabel, rec)
 
-def fadeout(fadeout_time, percent=0):
-    import events
-    start = pygame.time.get_ticks()
-    fade = window.copy()
-    state_time = 0
-    percent = (100 - percent) / 100.0
-
-    while state_time < fadeout_time:
-        alpha = int(255.0 - 255.0 * state_time / fadeout_time * percent)
-        fade.set_alpha(alpha)
-        window.fill(BLACK)
-        window.blit(fade, (0, 0))
-        pygame.display.flip()
-        clock.tick(60)
-        state_time = pygame.time.get_ticks() - start
-        events.pump()
-
 def tick(_fps=None):
     if _fps is None:
         return clock.tick(fps)

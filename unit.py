@@ -86,65 +86,17 @@ class Unit(object):
         return "<Unit %s at %s>" % (self.name, self.coord)
 
     def __str__(self):
-        return """
-Unit: "%s"
-    HP: %d/%d
-    LV: %d    EXP: %d
-    Str: %d    Skill: %d
-    Spd: %d    Luck: %d
-    Def: %d    Res: %d
-    Move: %d    Con: %d
-    Aid: %d    Affin: %s
-    Cond: %s
-    WRank: %s
-    Items: %s
-    Played: %s
-""" % (self.name,
-            self.health, self.health_max, self.level, self.experience, self.strength,
-            self.skill, self.speed, self.luck, self.defence,
-            self.resistence, self.movement, self.constitution, self.aid,
-            self.affinity, self.condition, self.wrank, self.items, self.played)
-
-    def render_info(self, font):
-        """
-        Returns a Surface containing all informations about a unit.
-        The specified font will be used to render the text and will
-        determine the width and height of the Surface
-        """
-
-        font_linesize = font.get_linesize()
-
-        # will "parse" this text and render each attribute individually
-        info_text = self.__str__()
-
-        info_list = []
-        max_width = 0
-        counter = 0
-
-        # which attributes to show
-        show = ['HP', 'LV', 'EXP', 'Str', 'Skill', 'Spd', 'Luck', 'Def']
-
-        # split newlines and tabs except the "indentation" tabs
-        for raw_line in iter(info_text.splitlines()):
-            for line in iter(raw_line.strip().split('\t')):
-                attr = line.split(':')
-                if attr[0] in show:
-                    # it's in the list: render it
-                    info_list.append(font.render(line, 1, (255, 255, 255)))
-                    # max_width and counter to compute surface's size
-                    max_width = max(info_list[-1].get_size()[0], max_width)
-                    counter += 1
-
-        dim = (max_width * 2 + 20, counter * font_linesize // 2)
-        surface = pygame.Surface(dim).convert_alpha()
-        surface.fill((0, 0, 0, 0))  # transparent surface
-
-        for i, line in enumerate(info_list):
-            # position each attribute in two colums
-            pos = (i % 2 * (max_width + 20), i // 2 * font_linesize)
-            surface.blit(line, pos)
-
-        return surface
+        return (
+        'Unit: "{name}"\n'
+        'HP: {health}/{health_max}\n'
+        'LV: {level}\tEXP: {experience}\n'
+        'Str: {strength}\tSkill: {skill}\n'
+        'Spd: {speed}\tLuck: {luck}\n'
+        'Def: {defence}\tRes: {resistence}\n'
+        'Move: {movement}\tCon: {constitution}\n'
+        'Aid: {aid}\tAffin: {affinity}\n'
+        'Weapon: {items.active}'
+        .format_map(self.__dict__))
 
     @property
     def weapon(self):
@@ -207,25 +159,16 @@ Unit: "%s"
         return int(float(self.health) / float(self.health_max) * 100.0)
 
     def attack(self, enemy):
-        """
-        1 -> miss
-        2 -> null damage
-        3 -> triple hit
-        4 -> hit
-        """
-
-        active_weapon = self.items.active
-
-        if active_weapon is None or active_weapon.uses == 0:
+        if self.weapon is None or self.weapon.uses == 0:
             print(_("%s attacks %s with his bare hands") % (self.name, enemy.name))
             hit_probability = self.skill * 2 + self.luck / 2
             dmg = self.strength - enemy.defence
             critical_probability = self.skill // 2 - enemy.luck
         else:
-            print(_("%s attacks %s with %s") % (self.name, enemy.name, active_weapon.name))
-            hit_probability = (self.skill * 2) + active_weapon.hit + (self.luck / 2)
-            dmg = (self.strength + active_weapon.might) - enemy.defence # TODO
-            critical_probability = self.skill // 2 + active_weapon.crit - enemy.luck
+            print(_("%s attacks %s with %s") % (self.name, enemy.name, self.weapon.name))
+            hit_probability = (self.skill * 2) + self.weapon.hit + (self.luck / 2)
+            dmg = (self.strength + self.weapon.might) - enemy.defence # TODO
+            critical_probability = self.skill // 2 + self.weapon.crit - enemy.luck
 
         print("Dmg: %d  Hit: %d" % (dmg, hit_probability))
         hit = random.randrange(0, 100) < hit_probability
@@ -233,23 +176,22 @@ Unit: "%s"
 
         if not hit:
             print("Misses")
-            ret = 1
+            return 'miss'
         elif dmg <= 0:
             print("Null attack")
-            ret = 2
+            return 'null'
         elif critical:
             print("Triple attack")
             enemy.inflict_damage(dmg*3)
-            if active_weapon is not None:
-                active_weapon.use()
-            ret = 3
+            if self.weapon is not None:
+                self.weapon.use()
+            return 'critical'
         else:
             print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
             enemy.inflict_damage(dmg)
-            if active_weapon is not None:
-                active_weapon.use()
-            ret = 4
-        return ret
+            if self.weapon is not None:
+                self.weapon.use()
+            return 'hit'
 
     def value(self):
         """

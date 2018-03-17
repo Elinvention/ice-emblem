@@ -1,5 +1,7 @@
 import pygame
+
 import room
+import rooms
 import gui
 import events
 import resources
@@ -15,7 +17,7 @@ import colors as c
 
 class MainMenu(room.Room):
     def __init__(self):
-        super().__init__(allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN, events.INTERRUPT])
+        super().__init__(allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN])
         self.image = resources.load_image('Ice Emblem.png')
         self.rect = self.image.get_rect()
         self.click_to_start = f.MAIN_MENU_FONT.render(_("Click to Start"), 1, c.ICE)
@@ -25,15 +27,8 @@ class MainMenu(room.Room):
 
     def begin(self):
         super().begin()
-        self.bind_keys((pl.K_RETURN, pl.K_SPACE), events.post_interrupt)
-        self.bind_click((1,), events.post_interrupt, self.hmenu.rect, False)
-
-    def loop(self, _events):
-        super().loop(_events)
-        for event in _events:
-            if event.type == events.INTERRUPT:
-                return True
-        return False
+        self.bind_keys((pl.K_RETURN, pl.K_SPACE), lambda *_: setattr(self, 'done', True))
+        self.bind_click((1,), lambda *_: setattr(self, 'done', True), self.hmenu.rect, False)
 
     def draw(self):
         window.fill(c.BLACK)
@@ -53,18 +48,17 @@ class MainMenu(room.Room):
             room.run_room(MapMenu(self.image))
 
         pygame.mixer.music.fadeout(2000)
-        display.fadeout(2000)
+        room.run_room(rooms.Fadeout(2000))
         pygame.mixer.music.stop() # Make sure mixer is not busy
 
     def show_license(self, obj, choice):
-        events.new_context("License")
         gpl_image = resources.load_image('GNU GPL.jpg')
         gpl_image = pygame.transform.smoothscale(gpl_image, window.get_size())
         window.blit(gpl_image, (0, 0))
         display.flip()
         events.set_allowed([pl.MOUSEBUTTONDOWN, pl.KEYDOWN])
-        events.wait(context="License")
-        events.allow_all()
+        events.wait()
+        events.set_allowed(self.allowed_events)
 
     def settings_menu(self, obj, choice):
         room.run_room(SettingsMenu())

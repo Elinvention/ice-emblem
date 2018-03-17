@@ -38,8 +38,13 @@ class Item(object):
         return self.uses
 
     def __str__(self):
-        return "Item:\r\n\tName: \"%s\"\r\n\tDescription: \"%s\"" % \
-            (self.name, self.descr)
+        return f'{self.name} ({self.uses}/{self.muses})'
+
+    def __repr__(self):
+        return (
+            f'Item:\n\tName: "{self.name}"\n\tDescription: "{self.descr}"\n'
+            f'\tWorth: "{self.worth}₤"\n\tUses: {self.uses}/{self.muses}'
+        )
 
 
 class Weapon(Item):
@@ -59,22 +64,21 @@ class Weapon(Item):
         self.exp       = int(experience)    # exp increases unit's weapon rank
         self.effective = effective
 
-    def __str__(self):
-        return """
-Weapon "%s":
-    Description: "%s"
-    Rank: %c
-    Might: %d
-    Weight: %d
-    Hit: %d
-    Crit: %d
-    Range: %d-%d
-    Uses: %d/%d
-    Worth: %d
-    Exp: %d
-""" % (self.name, self.descr, self.rank, self.might, self.weight,
-        self.hit, self.crit, self.min_range, self.max_range, self.uses, self.muses,
-        self.worth, self.exp)
+    def __repr__(self):
+        return (
+            'Weapon:\n\tName: "{name}"\n'
+            'Description: "{descr}"\n'
+            'Rank: {rank}\n'
+            'Might: {might}\n'
+            'Weight: {weight}\n'
+            'Hit: {hit}\n'
+            'Crit: {crit}\n'
+            'Range: {min_range}-{max_range}\n'
+            'Uses: {uses}/{muses}\n'
+            'Worth: {worth}\n'
+            'Exp: {experience}\n'
+            .format_map(self.__dict__)
+        )
 
     def get_might(self, enemy):
         if isinstance(enemy, self.bonus_class):
