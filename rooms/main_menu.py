@@ -47,9 +47,7 @@ class MainMenu(room.Room):
         while not s.loaded_map:
             room.run_room(MapMenu(self.image))
 
-        pygame.mixer.music.fadeout(2000)
         room.run_room(rooms.Fadeout(2000))
-        pygame.mixer.music.stop() # Make sure mixer is not busy
 
     def show_license(self, obj, choice):
         gpl_image = resources.load_image('GNU GPL.jpg')

@@ -1,13 +1,13 @@
 import pygame
 
 import room
+import rooms
 import pygame.locals as p
 import state as s
 import fonts as f
 import colors as c
 import resources
 import display
-import events
 
 
 class VictoryScreen(room.Room):
@@ -22,7 +22,7 @@ class VictoryScreen(room.Room):
         self.thank_you = f.MAIN_MENU_FONT.render(_('Thank you for playing Ice Emblem!'), 1, c.ICE)
         pygame.mixer.stop()
         resources.play_music('Victory Track.ogg')
-        display.fadeout(1000)
+        room.run_room(rooms.Fadeout(duration=1000, stop_mixer=False))
 
     def draw(self):
         window = display.window
@@ -37,8 +37,6 @@ class VictoryScreen(room.Room):
 
     def end(self):
         super().end()
-        events.wait()
-        pygame.mixer.music.fadeout(2000)
-        display.fadeout(2000)
-        pygame.mixer.music.stop()
+        self.wait_event()
+        room.run_room(rooms.Fadeout(2000))
 

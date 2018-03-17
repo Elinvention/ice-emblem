@@ -169,8 +169,7 @@ class PlayerTurn(room.Room):
         self.run_room(menu)
 
     def reset(self, *_):
-        pygame.mixer.fadeout(1000)
-        display.fadeout(1000)
+        room.run_room(rooms.Fadeout(1000))
         room.stop()
 
 
