@@ -22,6 +22,7 @@
 
 import pygame
 import pygame.locals as p
+import math
 
 import colors as c
 import room
@@ -200,8 +201,66 @@ class Tween(Container):
         return initial + change * (t / duration) ** 2
 
     @staticmethod
+    def outQuad(t, initial, change, duration):
+        t = t / duration
+        return initial - change * t * (t - 2)
+
+    @staticmethod
+    def inOutQuad(t, initial, change, duration):
+        t = t / duration * 2
+        if t < 1:
+            return initial + change / 2 * (t ** 2)
+        return initial - change / 2 * ((t - 1) * (t - 3) - 1)
+
+    @staticmethod
+    def outInQuad(t, initial, change, duration):
+        if t < duration / 2:
+            return Tween.outQuad(t * 2, initial, change / 2, duration)
+        return Tween.inQuad((t * 2) - duration, initial + change / 2, change / 2, duration)
+
+    @staticmethod
     def inCubic(t, initial, change, duration):
         return initial + change * (t / duration) ** 3
+
+    @staticmethod
+    def outCubic(t, initial, change, duration):
+        return initial + change * (((t / duration - 1) ** 3) + 1)
+
+    @staticmethod
+    def inOutCubic(t, initial, change, duration):
+        t = t / duration * 2
+        if t < 1:
+            return initial + change / 2 * (t ** 3)
+        t = t - 2
+        return initial + change / 2 * (t ** 3 + 2)
+
+    @staticmethod
+    def outInCubic(t, initial, change, duration):
+        if t < duration / 2:
+            return Tween.outCubic(t * 2, initial, change / 2, duration)
+        return Tween.inCubic((t * 2) - duration, initial + change / 2, change / 2, duration)
+
+    @staticmethod
+    def inCirc(t, initial, change, duration):
+        return initial - change * (math.sqrt(1 - (t / duration) ** 2) - 1)
+
+    @staticmethod
+    def outCirc(t, initial, change, duration):
+        return initial + change * math.sqrt(1 - (t / duration - 1) ** 2)
+
+    @staticmethod
+    def inOutCirc(t, initial, change, duration):
+        t = t / duration * 2
+        if t < 1:
+            return initial - change / 2 * (math.sqrt(1 - t ** 2) - 1)
+        t = t - 2
+        return initial + change / 2 * (math.sqrt(1 - t ** 2) + 1)
+
+    @staticmethod
+    def outInCirc(t, initial, change, duration):
+        if t < duration / 2:
+           return Tween.outCirc(t * 2, initial, change / 2, duration)
+        return Tween.inCirc((t * 2) - duration, initial + change / 2, change / 2, duration)
 
     def reset(self, *_):
         self.clock = 0
