@@ -142,6 +142,7 @@ class Container(GUI):
         super().__init__(**kwargs)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.spacing = kwargs.get('spacing', 10)
+        self.align = kwargs.get('align', 'center')
         self.compute_content_size()
 
     def compute_content_size(self):
@@ -151,7 +152,12 @@ class Container(GUI):
         self.content_size = size
         top = self.padding[1]
         for child in self.children:
-            child.rect.centerx = self.padding[3] + size[0] // 2
+            if self.align == 'center':
+                child.rect.centerx = self.padding[3] + size[0] // 2
+            elif self.align == 'left':
+                child.rect.left = self.padding[3]
+            elif self.align == 'right':
+                child.rect.right = self.padding[3] + size[0]
             child.rect.top = top
             top += child.get_height() + self.spacing
         self.rect.apply()
@@ -636,17 +642,14 @@ if __name__ == '__main__':
     v = Menu([(c, lambda _,choice: lv.set_text(choice)) for c in "VERTICAL"], f, padding=(10, 60), leading=0, bg_color=c.BLUE)
     container = Container(children=(h, lh, v, lv), x=400, y=300)
 
-    ta, ti = (800, 0), 10000
-    t1 = Tween(ta, ti, easing='linear', children=[Label("linear", f)], callback=lambda s: s.go_backward())
-    t2 = Tween(ta, ti, easing='inQuad', children=[Label("inQuad", f)], callback=lambda s: s.go_backward())
-    t3 = Tween(ta, ti, easing='inCubic', children=[Label("inCubic", f)], callback=lambda s: s.go_backward())
+    size, ti = (1000, 0), 10000
+    tween_test = [Tween(size, ti, easing=e, children=[Label(e, f, bg_color=c.RED)], callback=lambda s: s.go_backward()) for e in Tween.__dict__ if isinstance(Tween.__dict__[e], staticmethod)]
 
     class GUITest(room.Room):
-        def begin(self):
-            self.wait = False
-            #self.add_children(d, l, m, a, q, cb, container, t)
-            self.add_child(Container(w=800, children=[t1, t2, t3]))
-            super().begin()
+        def __init__(self, **kwargs):
+            super().__init__(wait=False, **kwargs)
+            #self.add_children(d, l, m, a, q, cb, container)
+            self.add_child(Container(w=size[0], center=display.get_rect().center, align='left', children=tween_test))
         def draw(self):
             screen.fill(c.BLACK)
             super().draw()
