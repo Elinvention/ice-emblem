@@ -1,8 +1,8 @@
 import pygame
+
 import room
 import gui
 import display
-import events
 import pygame.locals as pl
 import colors as c
 import fonts as f

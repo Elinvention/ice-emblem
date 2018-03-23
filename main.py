@@ -35,7 +35,7 @@ import resources
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-VERSION = utils.read('VERSION').strip('\n')
+VERSION = utils.get_version()
 
 # Gettext work around for Windows
 if sys.platform.startswith('win'):

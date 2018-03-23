@@ -20,11 +20,12 @@
 #  MA 02110-1301, USA.
 
 
-import resources
 import pygame
 import random
 import logging
+
 import utils
+import resources
 
 
 class Items(list):

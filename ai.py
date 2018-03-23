@@ -22,9 +22,11 @@
 
 import logging
 import random
+
+from operator import itemgetter
+
 import utils
 import action
-from operator import itemgetter
 
 
 class AI(object):

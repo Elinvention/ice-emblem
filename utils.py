@@ -24,7 +24,7 @@
 import pygame
 import sys
 import yaml
-import os.path
+from pathlib import Path
 
 
 def timeit(f):
@@ -66,6 +66,5 @@ def return_to_os(*args):
     pygame.quit()
     sys.exit(0)
 
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
-
+def get_version():
+    return open('VERSION').read().strip('\n')

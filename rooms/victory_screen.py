@@ -1,8 +1,8 @@
 import pygame
+import pygame.locals as p
 
 import room
 import rooms
-import pygame.locals as p
 import state as s
 import fonts as f
 import colors as c

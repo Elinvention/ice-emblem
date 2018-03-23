@@ -5,8 +5,8 @@ import display
 import ai
 import room
 import gui
-import fonts as f
 import map
+import fonts as f
 
 
 loaded_map = None
@@ -16,6 +16,7 @@ winner = None
 
 def load_map(map_path):
     global loaded_map, units_manager
+
     try:
         loaded_map = map.Map(map_path)
         units_manager = loaded_map.units_manager

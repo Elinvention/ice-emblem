@@ -1,6 +1,7 @@
-from pathlib import Path
 import pygame
 import logging
+
+from pathlib import Path
 
 
 RESOURCES_PATH = Path('resources')
@@ -13,7 +14,7 @@ MAPS_PATH =    RESOURCES_PATH / 'maps'
 SPRITES_PATH = RESOURCES_PATH / 'sprites'
 DATA_PATH =    RESOURCES_PATH / 'data'
 
-__logger = logging.getLogger('Resources')
+__logger = logging.getLogger(__name__)
 
 
 def __load_log(path):

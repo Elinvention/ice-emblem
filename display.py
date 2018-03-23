@@ -1,11 +1,11 @@
 import pygame
+
 import resources
 import utils
-from pygame.locals import *
-from colors import *
+import colors as c
 
 
-VERSION = utils.read('VERSION').strip('\n')
+VERSION = utils.get_version()
 
 pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
 pygame.init()
@@ -55,7 +55,7 @@ def draw_fps(font=None):
         font = FPS_FONT
     screen_w, screen_h = window.get_size()
     fps = clock.get_fps()
-    fpslabel = font.render('%d FPS' % int(fps), True, WHITE)
+    fpslabel = font.render('%d FPS' % int(fps), True, c.WHITE)
     rec = fpslabel.get_rect(top=5, right=screen_w - 5)
     window.blit(fpslabel, rec)
 
