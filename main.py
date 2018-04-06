@@ -49,24 +49,25 @@ if sys.platform.startswith('win'):
 gettext.install('ice-emblem', resources.LOCALE_PATH)  # load translations
 
 
-try:
-    # command-line argument parsing
-    parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
-    parser.add_argument('--version', action='version', version='Ice Emblem '+VERSION)
-    parser.add_argument('-s', '--skip', action='store_true', help=_('Skip main menu'), required=False)
-    parser.add_argument('-m', '--map', action='store', help=_('Which map to load'), default=None, required=False)
-    parser.add_argument('-l', '--logging', action='store', help=_('Choose logging level'), default=20, type=int, required=False)
-    parser.add_argument('-f', '--file', action='store', help=_('Log file'), default=None, required=False)
-    args = parser.parse_args()
+# command-line argument parsing
+parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
+parser.add_argument('--version', action='version', version='Ice Emblem '+VERSION)
+parser.add_argument('-s', '--skip', action='store_true', help=_('Skip main menu'), required=False)
+parser.add_argument('-m', '--map', action='store', help=_('Which map to load'), default=None, required=False)
+parser.add_argument('-l', '--logging', action='store', help=_('Choose logging level'), default=20, type=int, required=False)
+parser.add_argument('-d', '--debug', action='store_const', help=_('Debug mode'), const=0, dest='logging')
+parser.add_argument('-f', '--file', action='store', help=_('Log file'), default=None, required=False)
+args = parser.parse_args()
 
-    # log to screen
-    logging.basicConfig(level=args.logging, filename=args.file, filemode='a')
-    logging.info(_('Welcome to %s!') % ('Ice Emblem ' + VERSION))
-    logging.info(_('You are using Pygame version %s.') % pygame.version.ver)
-    if pygame.version.vernum < (1, 9, 2):
-        logging.warning(_('You are running a version of Pygame that might be outdated.'))
-        logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
+# log to screen
+logging.basicConfig(level=args.logging, filename=args.file, filemode='a')
+logging.info(_('Welcome to %s!') % ('Ice Emblem ' + VERSION))
+logging.info(_('You are using Pygame version %s.') % pygame.version.ver)
+if pygame.version.vernum < (1, 9, 2):
+    logging.warning(_('You are running a version of Pygame that might be outdated.'))
+    logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
+def launch():
     import game
 
     map_file = None
@@ -81,16 +82,22 @@ try:
 
     game.play(map_file)
 
-except (KeyboardInterrupt, SystemExit):
-    # game was interrupted by the user
-    print(_("Interrupted by user, exiting."))
+if args.logging < 20:
+    # When in debug mode launch without kind error message
+    launch()
+else:
+    try:
+        launch()
+    except (KeyboardInterrupt, SystemExit):
+        # game was interrupted by the user
+        print(_("Interrupted by user, exiting."))
 
-    # we're not playing anymore, go away
-    utils.return_to_os()
+        # we're not playing anymore, go away
+        utils.return_to_os()
 
-except:
-    # other error
-    kind_error_message = _("""
+    except:
+        # other error
+        kind_error_message = _("""
 Oops, something went wrong. Dumping brain contents:
 
 %s
@@ -106,15 +113,15 @@ Thank you!
 
 """) % ('-' * 80 + '\n', traceback.format_exc(), '-' * 80, "https://gitlab.com/Elinvention/ice-emblem/issues")
 
-    print(kind_error_message)
+        print(kind_error_message)
 
-    fname = args.file if args.file else "traceback.log"
-    with open(fname, 'a') as f:
-        traceback.print_exc(file=f)
-        f.write('\n' + '-' * 80 + '\n\n')
+        fname = args.file if args.file else "traceback.log"
+        with open(fname, 'a') as f:
+            traceback.print_exc(file=f)
+            f.write('\n' + '-' * 80 + '\n\n')
 
-    # we're not playing anymore, go away
-    utils.return_to_os()
+        # we're not playing anymore, go away
+        utils.return_to_os()
 
 # we got here, so everything was normal
 print()
