@@ -25,9 +25,8 @@ class SettingsMenu(room.Room):
         self.bind_keys((pl.K_ESCAPE,), lambda *_: setattr(self, 'done', True))
 
     def draw(self):
-        window = display.window
-        window.fill(c.BLACK)
-        self.back_btn.rect.bottomright = window.get_size()
-        self.fullscreen_btn.rect.midtop = window.get_rect(top=50).midtop
-        self.resolutions_menu.rect.midtop = window.get_rect(top=100).midtop
+        self.surface.fill(c.BLACK)
+        self.back_btn.rect.bottomright = self.rect.bottomright
+        self.fullscreen_btn.rect.midtop = display.get_rect(top=50).midtop
+        self.resolutions_menu.rect.midtop = display.get_rect(top=100).midtop
         super().draw()

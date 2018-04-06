@@ -261,6 +261,9 @@ class Unit(object):
         self.modified = True
         self.coord = coord
 
+    def wait(self):
+        self.played = True
+
 
 class Flying(Unit):
     def __init__(self, *args):

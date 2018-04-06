@@ -2,44 +2,36 @@ import pygame
 
 import room
 import gui
-import state as s
-import game
-import display
-from colors import BLACK
 from fonts import SMALL
 
 
 class AttackSelect(room.Room):
     def begin(self):
-        s.loaded_map.prepare_attack()
-
-    def handle_mousemotion(self, event):
-        s.loaded_map.handle_mousemotion(event)
+        super().begin()
+        self.parent.prepare_attack()
 
     def handle_mousebuttondown(self, event):
         # user must click on an enemy unit
-        if event.button == 1 and s.loaded_map.is_attack_click(event.pos):
-            game.battle_wrapper(s.loaded_map.cursor.coord)
+        if event.button == 1 and self.parent.is_attack_click(event.pos):
+            self.parent.prev_sel = self.parent.curr_sel
+            self.parent.curr_sel = self.parent.tilemap.index_at(*event.pos)
+            self.parent.attack()
             self.done = True
         elif event.button == 3:
-            s.loaded_map.move_undo()
+            self.parent.move_undo()
             self.done = True
+        return True  # prevent event propagation to parent
 
     def handle_keydown(self, event):
         # user must choose an enemy unit
-        if event.key == pygame.K_SPACE and s.loaded_map.is_enemy_cursor():
-            game.battle_wrapper(s.loaded_map.cursor.coord)
+        if event.key == pygame.K_SPACE and self.parent.is_enemy_cursor():
+            self.parent.attack()
             self.done = True
         elif event.key == pygame.K_ESCAPE:
-            s.loaded_map.move_undo()
+            self.parent.move_undo()
             self.done = True
-        s.loaded_map.cursor.update(event)
-
-    def draw(self):
-        display.window.fill(BLACK)
-        s.loaded_map.draw(display.window)
-        game.sidebar.update()
-        super().draw()
+        self.parent.cursor.update(event)
+        return True  # prevent event propagation to parent
 
 
 class ActionMenu(gui.Menu):
@@ -47,41 +39,47 @@ class ActionMenu(gui.Menu):
     Shows the action menu and handles input until it is dismissed.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__([], SMALL, callback=self.undo, **kwargs)
+
     def attack(self):
-        room.run_room(AttackSelect())
+        self.parent.add_child(AttackSelect())
 
     def items(self):
-        unit = s.loaded_map.curr_unit
+        unit = self.parent.curr_unit
         def setitem(item):
             def set(*args):
                 unit.items.active = item
                 unit.played = True
-                s.loaded_map.reset_selection()
+                self.parent.reset_selection()
             return set
         self.menu_entries = [(i.name, setitem(i)) for i in unit.items]
-        self.user_interacted = False
+        self.done = False
 
-    def __init__(self, **kwargs):
-        actions = [
-            (_("Attack"), lambda *_: self.attack()),
-            (_("Items"), lambda *_: self.items()),
-            (_("Wait"), lambda *_: s.loaded_map.wait()),
-        ] if len(s.loaded_map.nearby_enemies()) > 0 else [
-            (_("Items"), lambda *_: self.items()),
-            (_("Wait"), lambda *_: s.loaded_map.wait()),
-        ]
-        super().__init__(actions, SMALL_FONT, callback=lambda *_: s.loaded_map.move_undo(), **kwargs)
+    def wait(self):
+        self.parent.curr_unit.wait()
+        self.parent.reset_selection()
+
+    def undo(self, *args):
+        self.visible = False
+        self.parent.move_undo()
+
+    def handle_mousemotion(self, event):
+        super().handle_mousemotion(event)
+        return True  # prevent event propagation to parent
+
+    def handle_mousebuttondown(self, event):
+        super().handle_mousebuttondown(event)
+        return True  # prevent event propagation to parent
 
     def begin(self):
         super().begin()
-        s.loaded_map.still_attack_area()
-        s.loaded_map.update_highlight()
-        s.loaded_map.draw(display.window)
-        game.sidebar.update()
-
-    def draw(self):
-        display.window.fill(BLACK)
-        s.loaded_map.draw(display.window)
-        game.sidebar.update()
-        super().draw()
+        self.menu_entries = [
+            (_("Attack"), lambda *_: self.attack()),
+            (_("Items"), lambda *_: self.items()),
+            (_("Wait"), lambda *_: self.wait()),
+        ] if len(self.parent.nearby_enemies()) > 0 else [
+            (_("Items"), lambda *_: self.items()),
+            (_("Wait"), lambda *_: self.parent.curr_unit.wait()),
+        ]
 

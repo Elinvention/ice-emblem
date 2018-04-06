@@ -17,13 +17,11 @@ import colors as c
 
 class MainMenu(room.Room):
     def __init__(self):
-        super().__init__(allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN])
+        super().__init__(size=display.get_size(), allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN])
         self.image = resources.load_image('Ice Emblem.png')
-        self.rect = self.image.get_rect()
-        self.click_to_start = f.MAIN_MENU_FONT.render(_("Click to Start"), 1, c.ICE)
-        self.hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], f.SMALL_FONT)
-        self.hmenu.rect.bottomright = window.get_size()
-        self.add_child(self.hmenu)
+        self.click_to_start = gui.Label(_("Click to Start"), f.MAIN_MENU, bg_color=c.TRANSPARENT, txt_color=c.ICE)
+        self.hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)], f.SMALL)
+        self.add_children(self.click_to_start, self.hmenu)
 
     def begin(self):
         super().begin()
@@ -31,12 +29,12 @@ class MainMenu(room.Room):
         self.bind_click((1,), lambda *_: setattr(self, 'done', True), self.hmenu.rect, False)
 
     def draw(self):
-        window.fill(c.BLACK)
+        self.surface = pygame.Surface(self.rect.size)
         self.rect.center = window.get_rect().center
-        window.blit(self.image, self.rect)
-        rect = self.click_to_start.get_rect(centery=window.get_rect().centery+200, centerx=window.get_rect().centerx)
-        window.blit(self.click_to_start, rect)
-        self.hmenu.rect.bottomright = window.get_size()
+        self.surface.blit(self.image, self.image.get_rect(center=display.get_rect().center))
+        self.click_to_start.rect.centery = self.surface.get_rect().centery + 200
+        self.click_to_start.rect.centerx = self.surface.get_rect().centerx
+        self.hmenu.rect.bottomright = self.surface.get_size()
         super().draw()
 
     def end(self):
