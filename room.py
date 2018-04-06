@@ -43,6 +43,7 @@ class Room(object):
 
     def prepare_child(self, child):
         child.parent = self
+        child.begin()
         for grandchild in child.children:
             child.prepare_child(grandchild)
         return child
@@ -84,6 +85,8 @@ class Room(object):
     def loop(self, _events, dt):
         for child in self.children:
             child.loop(_events, dt)
+            if child.done:
+                child.end()
         return self.done
 
     def draw_children(self):
@@ -104,27 +107,27 @@ class Room(object):
     def end(self):
         self.logger.debug("end")
         self.end_children()
-
-    def handle_videoresize(self, event):
-        display.handle_videoresize(event)
-
-    def handle_quit(self, event):
-        utils.return_to_os()
+        if self.parent:
+            self.parent.remove_child(self)
 
     def process_events(self, _events):
         """
         Dispatches an event to registered callbacks or to methods named
         like handle_mousebuttondown.
         """
+        processed = False
+        for child in self.children:
+            processed = processed or child.process_events(_events)
+        if processed:
+            return
         for event in _events:
             if event.type in self.callbacks:
                 for callback in self.callbacks[event.type]:
-                    callback(event)
+                    processed = processed or callback(event)
             method = getattr(self, 'handle_' + pygame.event.event_name(event.type).lower(), None)
             if method is not None:
-                method(event)
-        for child in self.children:
-            child.process_events(_events)
+                processed = processed or method(event)
+        return processed
 
     def register(self, event_type, callback):
         """
@@ -209,6 +212,14 @@ def draw_room(room):
     display.draw_fps()
     display.flip()
 
+def generic_event_handler(_events):
+    for event in _events:
+        if event.type == pygame.QUIT:
+            utils.return_to_os()
+        if event.type == pygame.VIDEORESIZE:
+            display.handle_videoresize(event)
+
+
 def run_room(room):
     global quit
     quit = False
@@ -220,6 +231,7 @@ def run_room(room):
     dt = display.tick(room.fps)
     def loop(_events):
         nonlocal dt
+        generic_event_handler(_events)
         room.process_events(_events)
         room.loop(_events, dt)
         done = room.done or quit
