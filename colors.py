@@ -23,3 +23,5 @@ PLAYED   = Color(75, 75, 75, 150)
 
 MENU_SEL = Color(96, 144, 145)
 MENU_BG  = Color(51, 51, 51)
+
+TRANSPARENT = Color(0, 0, 0, 0)
