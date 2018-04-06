@@ -3,11 +3,8 @@
 """
 
 
-import pygame
-
 import gui
 import colors as c
-import display
 
 
 class Label(gui.GUI):
@@ -21,17 +18,15 @@ class Label(gui.GUI):
         self.format_string = format_string
         self.set_text(format_string)
 
-    def draw(self, surface=display.window):
-        tmp = pygame.Surface(self.rect.size).convert_alpha()
-        tmp.fill(self.bg_color)
+    def draw(self):
+        self.surface.fill(self.bg_color)
         for i, line in enumerate(self.rendered_text):
             y = self.padding[0] + i * (self.font.get_linesize() + self.leading)
             x = self.padding[1]
             for tab in line:
-                tmp.blit(tab, (x, y))
+                self.surface.blit(tab, (x, y))
                 x += self.tab_space(tab.get_width())
-        self.draw_children(tmp)
-        surface.blit(tmp, self.rect)
+        super().draw()
 
     def set_text(self, text):
         lines = map(lambda x: x.split('\t'), text.split('\n'))

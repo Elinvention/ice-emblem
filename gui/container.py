@@ -3,19 +3,16 @@
 """
 
 
-import pygame
-
-import display
 import colors as c
 from .common import GUI
 
 
 class Container(GUI):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.spacing = kwargs.get('spacing', 10)
         self.align = kwargs.get('align', 'center')
+        super().__init__(**kwargs)
         self.compute_content_size()
 
     def compute_content_size(self):
@@ -33,7 +30,6 @@ class Container(GUI):
                 child.rect.right = self.padding[3] + size[0]
             child.rect.top = top
             top += child.get_height() + self.spacing
-        self.rect.apply()
 
     def add_child(self, child):
         super().add_child(child)
@@ -43,8 +39,6 @@ class Container(GUI):
         super().add_children(*children)
         self.compute_content_size()
 
-    def draw(self, surface=display.window):
-        container = pygame.Surface(self.rect.size).convert_alpha()
-        container.fill(self.bg_color)
-        super().draw(container)
-        surface.blit(container, self.rect.topleft)
+    def draw(self):
+        self.surface.fill(self.bg_color)
+        super().draw()

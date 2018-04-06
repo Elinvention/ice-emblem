@@ -17,7 +17,7 @@ import game
 class Sidebar(room.Room):
     def __init__(self, **kwargs):
         super().__init__(w=250, h=display.window.get_height(), right=display.window.get_width(), **kwargs)
-        self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, right=self.local.w, bottom=self.local.h, callback=game.switch_turn)
+        self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, right=self.rect.w, bottom=self.rect.h, callback=game.switch_turn)
         self.add_child(self.endturn_btn)
         self.start_time = 0
 
@@ -27,8 +27,8 @@ class Sidebar(room.Room):
 
     def handle_videoresize(self, event):
         self.resize((250, event.h))
-        self.local.right = event.w
-        self.endturn_btn.local.bottomright = self.local.bottomright
+        self.rect.right = event.w
+        self.endturn_btn.rect.bottomright = self.rect.bottomright
 
     def draw(self):
         coord = s.loaded_map.cursor.coord

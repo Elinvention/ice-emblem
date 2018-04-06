@@ -23,46 +23,14 @@
 import pygame
 
 import room
-import display
-
-
-class Rect(pygame.Rect):
-    def __init__(self, **kwargs):
-        if 'rect' in kwargs:
-            super().__init__(kwargs['rect'])
-        else:
-            super().__init__(0, 0, 0, 0)
-        self.settings = {k: v for k, v in kwargs.items() if not k.startswith('_') and k in dir(self)}
-        self.apply()
-
-    def apply(self):
-        for attr in self.settings:
-            setattr(self, attr, self.settings[attr])
-
-
-class TupleOp(tuple):
-    def __new__(cls, *args):
-        return tuple.__new__(cls, *args)
-    def __add__(self, other):
-        return TupleOp(x + y for x, y in zip(self, other))
-    def __sub__(self, other):
-        return self.__add__(-i for i in other)
-    def __neg__(self):
-        return TupleOp(-x for x in self)
-    def __mul__(self, other):
-        return TupleOp(x * other for x in self)
-    def __truediv__(self, other):
-        return TupleOp(x / other for x in self)
-    def __floordiv__(self, other):
-        return TupleOp(x // other for x in self)
+from basictypes import Point
 
 
 class GUI(room.Room):
     def __init__(self, **kwargs):
+        self._content_size = (0, 0)
+        self._padding = (0, 0, 0, 0)
         super().__init__(**kwargs)
-        self.kwargs = kwargs
-        self.user_interacted = False
-        self.rect = Rect(**kwargs)
         self._content_size = self.rect.size
         self.padding = kwargs.get('padding', (0, 0, 0, 0))
 
@@ -86,9 +54,7 @@ class GUI(room.Room):
 
     @padding.setter
     def padding(self, padding):
-        self._padding = padding
         if isinstance(padding, int):
-
             self._padding = (padding,) * 4
         elif len(padding) == 2:
             self._padding = padding * 2
@@ -101,17 +67,16 @@ class GUI(room.Room):
     def update_size(self):
         self.rect.size = (self.padding[1] + self.padding[3] + self.content_size[0],
                         self.padding[0] + self.padding[2] + self.content_size[1])
-
-    def loop(self, _events, dt):
-        super().loop(_events, dt)
-        return self.user_interacted
+        self.rect.apply()
+        self.surface = pygame.Surface(self.rect.size).convert_alpha()
+        self.invalidate()
 
     def global_coord(self, coord):
-        coord = TupleOp(coord)
+        coord = Point(coord)
         node = self.parent
         while node is not None:
-            if isinstance(node, GUI):
-                coord += TupleOp(node.rect.topleft)
+            if isinstance(node, room.Room):
+                coord += Point(node.rect.topleft)
             node = node.parent
         return coord
 
@@ -143,6 +108,7 @@ class Image(GUI):
         self.content_size = self.image.get_size()
         self.rect.apply()
 
-    def draw(self, surface=display.window):
-        surface.blit(self.image, self.rect)
+    def draw(self):
+        self.surface.blit(self.image, self.rect)
+        super().draw()
 

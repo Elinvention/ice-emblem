@@ -6,7 +6,6 @@
 import pygame
 
 import gui
-import display
 import colors as c
 
 
@@ -28,12 +27,13 @@ class LifeBar(gui.GUI):
         h = (self.max // self.blocks_per_row + 1) * (self.block_size[1] + 1)
         self.content_size = w, h
 
-    def draw(self, surface=display.window):
+    def draw(self):
+        self.surface.fill((0, 0, 0, 0))
         for i in range(self.max):
-            x = self.rect.x + (i % self.blocks_per_row) * (self.block_size[0] + 1)
-            y = self.rect.y + (i // self.blocks_per_row) * (self.block_size[1] + 1)
-            if i < self.value % (self.max + 1):
-                surface.blit(self._life, (x, y))
+            x = (i % self.blocks_per_row) * (self.block_size[0] + 1)
+            y = (i // self.blocks_per_row) * (self.block_size[1] + 1)
+            if i <= self.value % (self.max + 1):
+                self.surface.blit(self._life, (x, y))
             else:
-                surface.blit(self._damage, (x, y))
-        super().draw(surface)
+                self.surface.blit(self._damage, (x, y))
+        super().draw()

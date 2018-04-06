@@ -8,7 +8,6 @@ import pygame.locals as p
 
 import gui
 import colors as c
-import display
 
 
 class Menu(gui.GUI):
@@ -39,7 +38,7 @@ class Menu(gui.GUI):
             w = max(w, entry.get_width())
         h = self.font.get_linesize() * len(self.menu_entries) + self.leading * (len(self.menu_entries) - 1)
         self.content_size = w, h
-        self.rect.apply()
+        self.invalidate()
 
     @property
     def menu_entries(self):
@@ -65,11 +64,11 @@ class Menu(gui.GUI):
         elif event.key == p.K_ESCAPE:
             if self.callback is not None:
                 self.choice = -1
-                self.user_interacted = True
+                self.done = True
                 self.callback(self)
         elif (event.key == p.K_RETURN or event.key == p.K_SPACE) and self.index is not None:
             self.choice = self.index
-            self.user_interacted = True
+            self.done = True
             self.call_callback(self.index)
 
     def set_index(self, index):
@@ -78,6 +77,7 @@ class Menu(gui.GUI):
                 txt = self.menu_entries[self.index][0]
                 r = self.font.render(txt, True, self.txt_color, self.bg_color).convert_alpha()
                 self.rendered_entries[self.index] = r
+                self.invalidate()
             self.prev_index = self.index
             self.index = None
             return
@@ -94,6 +94,7 @@ class Menu(gui.GUI):
                 elif i == self.prev_index:
                     render = self.font.render(entry_text, True, self.txt_color, self.bg_color).convert_alpha()
                     self.rendered_entries[i] = render
+            self.invalidate()
 
     def move_index(self, amount):
         if self.index is None:
@@ -113,13 +114,13 @@ class Menu(gui.GUI):
                 if rect.collidepoint(event.pos):
                     self.clicked = True
                     self.choice = i
-                    self.user_interacted = True
+                    self.done = True
                     self.call_callback(i)
         elif event.button == 3:
             if self.callback is not None:
                 self.choice = -1
                 self.callback(self)
-                self.user_interacted = True
+                self.done = True
 
     def handle_mousemotion(self, event):
         hover = False
@@ -131,15 +132,12 @@ class Menu(gui.GUI):
         if not hover:
             self.set_index(None)
 
-    def draw(self, surface=display.window):
-        tmp = pygame.Surface(self.rect.size).convert_alpha()
-        tmp.fill(self.bg_color)
+    def draw(self):
+        self.surface.fill(self.bg_color)
         linesize = self.font.get_linesize()
-
         for i, entry in enumerate(self.rendered_entries):
-            tmp.blit(entry, (self.padding[3], i * (linesize + self.leading) + self.padding[0]))
-        super().draw(tmp)
-        surface.blit(tmp, self.rect)
+            self.surface.blit(entry, (self.padding[3], i * (linesize + self.leading) + self.padding[0]))
+        super().draw()
 
 
 class HorizontalMenu(Menu):
@@ -155,7 +153,6 @@ class HorizontalMenu(Menu):
         w += self.leading * (len(self.menu_entries) - 1)
         h = self.font.get_linesize()
         self.content_size = w, h
-        self.rect.apply()
 
     def get_entry_pos(self, index):
         x = self.padding[3] + self.rect.x
@@ -165,13 +162,10 @@ class HorizontalMenu(Menu):
             i += 1
         return self.global_coord((x, self.padding[0] + self.rect.y))
 
-    def draw(self, surface=display.window):
-        tmp = pygame.Surface(self.rect.size)
-        tmp.fill(self.bg_color)
+    def draw(self):
+        self.surface.fill(self.bg_color)
 
         x = self.padding[3]
         for i, entry in enumerate(self.rendered_entries):
-            tmp.blit(entry, (x, self.padding[0]))
+            self.surface.blit(entry, (x, self.padding[0]))
             x += entry.get_width() + 10
-
-        surface.blit(tmp, self.rect)

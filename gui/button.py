@@ -7,7 +7,6 @@ import pygame
 
 import gui
 import colors as c
-import display
 
 
 class Button(gui.GUI):
@@ -44,11 +43,13 @@ class Button(gui.GUI):
         if not self._focus:
             self.rendered_text = self.font.render(self.text, True, self.txt_color, self.sel_color)
             self._focus = True
+            self.invalidate()
 
     def unfocus(self):
         if self._focus:
             self.rendered_text = self.font.render(self.text, True, self.txt_color, self.bg_color)
             self._focus = False
+            self.invalidate()
 
     def is_focused(self):
         return self._focus
@@ -60,11 +61,10 @@ class Button(gui.GUI):
                     self.callback(self)
                 self.clicked = True
 
-    def draw(self, surface=display.window):
-        btn = pygame.Surface(self.rect.size)
-        btn.fill(self.bg_color)
-        btn.blit(self.rendered_text, (self.padding[3], self.padding[0]))
-        surface.blit(btn, self.rect.topleft)
+    def draw(self):
+        self.surface.fill(self.bg_color)
+        self.surface.blit(self.rendered_text, (self.padding[3], self.padding[0]))
+        super().draw()
 
 
 class CheckBox(Button):
@@ -87,15 +87,14 @@ class CheckBox(Button):
                 self.clicked = True
                 self.handle_mousemotion(event)
 
-    def draw(self, surface=display.window):
-        btn = pygame.Surface(self.rect.size)
-        btn.fill(self.bg_color)
+    def draw(self):
+        self.surface.fill(self.bg_color)
         btn_pos = (self.padding[3] + self.content_size[1], self.padding[0])
-        btn.blit(self.rendered_text, btn_pos)
+        self.surface.blit(self.rendered_text, btn_pos)
         checkbox = pygame.Surface((self.content_size[1],) * 2)
         if self.checked:
             checkbox.fill(c.GREEN)
         else:
             checkbox.fill(c.RED)
-        btn.blit(checkbox, (self.padding[3], self.padding[0]))
-        surface.blit(btn, self.rect.topleft)
+        self.surface.blit(checkbox, (self.padding[3], self.padding[0]))
+        super().draw()
