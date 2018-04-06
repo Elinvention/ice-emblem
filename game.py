@@ -54,7 +54,6 @@ def switch_turn(*args):
     s.loaded_map.reset_selection()
     display.window.fill(c.BLACK)
     s.loaded_map.draw(display.window)
-    sidebar.update()
     phase_str = _('%s phase') % active_team.name
     phase = f.MAIN_MENU.render(phase_str, 1, active_team.color)
     display.window.blit(phase, utils.center(display.window.get_rect(), phase.get_rect()))
@@ -65,63 +64,6 @@ def switch_turn(*args):
     events.wait(timeout=5000)
 
 
-class Sidebar(object):
-    def __init__(self, font):
-        self.rect = gui.Rect(w=250, h=display.window.get_height(), right=display.window.get_width())
-        self.start_time = pygame.time.get_ticks()
-        self.font = font
-        self.endturn_btn = gui.Button(_("End Turn"), self.font, callback=switch_turn)
-
-    def update(self):
-        coord = s.loaded_map.cursor.coord
-        unit = s.loaded_map.get_unit(coord)
-        terrain = s.loaded_map[coord]
-        team = s.units_manager.active_team
-        render = lambda x, y: self.font.render(x, True, y)
-        self.rect.h = display.window.get_height()
-        self.rect.x = display.window.get_width() - self.rect.w
-        self.endturn_btn.rect.bottomright = self.rect.bottomright
-
-        sidebar = pygame.Surface(self.rect.size)
-        sidebar.fill((100, 100, 100))
-
-        turn_s = render(_('%s phase') % team.name, team.color)
-        pos = turn_s.get_rect(top=40, left=10)
-        sidebar.blit(turn_s, pos)
-
-        t_info = [
-            render(terrain.name, c.WHITE),
-            render(_("Def: %d") % terrain.defense, c.WHITE),
-            render(_("Avoid: %d") % terrain.avoid, c.WHITE),
-            render(_("Allowed: %s") % (", ".join(terrain.allowed)), c.WHITE),
-        ] if terrain else []
-
-        weapon = unit.items.active if unit else None
-        weapon_name = weapon.name if weapon else _("No Weapon")
-        u_info = [
-            render(unit.name, unit.team.color),
-            render(weapon_name, c.WHITE),
-        ] if unit else [render(_("No unit"), c.WHITE)]
-
-        delta = (pygame.time.get_ticks() - self.start_time) // 1000
-        hours, remainder = divmod(delta, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        global_info = [
-            render('X: %d Y: %d' % coord, c.WHITE),
-            render('%02d:%02d:%02d' % (hours, minutes, seconds), c.WHITE),
-        ]
-
-        out = t_info + u_info + global_info
-
-        for i in out:
-            pos.move_ip(0, 40)
-            sidebar.blit(i, pos)
-
-        display.window.blit(sidebar, self.rect)
-        self.endturn_btn.draw()
-
-sidebar = None
 
 
 class PlayerTurn(room.Room):

@@ -6,3 +6,4 @@ from .dialog import *
 from .label import *
 from .menu import *
 from .tween import *
+from .sidebar import Sidebar
