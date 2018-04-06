@@ -13,6 +13,8 @@ import events
 import display
 import utils
 
+from basictypes import Rect
+
 
 class Room(object):
     """
@@ -26,16 +28,24 @@ class Room(object):
         self.fps = kwargs.get('fps', display.fps)
         self.wait = kwargs.get('wait', True)
         self.allowed_events = kwargs.get('allowed_events', [])
-        self.children = kwargs.get('children', [])
+        self.children = [self.prepare_child(child) for child in kwargs.get('children', [])]
         self.parent = None
         self.done = False
         self.root = False
+        self.valid = False
+        self.visible = True
+        self.rect = Rect(**kwargs)
+        self.surface = kwargs.get('surface', pygame.Surface(self.rect.size))
+        self.per_pixel_alpha = kwargs.get('alpha', False)
+        if self.per_pixel_alpha:
+            self.surface = self.surface.convert_alpha()
         self.callbacks = {}
 
     def prepare_child(self, child):
         child.parent = self
         for grandchild in child.children:
             child.prepare_child(grandchild)
+        return child
 
     def add_children(self, *children):
         for child in children:
@@ -48,6 +58,20 @@ class Room(object):
     def remove_child(self, child):
         self.children.remove(child)
         child.parent = None
+
+    def invalidate(self):
+        node = self
+        while node is not None:
+            node.valid = False
+            node = node.parent
+
+    def resize(self, size):
+        self.rect.settings['size'] = size
+        self.rect.apply()
+        self.surface = pygame.Surface(self.rect.size)
+        if self.per_pixel_alpha:
+            self.surface = self.surface.convert_alpha()
+        self.invalidate()
 
     def begin_children(self):
         for child in self.children:
@@ -62,12 +86,16 @@ class Room(object):
             child.loop(_events, dt)
         return self.done
 
-    def draw_children(self, surface=display.window):
+    def draw_children(self):
         for child in self.children:
-            child.draw(surface)
+            if child.visible:
+                if not child.valid:
+                    child.draw()
+                self.surface.blit(child.surface, child.rect)
 
-    def draw(self, surface=display.window):
-        self.draw_children(surface)
+    def draw(self):
+        self.draw_children()
+        self.valid = True
 
     def end_children(self):
         for child in self.children:
@@ -173,6 +201,14 @@ def run_next_room(dequeue=True):
         run_room(rooms[0])
     quit = False
 
+def draw_room(room):
+    display.window.fill(pygame.Color('black'))
+    if not room.valid:
+        room.draw()
+    display.window.blit(room.surface, room.rect)
+    display.draw_fps()
+    display.flip()
+
 def run_room(room):
     global quit
     quit = False
@@ -180,17 +216,15 @@ def run_room(room):
         events.set_allowed(room.allowed_events)
     room.root = True
     room.begin()
-    room.draw()
-    display.flip()
+    draw_room(room)
     dt = display.tick(room.fps)
     def loop(_events):
         nonlocal dt
         room.process_events(_events)
-        done = room.loop(_events, dt) or quit
+        room.loop(_events, dt)
+        done = room.done or quit
         if not done:
-            room.draw()
-            display.draw_fps()
-            display.flip()
+            draw_room(room)
             dt = display.tick(room.fps)
         return done
     events.event_loop(loop, room.wait)
