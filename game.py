@@ -56,7 +56,7 @@ def switch_turn(*args):
     s.loaded_map.draw(display.window)
     sidebar.update()
     phase_str = _('%s phase') % active_team.name
-    phase = f.MAIN_MENU_FONT.render(phase_str, 1, active_team.color)
+    phase = f.MAIN_MENU.render(phase_str, 1, active_team.color)
     display.window.blit(phase, utils.center(display.window.get_rect(), phase.get_rect()))
     pygame.display.flip()
     pygame.mixer.music.fadeout(1000)
@@ -165,7 +165,7 @@ class PlayerTurn(room.Room):
             ('Return to Main Menu', self.reset),
             ('Return to O.S.', utils.return_to_os)
         ]
-        menu = gui.Menu(menu_entries, f.MAIN_FONT, center=display.get_rect().center)
+        menu = gui.Menu(menu_entries, f.MAIN, center=display.get_rect().center)
         self.run_room(menu)
 
     def reset(self, *_):

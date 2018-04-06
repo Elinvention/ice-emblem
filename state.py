@@ -26,7 +26,7 @@ def load_map(map_path):
     except:
         msg = _("Can't load map %s! Probably the format is not ok.\n%s") % (map_path, traceback.format_exc())
         logging.error(msg)
-        room.run_room(gui.Dialog(msg, f.SMALL_FONT, center=display.get_rect().center))
+        room.run_room(gui.Dialog(msg, f.SMALL, center=display.get_rect().center))
 
 def kill(unit):
     loaded_map.kill_unit(unit=unit)

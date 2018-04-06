@@ -33,9 +33,9 @@ class BattleUnitStats(gui.Container):
         super().__init__(bg_color=(0, 0, 0, 0), **kwargs)
         self.unit = unit
         self.animation = AttackAnimation(gui.Image(unit.image), vector, on_animation_finished)
-        self.name = gui.Label(unit.name, f.MAIN_FONT, txt_color=unit.team.color, bg_color=(0, 0, 0, 0))
+        self.name = gui.Label(unit.name, f.MAIN, txt_color=unit.team.color, bg_color=(0, 0, 0, 0))
         self.life = gui.LifeBar(max=unit.health_max, value=unit.health)
-        self.stats = gui.Label(str(unit), f.SMALL_FONT, bg_color=(0, 0, 0, 0))
+        self.stats = gui.Label(str(unit), f.SMALL, bg_color=(0, 0, 0, 0))
         self.add_children(self.animation, self.name, self.life, self.stats)
 
     def update(self):
@@ -48,9 +48,9 @@ class ExperienceAnimation(gui.Container):
         super().__init__(bg_color=(0, 0, 0, 0), wait=False, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], **kwargs)
         self.unit = unit
         self.gained_exp = unit.gained_exp()
-        self.image = gui.Image(unit.image, center=display.get_rect().center)
-        self.bar = gui.LifeBar(max=100, value=unit.prev_exp, blocks_per_row=100, block_size=(2, 10), life_color=c.YELLOW)
-        self.label = gui.Label(_("EXP: {experience}") + "\t" + _("LV: {level}"), f.SMALL_FONT, txt_color=c.YELLOW)
+        self.image = gui.Image(unit.image)
+        self.bar = gui.LifeBar(max=99, value=unit.prev_exp, blocks_per_row=100, block_size=(2, 10), life_color=c.YELLOW)
+        self.label = gui.Label(_("EXP: {experience}") + "\t" + _("LV: {level}"), f.SMALL, txt_color=c.YELLOW)
         self.label.format(**unit.__dict__)
         self.add_children(self.image, self.bar, self.label)
 
@@ -118,9 +118,9 @@ class BattleAnimation(room.Room):
         sounds.play(outcome)
         """
         TODO:
-        miss_text = f.SMALL_FONT.render(_("MISS"), 1, c.YELLOW).convert_alpha()
-        null_text = f.SMALL_FONT.render(_("NULL"), 1, c.RED).convert_alpha()
-        crit_text = f.SMALL_FONT.render(_("TRIPLE"), 1, c.RED).convert_alpha()
+        miss_text = f.SMALL.render(_("MISS"), 1, c.YELLOW).convert_alpha()
+        null_text = f.SMALL.render(_("NULL"), 1, c.RED).convert_alpha()
+        crit_text = f.SMALL.render(_("TRIPLE"), 1, c.RED).convert_alpha()
         """
 
     def loop(self, _events, dt):
@@ -148,7 +148,7 @@ class BattleAnimation(room.Room):
 
     def broken_screen(self, unit):
         sounds.play('broke')
-        broken_text = f.SMALL_FONT.render("%s is broken" % unit.weapon.name, True, c.RED)
+        broken_text = f.SMALL.render("%s is broken" % unit.weapon.name, True, c.RED)
         display.window.blit(broken_text, center=broken_text.get_rect().center)
         display.flip()
         self.wait_event(timeout=3000)

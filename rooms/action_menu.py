@@ -6,7 +6,7 @@ import state as s
 import game
 import display
 from colors import BLACK
-from fonts import SMALL_FONT
+from fonts import SMALL
 
 
 class AttackSelect(room.Room):
