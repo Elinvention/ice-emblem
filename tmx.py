@@ -50,10 +50,11 @@ from basictypes import Point
 class Tile(object):
     def __init__(self, gid, surface, tileset):
         self.gid = gid
-        self.surface = surface
+        self.surface = self.scaled = surface
         self.tile_width = tileset.tile_width
         self.tile_height = tileset.tile_height
         self.properties = {}
+        self.zoom = 1
 
     @classmethod
     def fromSurface(cls, surface):
@@ -82,6 +83,12 @@ class Tile(object):
 
     def __repr__(self):
         return '<Tile %d>' % self.gid
+
+    def set_zoom(self, zoom):
+        if zoom != self.zoom:
+            size = self.tile_width * zoom, self.tile_height * zoom
+            self.scaled = pygame.transform.scale(self.surface, size)
+            self.zoom = zoom
 
 
 class Tileset(object):
@@ -163,7 +170,7 @@ class Cell(object):
     def __init__(self, x, y, px, py, tile):
         self.x, self.y = x, y
         self.px, self.py = px, py
-        self.tile = tile
+        self.tile = self.scaled_tile = tile
         self.topleft = (px, py)
         self.left = px
         self.right = px + tile.tile_width
@@ -316,13 +323,15 @@ class Layer(object):
         self.view_w, self.view_h = w, h
         self.position = (x, y)
         self.zoom = zoom
+        for cell in self:
+            cell.tile.set_zoom(zoom)
 
     def draw(self, surface):
         '''Draw this layer, limited to the current viewport, to the Surface.
         '''
         ox, oy = self.view_x, self.view_y
         w, h = self.view_w, self.view_h
-        tw, th = round(self.tile_width * self.zoom), round(self.tile_height * self.zoom)
+        tw, th = self.tile_width * self.zoom, self.tile_height * self.zoom
         for x in range(ox, ox + w + tw, tw):
             i = x // tw
             for y in range(oy, oy + h + th, th):
@@ -330,8 +339,7 @@ class Layer(object):
                 if (i, j) not in self.cells:
                     continue
                 cell = self.cells[i, j]
-                tile = pygame.transform.scale(cell.tile.surface, (tw, th)) if self.zoom != 1 else cell.tile.surface
-                surface.blit(tile, (round(cell.px * self.zoom) - ox, round(cell.py * self.zoom) - oy))
+                surface.blit(cell.tile.scaled, (cell.px * self.zoom - ox, cell.py * self.zoom - oy))
 
     def find(self, *properties):
         '''Find all cells with the given properties set.'''
@@ -481,11 +489,11 @@ visible: Whether the object is shown (1) or hidden (0). Defaults to 1.
     def draw(self, surface, view_x, view_y, zoom):
         if not self.visible:
             return
-        x, y = (int(self.px * zoom) - view_x, int(self.py * zoom) - view_y)
+        x, y = (self.px * zoom - view_x, self.py * zoom - view_y)
         if self.tile:
             surface.blit(self.tile.surface, (x, y))
         else:
-            r = pygame.Rect((x, y), (int(self.width * zoom), int(self.height * zoom)))
+            r = pygame.Rect((x, y), (self.width * zoom, self.height * zoom))
             pygame.draw.rect(surface, (255, 100, 100), r, 2)
 
     @classmethod
@@ -731,18 +739,17 @@ class TileMap(object):
         self.view_w, self.view_h = size     # viewport size
         self.view_x, self.view_y = origin   # viewport offset
         self.viewport = Rect(origin, size)
-        self.zoom = 1.0
-        self.px_w_zoom = 0
-        self.px_h_zoom = 0
+        self.zoom = 1
         self.set_focus(self.view_w // 2, self.view_h // 2)
+
+    def set_zoom(self, zoom, fx, fy):
+        self.zoom = zoom
+        self.set_focus(fx, fy)
 
     def __getattr__(self, attr):
         if attr.startswith('zoom'):
             real_attr = attr.split('_', 1)[1]
-            value = getattr(self, real_attr)
-            if isinstance(value, int):
-                return int(value * self.zoom)
-            return value * self.zoom
+            return getattr(self, real_attr) * self.zoom
         else:
             raise AttributeError
 
@@ -889,7 +896,7 @@ class TileMap(object):
         '''Return the map index at the (screen-space) pixel position.
         '''
         sx, sy = self.pixel_from_screen(x, y)
-        cx, cy = int(sx // (self.tile_width * self.zoom)), int(sy // (self.tile_height * self.zoom))
+        cx, cy = sx // self.zoom_tile_width, sy // self.zoom_tile_height
         if 0 <= cx < self.width and 0 <= cy < self.height:
             return Point((cx, cy))
 
@@ -897,7 +904,7 @@ class TileMap(object):
         '''
         Return the top left (screen space) pixel position of map index.
         '''
-        sx, sy = int(x * self.tile_width * self.zoom), int(y * self.tile_height * self.zoom)
+        sx, sy = x * self.zoom_tile_width, y * self.zoom_tile_height
         if screen:
             return self.pixel_to_screen(sx, sy)
         return Point((sx, sy))
