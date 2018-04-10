@@ -19,11 +19,11 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 
+
 import pygame
 import pygame.locals as p
 
 import display
-import events
 import gui
 import utils
 import ai
@@ -34,148 +34,108 @@ import fonts as f
 import state as s
 
 
-TIME_BETWEEN_ATTACKS = 2000  # Time to wait between each attack animation
-
-
-def attack(attacking, defending):
-    room.run_room(rooms.BattleAnimation(attacking, defending))
-
-def battle_wrapper(coord):
-    defending = s.loaded_map.get_unit(coord)
-    attacking = s.loaded_map.curr_unit
-
-    # enemy chosen by the user... let the battle begin!
-    attack(attacking, defending)
-
-    s.loaded_map.reset_selection()
-
-def switch_turn(*args):
-    active_team = s.units_manager.switch_turn()
-    s.loaded_map.reset_selection()
-    display.window.fill(c.BLACK)
-    s.loaded_map.draw(display.window)
-    phase_str = _('%s phase') % active_team.name
-    phase = f.MAIN_MENU.render(phase_str, 1, active_team.color)
-    display.window.blit(phase, utils.center(display.window.get_rect(), phase.get_rect()))
-    pygame.display.flip()
-    pygame.mixer.music.fadeout(1000)
-    active_team.play_music('map')
-    events.set_allowed([p.MOUSEBUTTONDOWN, p.KEYDOWN])
-    events.wait(timeout=5000)
-
-
-
-
-class PlayerTurn(room.Room):
+class NextTurnTransition(gui.Label):
     def __init__(self, team):
-        super().__init__(allowed_events=[p.KEYDOWN, p.MOUSEBUTTONDOWN, p.MOUSEMOTION, events.CLOCK])
-        self.add_child(sidebar.endturn_btn)
+        super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color, bg_color=(0, 0, 0, 0), alpha=True, clear_screen=None, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], size=display.get_size(), wait=True)
         self.team = team
 
-    def draw(self):
-        display.window.fill(c.BLACK)
-        s.loaded_map.draw(display.window)
-        sidebar.update()
+    def begin(self):
+        super().begin()
+        pygame.mixer.music.fadeout(1000)
+        self.done = True
 
-    def loop(self, _events, dt):
-        return self.team != s.units_manager.active_team or self.team.is_turn_over()
+    def end(self):
+        super().end()
+        self.wait_event(timeout=2000)
 
-    def handle_mousemotion(self, event):
-        s.loaded_map.handle_mousemotion(event)
 
-    def handle_mousebuttondown(self, event):
-        if s.loaded_map.handle_mousebuttondown(event):
-            self.action_menu(event.pos)
+class Turn(room.Room):
+    def __init__(self, **kwargs):
+        super().__init__(size=display.get_size(), wait=False, children=[sidebar], **kwargs)
+
+    def begin(self):
+        self.team = s.units_manager.active_team
+        self.team.play_music('map')
+        self.sidebar = gui.Sidebar()
+        self.add_children(s.loaded_map, self.sidebar)
 
     def handle_keydown(self, event):
         if event.key == pygame.K_ESCAPE:
             self.pause_menu()
-        else:
-            if s.loaded_map.handle_keydown(event):
-                pos = s.loaded_map.tilemap.pixel_at(*s.loaded_map.cursor.coord)
-                pos = (pos[0] + s.loaded_map.tilemap.tile_width, pos[1] + s.loaded_map.tilemap.tile_height)
-                self.action_menu(pos)
-
-    def action_menu(self, pos):
-        menu = rooms.ActionMenu(topleft=pos, padding=10, leading=5)
-        self.run_room(menu)
-        return menu.choice
-
-    def pause_menu(self):
-        menu_entries = [
-            ('Return to Game', None),
-            ('Return to Main Menu', self.reset),
-            ('Return to O.S.', utils.return_to_os)
-        ]
-        menu = gui.Menu(menu_entries, f.MAIN, center=display.get_rect().center)
-        self.run_room(menu)
-
-    def reset(self, *_):
-        room.run_room(rooms.Fadeout(1000))
-        room.stop()
-
-
-class AITurn(room.Room):
-    def __init__(self, actions):
-        super().__init__(allowed_events=[p.KEYDOWN, p.MOUSEBUTTONDOWN], wait=False, fps=0.5)
-        self.actions = actions
-
-    def draw(self):
-        display.window.fill(c.BLACK)
-        s.loaded_map.draw(display.window)
-
-    def loop(self, _events, dt):
-        try:
-            for fps in next(self.actions):
-                self.draw()
-                display.flip()
-                display.tick(fps)
-        except StopIteration:
-            return True
-        return False
-
-
-class Game(room.Room):
-    def __init__(self):
-        super().__init__(wait=False)
-
-    def begin(self):
-        global sidebar
-        s.units_manager.active_team.play_music('map')
-        sidebar = Sidebar(f.SMALL_FONT)
-
-    def draw(self):
-        display.window.fill(c.BLACK)
-        s.loaded_map.draw(display.window)
-        sidebar.update()
 
     def loop(self, _events, dt):
         """
         Main loop.
         """
-        active_team = s.units_manager.active_team
-        if isinstance(active_team.ai, ai.AI):
-            actions = iter(active_team.ai)
-            self.run_room(AITurn(actions))
-        else:
-            self.run_room(PlayerTurn(active_team))
-        if s.winner is None and active_team == s.units_manager.active_team:
-            switch_turn()
-        return s.winner is not None
+        super().loop(_events, dt)
+        if not s.loaded_map.valid:
+            self.sidebar.invalidate()
+        if s.winner is not None:
+            self.done = True
+        elif self.team.is_turn_over():
+            self.switch_turn()
 
-    def end(self):
-        super().end()
-        pygame.time.set_timer(events.CLOCK, 0);
+    def draw(self):
+        self.surface.fill(c.BLACK)
+        super().draw()
+
+    def pause_menu(self):
+        menu_entries = [
+            (_('Return to Game'), None),
+            (_('Return to Main Menu'), self.reset),
+            (_('Return to O.S.'), utils.return_to_os)
+        ]
+        menu = gui.Menu(menu_entries, f.MAIN, center=display.get_rect().center)
+        self.run_room(menu)
+
+    def switch_turn(self, *args):
+        next_team = s.units_manager.switch_turn()
+        if isinstance(next_team, ai.AI):
+            room.next_room(AITurn())
+        else:
+            room.next_room(PlayerTurn())
+        room.next_room(NextTurnTransition(next_team))
+        self.done = True
+
+
+class PlayerTurn(Turn):
+
+    def __init__(self):
+        super().__init__(allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN, p.MOUSEMOTION])
+
+
+class AITurn(Turn):
+
+    def begin(self):
+        super().begin()
+        self.actions = iter(self.team)
+
+    def loop(self, _events, dt):
+        super().loop(_events, dt)
+        try:
+            action = next(self.actions)
+            for fps in action:
+                self.fps = fps
+                room.draw_room(self)
+            s.loaded_map.invalidate()
+        except StopIteration:
+            self.team.end_turn()
 
 
 def play(map_file):
+    global sidebar
     while True:
         if map_file is None:
             room.queue_room(rooms.SplashScreen())
             room.queue_room(rooms.MainMenu())
         else:
             s.load_map(map_file)
-        room.queue_room(Game())
+        room.run()
+        sidebar = gui.Sidebar()
+        if isinstance(s.units_manager.active_team, ai.AI):
+            room.queue_room(AITurn())
+        else:
+            room.queue_room(PlayerTurn())
         room.queue_room(rooms.VictoryScreen())
         room.run()
         s.loaded_map = None

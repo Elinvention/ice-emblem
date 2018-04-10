@@ -45,7 +45,7 @@ class Rect(pygame.Rect):
     """
     def __init__(self, **kwargs):
         if 'rect' in kwargs:
-            super().__init__(kwargs['rect'])
+            super().__init__(*kwargs['rect'])
         else:
             super().__init__(0, 0, 0, 0)
         self.settings = {k: v for k, v in kwargs.items() if not k.startswith('_') and k in dir(self)}

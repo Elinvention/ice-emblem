@@ -1,5 +1,6 @@
 import state as s
-import game
+import room
+import rooms
 
 
 class Action(object):
@@ -17,7 +18,7 @@ class Attack(Action):
         yield 5
         yield from s.loaded_map.simulate_move(self.defending.coord)
         yield 5
-        game.attack(self.attacking, self.defending)
+        room.run_room(rooms.BattleAnimation(self.attacking, self.defending))
         s.loaded_map.reset_selection()
 
     def __str__(self):
