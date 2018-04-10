@@ -2,3 +2,5 @@
 *.pyc
 .~lock.*#
 .DS_Store
+.*project
+*.e4p
