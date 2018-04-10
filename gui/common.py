@@ -71,44 +71,17 @@ class GUI(room.Room):
         self.surface = pygame.Surface(self.rect.size).convert_alpha()
         self.invalidate()
 
-    def global_coord(self, coord):
-        coord = Point(coord)
-        node = self.parent
-        while node is not None:
-            if isinstance(node, room.Room):
-                coord += Point(node.rect.topleft)
-            node = node.parent
-        return coord
-
-    def global_pos(self):
-        return self.global_coord(self.rect.topleft)
-
-    def global_rect(self):
-        return pygame.Rect(self.global_pos(), self.rect.size)
-
-    def get_pos(self):
-        return self.rect.topleft
-
-    def get_size(self):
-        return self.rect.size
-
-    def get_width(self):
-        return self.rect.w
-
-    def get_height(self):
-        return self.rect.h
-
 
 class Image(GUI):
     def __init__(self, image, **kwargs):
         self.image = image
-        super().__init__(size=image.get_size(), **kwargs)
+        super().__init__(**kwargs)
+        self.compute_content_size()
 
     def compute_content_size(self):
         self.content_size = self.image.get_size()
-        self.rect.apply()
 
     def draw(self):
-        self.surface.blit(self.image, self.rect)
+        self.surface.blit(self.image, (0, 0))
         super().draw()
 

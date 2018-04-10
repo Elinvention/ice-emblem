@@ -1,26 +1,21 @@
-import pygame
 from pygame.locals import MOUSEBUTTONDOWN, KEYDOWN
 
-import room
+import gui
 import resources
-from display import window
-from colors import WHITE, BLACK
+import display
 from fonts import MAIN_MENU
+from colors import BLACK
 
 
-class SplashScreen(room.Room):
+class SplashScreen(gui.Label):
     def __init__(self):
-        super().__init__(allowed_events=[MOUSEBUTTONDOWN, KEYDOWN])
-        self.elinvention = MAIN_MENU.render("Elinvention", 1, WHITE)
-        self.presents = MAIN_MENU.render(_("PRESENTS"), 1, WHITE)
+        super().__init__("Elinvention\n" + _("PRESENTS"), MAIN_MENU, align='center', bg_color=BLACK, size=display.get_size(), allowed_events=[MOUSEBUTTONDOWN, KEYDOWN])
+        self.done = True
 
     def begin(self):
+        super().begin()
         resources.play_music('Beyond The Clouds (Dungeon Plunder).ogg')
 
-    def draw(self):
-        window.fill(BLACK)
-        window.blit(self.elinvention, self.elinvention.get_rect(center=window.get_rect().center))
-        window.blit(self.presents, self.presents.get_rect(centery=window.get_rect().centery+MAIN_MENU.get_linesize(), centerx=window.get_rect().centerx))
-        pygame.display.flip()
+    def end(self):
+        super().end()
         self.wait_event(timeout=6000)
-        self.done = True

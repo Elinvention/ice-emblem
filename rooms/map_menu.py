@@ -1,4 +1,6 @@
 import pygame
+import logging
+import traceback
 
 import room
 import gui
@@ -34,4 +36,9 @@ class MapMenu(room.Room):
     def end(self):
         super().end()
         map_path = resources.map_path(self.files[self.menu.choice][0])
-        s.load_map(map_path)
+        try:
+            s.load_map(map_path)
+        except:
+            msg = _("Error while loading map \"%s\"! Please report this issue.\n%s") % (map_path, traceback.format_exc())
+            logging.error(msg)
+            room.run_room(gui.Dialog(msg, f.SMALL, center=display.get_rect().center))

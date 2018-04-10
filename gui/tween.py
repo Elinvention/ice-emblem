@@ -84,17 +84,20 @@ class Tween(Container):
         self.playing = False
 
     def begin(self):
+        super().begin()
         self.initial = Point(self.rect.topleft)
-        self.target = self.initial + Point(self.change)
+        self.target = self.initial + self.change
 
     def reset(self, *_):
         self.clock = 0
         self.done = False
         self.playing = False
 
-    def go_backward(self):
+    def go_backward(self, reset=True):
         self.backward = not self.backward
         self.done = False
+        if reset:
+            self.reset()
 
     def loop(self, _events, dt):
         super().loop(_events, dt)

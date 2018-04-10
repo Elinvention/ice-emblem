@@ -103,8 +103,8 @@ class Menu(gui.GUI):
             self.set_index(self.index + amount)
 
     def get_entry_pos(self, i):
-        return self.global_coord((self.padding[3] + self.rect.x,
-                self.padding[0] + self.rect.y + i * (self.font.get_linesize() + self.leading)))
+        return self.global_coord((self.padding[3],
+                self.padding[0] + i * (self.font.get_linesize() + self.leading)))
 
     def handle_mousebuttondown(self, event):
         if event.button == 1:
@@ -129,6 +129,7 @@ class Menu(gui.GUI):
             if rect.collidepoint(event.pos):
                 self.set_index(i)
                 hover = True
+                break
         if not hover:
             self.set_index(None)
 
@@ -155,17 +156,15 @@ class HorizontalMenu(Menu):
         self.content_size = w, h
 
     def get_entry_pos(self, index):
-        x = self.padding[3] + self.rect.x
-        i = 0
-        while i < index:
+        x = self.padding[3]
+        for i in range(index):
             x += self.rendered_entries[i].get_width() + self.leading
-            i += 1
-        return self.global_coord((x, self.padding[0] + self.rect.y))
+        return self.global_coord((x, self.padding[0]))
 
     def draw(self):
         self.surface.fill(self.bg_color)
-
         x = self.padding[3]
         for i, entry in enumerate(self.rendered_entries):
             self.surface.blit(entry, (x, self.padding[0]))
-            x += entry.get_width() + 10
+            x += entry.get_width() + self.leading
+        super(gui.GUI, self).draw()

@@ -24,13 +24,16 @@ class AttackSelect(room.Room):
 
     def handle_keydown(self, event):
         # user must choose an enemy unit
+        self.parent.cursor.update(event)
         if event.key == pygame.K_SPACE and self.parent.is_enemy_cursor():
+            self.parent.prev_sel = self.parent.curr_sel
+            self.parent.curr_sel = self.parent.cursor.coord
             self.parent.attack()
             self.done = True
         elif event.key == pygame.K_ESCAPE:
             self.parent.move_undo()
             self.done = True
-        self.parent.cursor.update(event)
+        self.parent.invalidate()
         return True  # prevent event propagation to parent
 
 
@@ -42,10 +45,10 @@ class ActionMenu(gui.Menu):
     def __init__(self, **kwargs):
         super().__init__([], SMALL, callback=self.undo, **kwargs)
 
-    def attack(self):
+    def menu_attack(self):
         self.parent.add_child(AttackSelect())
 
-    def items(self):
+    def menu_items(self):
         unit = self.parent.curr_unit
         def setitem(item):
             def set(*args):
@@ -56,7 +59,7 @@ class ActionMenu(gui.Menu):
         self.menu_entries = [(i.name, setitem(i)) for i in unit.items]
         self.done = False
 
-    def wait(self):
+    def menu_wait(self):
         self.parent.curr_unit.wait()
         self.parent.reset_selection()
 
@@ -72,14 +75,18 @@ class ActionMenu(gui.Menu):
         super().handle_mousebuttondown(event)
         return True  # prevent event propagation to parent
 
+    def handle_keydown(self, event):
+        super().handle_keydown(event)
+        return True  # prevent event propagation to parent
+
     def begin(self):
         super().begin()
         self.menu_entries = [
-            (_("Attack"), lambda *_: self.attack()),
-            (_("Items"), lambda *_: self.items()),
-            (_("Wait"), lambda *_: self.wait()),
+            (_("Attack"), lambda *_: self.menu_attack()),
+            (_("Items"), lambda *_: self.menu_items()),
+            (_("Wait"), lambda *_: self.menu_wait()),
         ] if len(self.parent.nearby_enemies()) > 0 else [
-            (_("Items"), lambda *_: self.items()),
-            (_("Wait"), lambda *_: self.parent.curr_unit.wait()),
+            (_("Items"), lambda *_: self.menu_items()),
+            (_("Wait"), lambda *_: self.menu_wait()),
         ]
 

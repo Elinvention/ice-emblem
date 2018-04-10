@@ -13,7 +13,7 @@ import events
 import display
 import utils
 
-from basictypes import Rect
+from basictypes import Rect, Point
 
 
 class Room(object):
@@ -28,6 +28,8 @@ class Room(object):
         self.fps = kwargs.get('fps', display.fps)
         self.wait = kwargs.get('wait', True)
         self.allowed_events = kwargs.get('allowed_events', [])
+        self.die_when_done = kwargs.get('die_when_done', True)
+        self.clear_screen = kwargs.get('clear_screen', (0, 0, 0))
         self.children = [self.prepare_child(child) for child in kwargs.get('children', [])]
         self.parent = None
         self.done = False
@@ -62,7 +64,7 @@ class Room(object):
 
     def invalidate(self):
         node = self
-        while node is not None:
+        while node and node.valid:
             node.valid = False
             node = node.parent
 
@@ -85,9 +87,8 @@ class Room(object):
     def loop(self, _events, dt):
         for child in self.children:
             child.loop(_events, dt)
-            if child.done:
+            if child.done and child.die_when_done:
                 child.end()
-        return self.done
 
     def draw_children(self):
         for child in self.children:
@@ -107,7 +108,7 @@ class Room(object):
     def end(self):
         self.logger.debug("end")
         self.end_children()
-        if self.parent:
+        if self.parent and self.die_when_done:
             self.parent.remove_child(self)
 
     def process_events(self, _events):
@@ -182,6 +183,7 @@ class Room(object):
 
     def wait_event(self, timeout=-1):
         _events = events.wait(timeout)
+        generic_event_handler(_events)
         self.process_events(_events)
 
     def run_room(self, room):
@@ -189,12 +191,29 @@ class Room(object):
         if self.allowed_events:  # restore allowed events
             events.set_allowed(self.allowed_events)
 
+    def global_coord(self, coord):
+        coord = Point(coord)
+        node = self
+        while node:
+            coord += Point(node.rect.topleft)
+            node = node.parent
+        return coord
+
+    def global_pos(self):
+        return self.global_coord((0, 0))
+
+    def global_rect(self):
+        return Rect(rect=[self.global_pos(), self.rect.size])
+
 
 rooms = collections.deque()
 quit = False
 
 def queue_room(room):
     rooms.append(room)
+
+def next_room(room):
+    rooms.insert(0, room)
 
 def run_next_room(dequeue=True):
     global quit
@@ -205,12 +224,14 @@ def run_next_room(dequeue=True):
     quit = False
 
 def draw_room(room):
-    display.window.fill(pygame.Color('black'))
+    if room.clear_screen:
+        display.window.fill(room.clear_screen)
     if not room.valid:
         room.draw()
     display.window.blit(room.surface, room.rect)
     display.draw_fps()
     display.flip()
+    return display.tick(room.fps)
 
 def generic_event_handler(_events):
     for event in _events:
@@ -235,9 +256,7 @@ def run_room(room):
         room.process_events(_events)
         room.loop(_events, dt)
         done = room.done or quit
-        if not done:
-            draw_room(room)
-            dt = display.tick(room.fps)
+        dt = draw_room(room)
         return done
     events.event_loop(loop, room.wait)
     if not quit:

@@ -97,4 +97,4 @@ class CheckBox(Button):
         else:
             checkbox.fill(c.RED)
         self.surface.blit(checkbox, (self.padding[3], self.padding[0]))
-        super().draw()
+        super(gui.GUI, self).draw()
