@@ -27,22 +27,25 @@ from operator import itemgetter
 
 import utils
 import action
+import state as s
+
+from unit import Team
 
 
-class AI(object):
-    def __init__(self, _map, units_manager, team):
-        self.map = _map
-        self.path = _map.path
-        self.units_manager = units_manager
-        self.own_units = team.units
-        self.enemy_units = units_manager.get_enemies(team)
+class AI(Team):
+    def __init__(self, name, color, relation, units, boss, music):
+        super().__init__(name, color, relation, units, boss, music)
         self.logger = logging.getLogger('AI')
 
     def __iter__(self):
-        self.refresh()
-        for unit in self.own_units:
+        _map = s.loaded_map
+        _path = _map.path
+        random.shuffle(self.units)
+        for unit in self.units:
+            if s.winner is not None:
+                return
             self.logger.info("Thinking what to do with %s...", unit.name)
-            attackable_enemies = self.map.nearby_enemies(unit)
+            attackable_enemies = _map.nearby_enemies(unit)
             self.logger.info("Nearby attackable enemies: %s", attackable_enemies)
             if len(attackable_enemies) > 0:
                 target = self.best_target(attackable_enemies)
@@ -53,7 +56,7 @@ class AI(object):
                 self.logger.debug("Units next to %s: %s", unit.name, enemies)
                 if len(enemies) > 0:
                     target = self.best_target(enemies)
-                    path = self.path.shortest_path(unit.coord, target.coord, unit.movement)
+                    path = _path.shortest_path(unit.coord, target.coord, unit.movement)
                     if path:
                         dest = path[-1]
                         self.logger.debug("%s will reach %s from %s.", unit.name, target.name, dest)
@@ -64,7 +67,7 @@ class AI(object):
                         unit.played = True
                 else:
                     target = self.nearest_enemy(unit)
-                    path = self.path.shortest_path(unit.coord, target.coord, unit.movement)
+                    path = _path.shortest_path(unit.coord, target.coord, unit.movement)
                     self.logger.debug("Unit %s can't reach any enemy. Target is %s, path is %s." % (unit.name, target.name, path))
                     if path:
                         dest = path[-1]
@@ -75,7 +78,10 @@ class AI(object):
         """
         Finds the nearest enemy.
         """
-        l = [(len(self.path.shortest_path(unit.coord, enemy.coord)), enemy) for enemy in self.enemy_units]
+        _path = s.loaded_map.path
+        enemy_units = s.units_manager.get_enemies(self)
+        random.shuffle(enemy_units)
+        l = [(len(_path.shortest_path(unit.coord, enemy.coord)), enemy) for enemy in enemy_units]
         l.sort(key=itemgetter(0))
         nearest_enemy = l[0][1]
         return nearest_enemy
@@ -84,7 +90,8 @@ class AI(object):
         """
         Return the enemies in his area
         """
-        move_area = self.path.area(unit.coord, unit.movement, False)
+        _path = s.loaded_map.path
+        move_area = _path.area(unit.coord, unit.movement, False)
         min_range, max_range = unit.get_weapon_range()
         enemies = set()
         for (x, y) in move_area:
@@ -92,8 +99,8 @@ class AI(object):
                 for j in range(y - max_range, y + max_range + 1):
                     if min_range <= utils.distance((x, y), (i, j)) <= max_range:
                         try:
-                            enemy = self.map.get_unit((i, j))
-                            if enemy and self.units_manager.are_enemies(enemy, unit):
+                            enemy = s.loaded_map.get_unit((i, j))
+                            if enemy and s.units_manager.are_enemies(enemy, unit):
                                 enemies.add(enemy)
                         except KeyError:
                             pass
@@ -108,8 +115,3 @@ class AI(object):
         ranking.sort(key=itemgetter(0))
         best = ranking[0][1]
         return best
-
-    def refresh(self):
-        random.shuffle(self.own_units)
-        random.shuffle(self.enemy_units)
-

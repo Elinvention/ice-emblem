@@ -80,7 +80,7 @@ class Unit(object):
             new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
             self.image = pygame.transform.smoothscale(self.image, new_size)
         except pygame.error as e:
-            logging.warning(_("Couldn't load %s! Loading default image"), resources.sprite_path(self.name))
+            logging.warning("Couldn't load %s! Loading default image", resources.sprite_path(self.name))
             self.image = resources.load_sprite('no_image.png').convert_alpha()
 
     def __repr__(self):
@@ -278,9 +278,7 @@ class Water(Unit):
 class Team(object):
     """Every unit is part of a Team."""
 
-    number_of_teams = 0
-
-    def __init__(self, name, color, relation, ai, units, boss, music):
+    def __init__(self, name, color, relation, units, boss, music):
         """
         name [str]: name of the Team
         color [tuple of 3 ints]: color of the Team
@@ -288,26 +286,20 @@ class Team(object):
             Two Teams can be allied, neutral or enemy. If the difference
             between the two teams' value is 0 they are allied, if it is
             1 they are neutral otherwise they are enemy.
-        ai [AI]: if ai is an AI object ai will be used for this team
         my_turn [bool]: if it is this team's turn
         units [list of units]: units part of the team
         boss [Unit]: the boss of this team that must be inside the units list
         music [Dict of music_key : String filename ]
         """
-        self.number_of_teams += 1
         self.name = name
         self.color = color
         self.relation = relation
-        self.ai = ai
         for unit in units:
             unit.team = self
         self.units = units
         self.boss = boss
         self.music = music
         self.music_pos = {k:0 for k,v in music.items()}
-
-    def __del__(self):
-        self.number_of_teams -= 1
 
     def __str__(self):
         units = "["
@@ -327,7 +319,7 @@ class Team(object):
 
     def end_turn(self):
         for unit in self.units:
-            unit.played = False
+            unit.played = True
         print(_("Team %s ends its turn") % self.name)
 
     def begin_turn(self):
@@ -359,17 +351,17 @@ class Team(object):
 
     def play_music(self, music_key, resume=False):
         music_pos = pygame.mixer.music.get_pos() // 1000
-        if not resume:
-            self.music_pos[music_key] = 0
         try:
             pygame.mixer.music.load(self.music[music_key])
             # resume and loop indefinitely
+            if not resume:
+                self.music_pos[music_key] = 0
             pygame.mixer.music.play(-1, self.music_pos[music_key])
+            self.music_pos[music_key] += music_pos
         except KeyError:
-            logging.warning("Couldn't find key %s!" % music_key)
+            logging.warning("Couldn't find key %s!", music_key)
         except pygame.error:
-            logging.warning("Can't play %s at %s" % (music_key, self.music[music_key]))
-        self.music_pos[music_key] += music_pos
+            logging.warning("Can't play %s", music_key)
 
 
 class UnitsManager(object):
@@ -418,5 +410,4 @@ class UnitsManager(object):
 
     def kill_unit(self, unit):
         self.units.remove(unit)
-        unit.team = None
-
+        unit.team.units.remove(unit)
