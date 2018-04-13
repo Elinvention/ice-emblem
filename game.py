@@ -88,6 +88,10 @@ class Turn(room.Room):
         menu = gui.Menu(menu_entries, f.MAIN, center=display.get_rect().center)
         self.run_room(menu)
 
+    def reset(self, *_):
+        room.run_room(rooms.Fadeout(1000))
+        room.stop()
+
     def switch_turn(self, *args):
         next_team = s.units_manager.switch_turn()
         if isinstance(next_team, ai.AI):
