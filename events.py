@@ -10,8 +10,7 @@ from typing import List, Set
 
 
 TIMEOUT = p.USEREVENT + 1
-INTERRUPT = p.USEREVENT + 2
-CLOCK = p.USEREVENT + 3
+CLOCK = p.USEREVENT + 2
 
 ALWAYS_ALLOWED = [p.QUIT, p.VIDEORESIZE]
 
@@ -21,20 +20,20 @@ EMPTYEVENT = pygame.event.Event(p.NOEVENT, {})
 __logger = logging.getLogger('EventHandler')
 
 
-def get_allowed() -> Set[int]:
+def get_allowed():
     """
-    Queries pygame and returns the set of allowed event types.
+    Queries pygame and returns the generator of allowed event types.
     """
     blocked = map(pygame.event.get_blocked, range(0, p.NUMEVENTS))
     allowed = map(lambda x: not x, blocked)
-    return set(i for i, v in enumerate(allowed) if v)
+    return (i for i, v in enumerate(allowed) if v)
 
-def get_blocked() -> Set[int]:
+def get_blocked():
     """
     Queries pygame and returns the set of blocked event types.
     """
     blocked = map(pygame.event.get_blocked, range(0, p.NUMEVENTS))
-    return set(i for i, v in enumerate(blocked) if v)
+    return (i for i, v in enumerate(blocked) if v)
 
 def allow_all():
     """
@@ -58,9 +57,6 @@ def post(events):
     """
     for e in events:
         pygame.event.post(e)
-
-def post_interrupt(*args):
-    pygame.event.post(pygame.event.Event(INTERRUPT, {}))
 
 def names(event_types: List[int]) -> List[str]:
     """
