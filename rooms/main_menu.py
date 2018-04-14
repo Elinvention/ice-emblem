@@ -1,4 +1,5 @@
 import pygame
+import pygame.locals as pl
 
 import room
 import rooms
@@ -8,11 +9,13 @@ import resources
 import display
 from display import window
 import state as s
-from rooms.settings_menu import SettingsMenu
-from rooms.map_menu import MapMenu
-import pygame.locals as pl
 import fonts as f
 import colors as c
+
+from rooms.settings_menu import SettingsMenu
+from rooms.map_menu import MapMenu
+
+
 
 
 class MainMenu(room.Room):

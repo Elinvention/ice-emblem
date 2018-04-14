@@ -3,9 +3,10 @@ from pygame.locals import MOUSEBUTTONDOWN, KEYDOWN
 import gui
 import resources
 import display
+
 from fonts import MAIN_MENU
 from colors import BLACK
-
+from .main_menu import MainMenu
 
 class SplashScreen(gui.Label):
     def __init__(self):
@@ -19,3 +20,4 @@ class SplashScreen(gui.Label):
     def end(self):
         super().end()
         self.wait_event(timeout=6000)
+        self.next = MainMenu()

@@ -37,11 +37,15 @@ import state as s
 class NextTurnTransition(gui.Label):
     def __init__(self, team):
         super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color, bg_color=(0, 0, 0, 0), alpha=True, clear_screen=None, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], size=display.get_size(), wait=True)
-        self.team = team
+        self.next_team = team
 
     def begin(self):
         super().begin()
         pygame.mixer.music.fadeout(1000)
+        if isinstance(self.next_team, ai.AI):
+            self.next = AITurn()
+        else:
+            self.next = PlayerTurn()
         self.done = True
 
     def end(self):
@@ -86,7 +90,7 @@ class Turn(room.Room):
             (_('Return to O.S.'), utils.return_to_os)
         ]
         menu = gui.Menu(menu_entries, f.MAIN, center=display.get_rect().center)
-        self.run_room(menu)
+        room.run_room(menu)
 
     def reset(self, *_):
         room.run_room(rooms.Fadeout(1000))
@@ -94,11 +98,7 @@ class Turn(room.Room):
 
     def switch_turn(self, *args):
         next_team = s.units_manager.switch_turn()
-        if isinstance(next_team, ai.AI):
-            room.next_room(AITurn())
-        else:
-            room.next_room(PlayerTurn())
-        room.next_room(NextTurnTransition(next_team))
+        self.next = NextTurnTransition(next_team)
         self.done = True
 
 
@@ -130,18 +130,14 @@ def play(map_file):
     global sidebar
     while True:
         if map_file is None:
-            room.queue_room(rooms.SplashScreen())
-            room.queue_room(rooms.MainMenu())
+            room.run(rooms.SplashScreen())
         else:
             s.load_map(map_file)
-        room.run()
         sidebar = gui.Sidebar()
         if isinstance(s.units_manager.active_team, ai.AI):
-            room.queue_room(AITurn())
+            room.run(AITurn())
         else:
-            room.queue_room(PlayerTurn())
-        room.queue_room(rooms.VictoryScreen())
-        room.run()
+            room.run(PlayerTurn())
         s.loaded_map = None
         s.units_manager = None
         s.winner = None

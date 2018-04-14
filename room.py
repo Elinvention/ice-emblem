@@ -6,7 +6,6 @@ and some functions that uniformly act upon Room objects.
 
 import pygame
 import pygame.locals as p
-import collections
 import logging
 
 import events
@@ -42,6 +41,7 @@ class Room(object):
         if self.per_pixel_alpha:
             self.surface = self.surface.convert_alpha()
         self.callbacks = {}
+        self.next = None
 
     def prepare_child(self, child):
         child.parent = self
@@ -186,11 +186,6 @@ class Room(object):
         generic_event_handler(_events)
         self.process_events(_events)
 
-    def run_room(self, room):
-        run_room(room)
-        if self.allowed_events:  # restore allowed events
-            events.set_allowed(self.allowed_events)
-
     def global_coord(self, coord):
         coord = Point(coord)
         node = self
@@ -206,22 +201,9 @@ class Room(object):
         return Rect(rect=[self.global_pos(), self.rect.size])
 
 
-rooms = collections.deque()
-quit = False
+class RoomStop(Exception):
+    pass
 
-def queue_room(room):
-    rooms.append(room)
-
-def next_room(room):
-    rooms.insert(0, room)
-
-def run_next_room(dequeue=True):
-    global quit
-    if dequeue:
-        run_room(rooms.popleft())
-    else:
-        run_room(rooms[0])
-    quit = False
 
 def draw_room(room):
     if room.clear_screen:
@@ -240,10 +222,8 @@ def generic_event_handler(_events):
         if event.type == pygame.VIDEORESIZE:
             display.handle_videoresize(event)
 
-
 def run_room(room):
-    global quit
-    quit = False
+    allowed_events = list(events.get_allowed())
     if room.allowed_events:
         events.set_allowed(room.allowed_events)
     room.root = True
@@ -255,21 +235,22 @@ def run_room(room):
         generic_event_handler(_events)
         room.process_events(_events)
         room.loop(_events, dt)
-        done = room.done or quit
         dt = draw_room(room)
-        return done
+        return room.done
     events.event_loop(loop, room.wait)
-    if not quit:
-        room.end()
+    room.end()
+    if room.allowed_events:
+        events.set_allowed(allowed_events)
     room.root = False
 
-def run():
-    global quit
-    quit = False
-    while rooms:
-        run_next_room()
+def run(first_room):
+    room = first_room
+    try:
+        while room:
+            run_room(room)
+            room = room.next
+    except RoomStop:
+        pass
 
 def stop():
-    global rooms, quit
-    rooms = collections.deque()
-    quit = True
+    raise RoomStop()
