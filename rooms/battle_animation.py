@@ -92,7 +92,7 @@ class BattleAnimation(room.Room):
             unit1.gain_exp(unit2)
             room.run_room(ExperienceAnimation(unit1, center=display.get_rect().center))
         else:
-            s.kill(unit1)
+            s.loaded_map.kill_unit(unit1)
 
     def broken_screen(self, unit):
         sounds.play('broke')

@@ -236,10 +236,10 @@ class TileMap(room.Room):
             unit.move(self.prev_sel)
         self.reset_selection()
 
-    def kill_unit(self, **kwargs):
-        coord = kwargs['coord'] if 'coord' in kwargs else kwargs['unit'].coord
-        self.terrains[coord].unit = None
-        sprite = self.find_sprite(**kwargs)
+    def kill_unit(self, _unit):
+        self.units_manager.kill_unit(_unit)
+        self.terrains[_unit.coord].unit = None
+        sprite = self.find_sprite(unit=_unit)
         self.sprites.remove(sprite)
 
     def update_move_area(self):
