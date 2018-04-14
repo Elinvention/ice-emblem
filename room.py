@@ -206,11 +206,8 @@ class Room(object):
         return Rect(rect=[self.global_pos(), self.rect.size])
 
 
-class RoomStop(Exception):
-    pass
-
-
 rooms = collections.deque()
+quit = False
 
 def queue_room(room):
     rooms.append(room)
@@ -219,10 +216,12 @@ def next_room(room):
     rooms.insert(0, room)
 
 def run_next_room(dequeue=True):
+    global quit
     if dequeue:
         run_room(rooms.popleft())
     else:
         run_room(rooms[0])
+    quit = False
 
 def draw_room(room):
     if room.clear_screen:
@@ -243,36 +242,34 @@ def generic_event_handler(_events):
 
 
 def run_room(room):
-    allowed_events = list(events.get_allowed())
+    global quit
+    quit = False
     if room.allowed_events:
         events.set_allowed(room.allowed_events)
     room.root = True
-    try:
-        room.begin()
-        draw_room(room)
-        dt = display.tick(room.fps)
-        def loop(_events):
-            nonlocal dt
-            generic_event_handler(_events)
-            room.process_events(_events)
-            room.loop(_events, dt)
-            dt = draw_room(room)
-            return room.done
-        events.event_loop(loop, room.wait)
+    room.begin()
+    draw_room(room)
+    dt = display.tick(room.fps)
+    def loop(_events):
+        nonlocal dt
+        generic_event_handler(_events)
+        room.process_events(_events)
+        room.loop(_events, dt)
+        done = room.done or quit
+        dt = draw_room(room)
+        return done
+    events.event_loop(loop, room.wait)
+    if not quit:
         room.end()
-    except RoomStop:
-        pass
-    else:
-        events.set_allowed(allowed_events)
-    finally:
-        room.root = False
-
+    room.root = False
 
 def run():
+    global quit
+    quit = False
     while rooms:
         run_next_room()
 
 def stop():
-    global rooms
+    global rooms, quit
     rooms = collections.deque()
-    raise RoomStop()
+    quit = True
