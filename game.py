@@ -22,6 +22,7 @@
 
 import pygame
 import pygame.locals as p
+import gc
 
 import display
 import gui
@@ -72,8 +73,6 @@ class Turn(room.Room):
         Main loop.
         """
         super().loop(_events, dt)
-        if not s.loaded_map.valid:
-            self.sidebar.invalidate()
         if s.winner is not None:
             self.done = True
         elif self.team.is_turn_over():
@@ -134,10 +133,8 @@ def play(map_file):
         else:
             s.load_map(map_file)
         sidebar = gui.Sidebar()
-        if isinstance(s.units_manager.active_team, ai.AI):
-            room.run(AITurn())
-        else:
-            room.run(PlayerTurn())
+        room.run(NextTurnTransition(s.units_manager.active_team))
+        gc.collect()
         s.loaded_map = None
         s.units_manager = None
         s.winner = None
