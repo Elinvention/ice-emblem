@@ -13,11 +13,15 @@ class Point(tuple):
     def __new__(cls, *args):
         return tuple.__new__(cls, *args)
     def __add__(self, other):
+        if isinstance(other, int):
+            return Point(int(x + other) for x in self)
         return Point(int(x + y) for x, y in zip(self, other))
     def __sub__(self, other):
         return self.__add__(int(-i) for i in other)
     def __neg__(self):
         return Point(int(-x) for x in self)
+    def __abs__(self):
+        return Point(abs(int(x)) for x in self)
     def __mul__(self, other):
         return Point(int(x * other) for x in self)
     def __truediv__(self, other):
