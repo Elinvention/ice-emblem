@@ -13,23 +13,25 @@ import colors as c
 
 class AttackAnimation(gui.Tween):
     def __init__(self, image, vector, on_animation_finished):
-        super().__init__(vector, 200, callback=on_animation_finished, die_when_done=False, bg_color=(0, 0, 0, 0), children=[image])
+        super().__init__(vector, 200, callback=on_animation_finished, die_when_done=False,
+                         bg_color=(0, 0, 0, 0))
+        self.text = gui.Label("", f.SMALL, visible=False, alpha=True, bg_color=(0, 0, 0, 0))
+        self.add_children(self.text, image)
+
 
 class BattleUnitStats(gui.Container):
     def __init__(self, unit, vector, on_animation_finished, **kwargs):
         super().__init__(padding=100, **kwargs)
         self.unit = unit
-        self.animation = AttackAnimation(gui.Image(unit.image, bg_color=(0, 0, 0, 0)), vector, on_animation_finished)
+        self.animation = AttackAnimation(gui.Image(unit.image), vector, on_animation_finished)
         self.name = gui.Label(unit.name, f.MAIN, txt_color=unit.team.color, bg_color=(0, 0, 0, 0))
         self.life = gui.LifeBar(max=unit.health_max, value=unit.health)
         self.stats = gui.Label(str(unit), f.SMALL, bg_color=(0, 0, 0, 0))
         self.add_children(self.animation, self.name, self.life, self.stats)
 
     def update(self):
-        left = self.animation.rect.left
         self.life.value = self.unit.health
         self.stats.set_text(str(self.unit))
-        self.animation.left = left  # Container may reflow this child
 
 
 class BattleAnimation(room.Room):
@@ -59,30 +61,46 @@ class BattleAnimation(room.Room):
         room.run_room(rooms.Fadeout(1000, stop_mixer=False))
 
     def anim_finished(self, tween):
+        left = tween.rect.left
         tween.go_backward(False)
         tween.callback = None
-        outcome = self.att_swap.unit.attack(self.def_swap.unit)
+        sounds.play(self.outcome)
+        if self.outcome == 'hit':
+            text = str(self.damage)
+        elif self.outcome == 'critical':
+            text = '%s %d' % (_(self.outcome.upper()), self.damage)
+        else:
+            text = _(self.outcome.upper())
+        tween.text.txt_color = c.RED
+        if self.outcome == 'miss':
+            tween.text.txt_color = c.YELLOW
+        tween.text.set_text(text)
+        tween.text.visible = True
         self.att_swap.update()
         self.def_swap.update()
-        sounds.play(outcome)
-        """
-        TODO:
-        miss_text = f.SMALL.render(_("MISS"), 1, c.YELLOW).convert_alpha()
-        null_text = f.SMALL.render(_("NULL"), 1, c.RED).convert_alpha()
-        crit_text = f.SMALL.render(_("TRIPLE"), 1, c.RED).convert_alpha()
-        """
+        tween.rect.left = left  # Container may reflow this child
 
     def loop(self, _events, dt):
         super().loop(_events, dt)
-        self.att_swap.animation.playing = True
-        if self.att_swap.animation.clock < -1000:
-            self.att_swap.animation.go_backward()
-            self.att_swap.animation.reset()
-            self.att_swap.animation.callback = self.anim_finished
+        animation = self.att_swap.animation
+        if animation.clock == 0:
+            animation.playing = True
             print(f'{" " * 6}{"-" * 6}Round {self.round}{"-" * 6}')
+            self.outcome, self.damage = self.att_swap.unit.attack(self.def_swap.unit)
+            if self.outcome == 'critical':
+                animation.easing = gui.tween.inBack
+                animation.duration = 500
+            else:
+                animation.easing = gui.tween.linear
+                animation.duration = 200
+        elif animation.clock < -1000:
+            animation.go_backward()
+            animation.reset()
+            animation.callback = self.anim_finished
+            animation.text.visible = False
             self.at -= 1
+            self.round += 1
             if self.dt > 0:
-                self.round += 1
                 self.at, self.dt = self.dt, self.at
                 self.att_swap, self.def_swap = self.def_swap, self.att_swap
             self.done = (self.at <= 0 and self.dt <= 0) or self.attacking.health <= 0 or self.defending.health <= 0
@@ -167,11 +185,15 @@ if __name__ == '__main__':
     import gettext, logging
     import unit, resources
     gettext.install('ice-emblem', resources.LOCALE_PATH)
-    logging.basicConfig(level=0)
-    unit1 = unit.Unit(name='Soldier', health=30, level=1, experience=99, strength=1, skill=1, speed=1, luck=1, defence=1, resistence=1, movement=1, constitution=1, aid=1, affinity=None, condition=None, wrank=[])
-    unit2 = unit.Unit(name='Skeleton', health=31, level=1, experience=0, strength=1, skill=1, speed=1, luck=1, defence=1, resistence=1, movement=1, constitution=1, aid=1, affinity=None, condition=None, wrank=[])
+    logging.basicConfig(level=20)
+    s.load_map('resources/maps/default.tmx')
+    unit1 = unit.Unit(name='Soldier', health=30, level=1, experience=99, strength=5, skill=500, speed=1, luck=2, defence=1, resistence=1, movement=1, constitution=1, aid=1, affinity=None, condition=None, wrank=[])
+    unit2 = unit.Unit(name='Skeleton', health=31, level=1, experience=0, strength=6, skill=30, speed=10, luck=1, defence=1, resistence=1, movement=1, constitution=1, aid=1, affinity=None, condition=None, wrank=[])
     unit1.coord = (1, 1)
     unit2.coord = (1, 2)
     team1 = unit.Team('Ones', (255, 0, 0), 0, [unit1], unit1, {})
     team2 = unit.Team('Twos', (0, 0, 255), 0, [unit2], unit2, {})
-    room.run_room(BattleAnimation(unit1, unit2))
+    s.units_manager.units = [unit1, unit2]
+    while unit1.health > 0 and unit2.health > 0:
+        room.run_room(BattleAnimation(unit1, unit2))
+        unit1, unit2 = unit2, unit1

@@ -177,22 +177,23 @@ class Unit(object):
 
         if not hit:
             print("Misses")
-            return 'miss'
+            return 'miss', 0
         elif dmg <= 0:
             print("Null attack")
-            return 'null'
+            return 'null', 0
         elif critical:
             print("Triple attack")
-            enemy.inflict_damage(dmg*3)
-            if self.weapon is not None:
-                self.weapon.use()
-            return 'critical'
-        else:
-            print(_("%s inflicts %s %d damages") % (self.name, enemy.name, dmg))
+            dmg *= 3
             enemy.inflict_damage(dmg)
             if self.weapon is not None:
                 self.weapon.use()
-            return 'hit'
+            return 'critical', dmg
+        else:
+            print(_("%s inflicts %s %d damage points") % (self.name, enemy.name, dmg))
+            enemy.inflict_damage(dmg)
+            if self.weapon is not None:
+                self.weapon.use()
+            return 'hit', dmg
 
     def value(self):
         """
