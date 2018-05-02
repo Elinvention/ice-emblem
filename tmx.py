@@ -170,7 +170,7 @@ class Cell(object):
     def __init__(self, x, y, px, py, tile):
         self.x, self.y = x, y
         self.px, self.py = px, py
-        self.tile = self.scaled_tile = tile
+        self.tile = tile
         self.topleft = (px, py)
         self.left = px
         self.right = px + tile.tile_width

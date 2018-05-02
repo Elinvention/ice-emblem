@@ -65,7 +65,7 @@ class Menu(gui.GUI):
             if self.callback is not None:
                 self.choice = -1
                 self.done = True
-                self.callback(self)
+                self.callback(self, None)
         elif (event.key == p.K_RETURN or event.key == p.K_SPACE) and self.index is not None:
             self.choice = self.index
             self.done = True
@@ -119,7 +119,7 @@ class Menu(gui.GUI):
         elif event.button == 3:
             if self.callback is not None:
                 self.choice = -1
-                self.callback(self)
+                self.callback(self, None)
                 self.done = True
 
     def handle_mousemotion(self, event):

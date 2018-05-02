@@ -34,7 +34,7 @@ class Room(object):
         self.done = False
         self.root = False
         self.valid = False
-        self.visible = True
+        self.visible = kwargs.get('visible', True)
         self.rect = Rect(**kwargs)
         self.surface = kwargs.get('surface', pygame.Surface(self.rect.size))
         self.per_pixel_alpha = kwargs.get('alpha', False)

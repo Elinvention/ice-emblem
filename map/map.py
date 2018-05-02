@@ -483,7 +483,7 @@ class TileMap(room.Room):
         assert(defending != attacking)
 
         # let the battle begin!
-        self.run_room(rooms.BattleAnimation(attacking, defending))
+        room.run_room(rooms.BattleAnimation(attacking, defending))
 
         self.reset_selection()
 

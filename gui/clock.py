@@ -7,7 +7,7 @@ class Clock(gui.Label):
     def __init__(self, font, **kwargs):
         super().__init__("0", font, **kwargs)
         self.time = 0
-        self.playing = True
+        self.playing = kwargs.get('playing', True)
 
     def reset(self):
         self.time = 0

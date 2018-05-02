@@ -6,7 +6,7 @@ Wrapper of pygame.event with useful functions
 import pygame
 import pygame.locals as p
 import logging
-from typing import List, Set
+from typing import List
 
 
 TIMEOUT = p.USEREVENT + 1

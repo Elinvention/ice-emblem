@@ -26,8 +26,6 @@ class Dialog(Container):
 
     def set_text(self, text):
         self.label.set_text(text)
-        self.ok_btn.rect.midbottom = self.rect.midbottom
-        self.compute_content_size()
 
 
 class Modal(Container):
@@ -54,3 +52,4 @@ class Modal(Container):
     def handle_keydown(self, event):
         if event.key == p.K_SPACE:
             self.answer = self.yesno.choice == 0
+            self.done = True

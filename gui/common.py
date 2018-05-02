@@ -98,11 +98,13 @@ class Image(GUI):
         self.image = image
         super().__init__(**kwargs)
         self.compute_content_size()
+        self.bg_color = kwargs.get('bg_color', (0, 0, 0, 0))
 
     def compute_content_size(self):
         self.content_size = self.image.get_size()
 
     def draw(self):
+        self.surface.fill(self.bg_color)
         self.surface.blit(self.image, (0, 0))
         super().draw()
 
