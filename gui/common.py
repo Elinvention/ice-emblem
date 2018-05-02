@@ -23,7 +23,27 @@
 import pygame
 
 import room
-from basictypes import Point
+from enum import Flag, auto
+
+
+class Gravity(Flag):
+    NO_GRAVITY = 0  # Constant indicating that no gravity has been set
+    TOP = auto()  # Push object to the top of its container, not changing its size.
+    BOTTOM = auto()  # Push object to the bottom of its container, not changing its size.
+    LEFT = auto()  # Push object to the left of its container, not changing its size.
+    RIGHT = auto()  # Push object to the right of its container, not changing its size.
+    TOPLEFT = TOP | LEFT
+    TOPRIGHT = TOP | RIGHT
+    BOTTOMLEFT = BOTTOM | LEFT
+    BOTTOMRIGHT = BOTTOM | RIGHT
+    CENTER_HORIZONTAL = auto()  # Place object in the horizontal center of its container, not changing its size.
+    CENTER_VERTICAL   = auto()  # Place object in the vertical center of its container, not changing its size.
+    CENTER = CENTER_HORIZONTAL | CENTER_VERTICAL  # Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.
+    FILL_HORIZONTAL = auto()  # Grow the horizontal size of the object if needed so it completely fills its container.
+    FILL_VERTICAL = auto()  # Grow the vertical size of the object if needed so it completely fills its container.
+    FILL = FILL_HORIZONTAL | FILL_VERTICAL  # Grow the horizontal and vertical size of the object if needed so it completely fills its container.
+    VERTICAL = TOP | BOTTOM | CENTER_HORIZONTAL | FILL_HORIZONTAL
+    HORIZONTAL = LEFT | RIGHT | CENTER_VERTICAL | FILL_VERTICAL
 
 
 class GUI(room.Room):
@@ -33,6 +53,7 @@ class GUI(room.Room):
         super().__init__(**kwargs)
         self._content_size = self.rect.size
         self.padding = kwargs.get('padding', (0, 0, 0, 0))
+        self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
 
     @property
     def content_size(self):

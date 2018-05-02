@@ -142,8 +142,8 @@ class Menu(gui.GUI):
 
 
 class HorizontalMenu(Menu):
-    K_INDEX_INCREASE = p.K_LEFT
-    K_INDEX_DECREASE = p.K_RIGHT
+    K_INDEX_INCREASE = p.K_RIGHT
+    K_INDEX_DECREASE = p.K_LEFT
     def __init__(self, menu_entries, font, **kwargs):
         super().__init__(menu_entries, font, **kwargs)
 
