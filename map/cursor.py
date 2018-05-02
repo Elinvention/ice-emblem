@@ -14,6 +14,7 @@ class Cursor(pygame.sprite.Sprite):
         self.tilemap = tilemap
         self.img = img.convert_alpha()
         self.coord = (0, 0)
+        self.callbacks = []
         self.resize()
 
     def update(self, event=None):
@@ -39,8 +40,14 @@ class Cursor(pygame.sprite.Sprite):
         self.rect = pygame.Rect(pos, self.tilemap.zoom_tile_size)
         self.image = pygame.transform.scale(self.img, self.rect.size)
 
+    def register_cursor_moved(self, callback):
+        self.callbacks.append(callback)
+        callback(self.coord)
+
     def point(self, cx, cy):
         if (cx, cy) != self.coord:
             sounds.play('cursor')
             self.coord = (cx, cy)
             self.rect.topleft = self.tilemap.pixel_at(cx, cy, False)
+            for callback in self.callbacks:
+                callback(self.coord)

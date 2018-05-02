@@ -52,17 +52,16 @@ class NextTurnTransition(gui.Label):
     def end(self):
         super().end()
         self.wait_event(timeout=2000)
+        sidebar.turn_changed(self.next_team)
 
 
 class Turn(room.Room):
     def __init__(self, **kwargs):
-        super().__init__(size=display.get_size(), wait=False, children=[sidebar], **kwargs)
+        super().__init__(size=display.get_size(), wait=False, children=[sidebar, s.loaded_map], **kwargs)
 
     def begin(self):
         self.team = s.units_manager.active_team
         self.team.play_music('map')
-        self.sidebar = gui.Sidebar()
-        self.add_children(s.loaded_map, self.sidebar)
 
     def handle_keydown(self, event):
         if event.key == pygame.K_ESCAPE:
@@ -100,6 +99,9 @@ class Turn(room.Room):
         self.next = NextTurnTransition(next_team)
         self.done = True
 
+    def end(self):
+        s.loaded_map.reset_selection()
+
 
 class PlayerTurn(Turn):
 
@@ -132,7 +134,7 @@ def play(map_file):
             room.run(rooms.SplashScreen())
         else:
             s.load_map(map_file)
-        sidebar = gui.Sidebar()
+        sidebar = gui.Sidebar(die_when_done=False)
         room.run(NextTurnTransition(s.units_manager.active_team))
         gc.collect()
         s.loaded_map = None

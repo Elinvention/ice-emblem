@@ -3,68 +3,52 @@
 """
 
 
-import pygame
-
-import room
 import display
 import gui
 import fonts as f
 import state as s
 import colors as c
 
+from .common import Gravity
 
-class Sidebar(room.Room):
+
+class Sidebar(gui.Container):
     def __init__(self, **kwargs):
-        super().__init__(w=250, h=display.window.get_height(), right=display.window.get_width(), **kwargs)
-        self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, right=self.rect.w, bottom=self.rect.h, callback=lambda *_: s.units_manager.active_team.end_turn())
-        self.add_child(self.endturn_btn)
-        self.start_time = pygame.time.get_ticks()
+        super().__init__(w=250, h=display.window.get_height(), right=display.window.get_width(),
+                         gravity=Gravity.TOPLEFT, padding=10, **kwargs)
+        self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: s.units_manager.active_team.end_turn())
+        self.turn_label = gui.Label(_("{team} turn"), f.SMALL)
+        self.terrain_label = gui.Label(f'{{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', f.SMALL)
+        self.unit_label = gui.Label('{0}\n{1}', f.SMALL)
+        self.coord_label = gui.Label('X: {0} Y: {1}', f.SMALL, layout_gravity=Gravity.BOTTOM)
+        self.clock = gui.Clock(f.SMALL, layout_gravity=Gravity.BOTTOM)
+        self.add_children(self.turn_label, self.terrain_label, self.unit_label, self.coord_label, self.clock, self.endturn_btn)
+
+    def begin(self):
+        super().begin()
+        s.loaded_map.cursor.register_cursor_moved(self.coord_changed)
 
     def handle_videoresize(self, event):
         self.resize((250, event.h))
         self.rect.right = event.w
         self.endturn_btn.rect.bottomright = self.rect.bottomright
 
-    def draw(self):
-        coord = s.loaded_map.cursor.coord
+    def turn_changed(self, team):
+        self.turn_label.txt_color = team.color
+        self.turn_label.format(team=team.name)
+
+    def coord_changed(self, coord):
         unit = s.loaded_map.get_unit(coord)
         terrain = s.loaded_map[coord]
-        team = s.units_manager.active_team
-        render = lambda x, y: f.SMALL.render(x, True, y)
 
-        self.surface.fill((100, 100, 100))
+        if terrain:
+            self.terrain_label.format(terrain.name, terrain.defense, terrain.avoid, ", ".join(terrain.allowed))
 
-        turn_s = render(_('%s phase') % team.name, team.color)
-        pos = turn_s.get_rect(top=40, left=10)
-        self.surface.blit(turn_s, pos)
+        if unit:
+            weapon = unit.items.active
+            self.unit_label.format(unit.name, weapon.name if weapon else _("No Weapon"))
+        else:
+            self.unit_label.set_text("No unit")
 
-        t_info = [
-            render(terrain.name, c.WHITE),
-            render(_("Def: %d") % terrain.defense, c.WHITE),
-            render(_("Avoid: %d") % terrain.avoid, c.WHITE),
-            render(_("Allowed: %s") % (", ".join(terrain.allowed)), c.WHITE),
-        ] if terrain else []
+        self.coord_label.format(*coord)
 
-        weapon = unit.items.active if unit else None
-        weapon_name = weapon.name if weapon else _("No Weapon")
-        u_info = [
-            render(unit.name, unit.team.color),
-            render(weapon_name, c.WHITE),
-        ] if unit else [render(_("No unit"), c.WHITE)]
-
-        delta = (pygame.time.get_ticks() - self.start_time) // 1000
-        hours, remainder = divmod(delta, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        global_info = [
-            render('X: %d Y: %d' % coord, c.WHITE),
-            render('%02d:%02d:%02d' % (hours, minutes, seconds), c.WHITE),
-        ]
-
-        out = t_info + u_info + global_info
-
-        for i in out:
-            pos.move_ip(0, 40)
-            self.surface.blit(i, pos)
-
-        super().draw()
