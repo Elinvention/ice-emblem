@@ -61,7 +61,7 @@ class GUI(room.Room):
         self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.bg_image = kwargs.get('bg_image', None)
-
+        self._bg_image_size = None
 
     @property
     def content_size(self):
@@ -122,11 +122,19 @@ class GUI(room.Room):
         super().begin()
         self.root_gravity(*display.get_size())
 
+    def bg_image_resized(self):
+        if self._bg_image_size == self.rect.size:
+            return self._bg_image_resized
+        new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
+        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size)
+        self._bg_image_size = self.rect.size
+        return self._bg_image_resized
+
     def fill(self):
         if self.bg_color:
             self.surface.fill(self.bg_color)
         if self.bg_image:
-            resized = pygame.transform.smoothscale(self.bg_image, utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size))
+            resized = self.bg_image_resized()
             pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
             self.surface.blit(resized, pos)
 
