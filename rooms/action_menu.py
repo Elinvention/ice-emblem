@@ -43,7 +43,7 @@ class ActionMenu(gui.Menu):
     """
 
     def __init__(self, **kwargs):
-        super().__init__([], SMALL, callback=self.undo, **kwargs)
+        super().__init__([], SMALL, dismiss_callback=self.undo, **kwargs)
 
     def menu_attack(self):
         self.parent.add_child(AttackSelect())

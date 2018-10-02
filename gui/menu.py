@@ -17,7 +17,7 @@ class Menu(gui.GUI):
     def __init__(self, menu_entries, font, **kwargs):
         super().__init__(**kwargs)
         self.font = font
-        self.callback = kwargs.get('callback', None)
+        self.dismiss_callback = kwargs.get('dismiss_callback', None)
         self.txt_color = kwargs.get('txt_color', c.ICE)
         self.sel_color = kwargs.get('sel_color', c.MENU_SEL)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
@@ -51,10 +51,20 @@ class Menu(gui.GUI):
         self.compute_content_size()
         self.prev_index = self.index = None
 
-    def call_callback(self, i):
-        callback = self.menu_entries[i][1]
-        if callable(callback):
-            callback(self, self.menu_entries[i][0])
+    def dismiss(self):
+        if self.dismiss_callback:
+            self.choice = None
+            self.done = True
+            if callable(self.dismiss_callback):
+                self.dismiss_callback(self)
+
+    def choose(self, choice):
+        self.choice = choice
+        self.done = True
+        entry = self.menu_entries[choice]
+        entry_callback = entry[1]
+        if callable(entry_callback):
+            entry_callback(self, entry[0])
 
     def handle_keydown(self, event):
         if event.key == self.K_INDEX_DECREASE:
@@ -62,14 +72,9 @@ class Menu(gui.GUI):
         elif event.key == self.K_INDEX_INCREASE:
             self.move_index(1)
         elif event.key == p.K_ESCAPE:
-            if self.callback is not None:
-                self.choice = -1
-                self.done = True
-                self.callback(self, None)
+            self.dismiss()
         elif (event.key == p.K_RETURN or event.key == p.K_SPACE) and self.index is not None:
-            self.choice = self.index
-            self.done = True
-            self.call_callback(self.index)
+            self.choose(self.index)
 
     def set_index(self, index):
         if index is None:
@@ -113,14 +118,9 @@ class Menu(gui.GUI):
                 rect = pygame.Rect(self.get_entry_pos(i), entry.get_size())
                 if rect.collidepoint(event.pos):
                     self.clicked = True
-                    self.choice = i
-                    self.done = True
-                    self.call_callback(i)
+                    self.choose(i)
         elif event.button == 3:
-            if self.callback is not None:
-                self.choice = -1
-                self.callback(self, None)
-                self.done = True
+            self.dismiss()
 
     def handle_mousemotion(self, event):
         hover = False
@@ -134,11 +134,12 @@ class Menu(gui.GUI):
             self.set_index(None)
 
     def draw(self):
-        self.surface.fill(self.bg_color)
+        self.fill()
         linesize = self.font.get_linesize()
         for i, entry in enumerate(self.rendered_entries):
             self.surface.blit(entry, (self.padding[3], i * (linesize + self.leading) + self.padding[0]))
-        super().draw()
+        self.draw_children()
+        self.valid = True
 
 
 class HorizontalMenu(Menu):
@@ -162,9 +163,10 @@ class HorizontalMenu(Menu):
         return self.global_coord((x, self.padding[0]))
 
     def draw(self):
-        self.surface.fill(self.bg_color)
+        self.fill()
         x = self.padding[3]
         for i, entry in enumerate(self.rendered_entries):
             self.surface.blit(entry, (x, self.padding[0]))
             x += entry.get_width() + self.leading
-        super(gui.GUI, self).draw()
+        self.draw_children()
+        self.valid = True

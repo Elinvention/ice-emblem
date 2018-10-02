@@ -37,7 +37,9 @@ import state as s
 
 class NextTurnTransition(gui.Label):
     def __init__(self, team):
-        super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color, bg_color=(0, 0, 0, 0), alpha=True, clear_screen=None, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], size=display.get_size(), wait=True)
+        bg = display.window.copy().convert()
+        bg.set_alpha(100)
+        super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color, bg_color=c.BLACK, bg_image=bg, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], wait=True, layout_gravity=gui.Gravity.FILL)
         self.next_team = team
 
     def begin(self):
@@ -55,13 +57,16 @@ class NextTurnTransition(gui.Label):
         sidebar.turn_changed(self.next_team)
 
 
-class Turn(room.Room):
+class Turn(gui.Container):
     def __init__(self, **kwargs):
-        super().__init__(size=display.get_size(), wait=False, children=[sidebar, s.loaded_map], **kwargs)
+        super().__init__(layout_gravity=gui.Gravity.FILL, gravity=gui.Gravity.NO_GRAVITY, wait=False, **kwargs)
+        self.add_children(sidebar, s.loaded_map)
 
     def begin(self):
         self.team = s.units_manager.active_team
         self.team.play_music('map')
+        self.bind_keys((p.K_SPACE, ), lambda *_: s.units_manager.active_team.end_turn())
+
 
     def handle_keydown(self, event):
         if event.key == pygame.K_ESCAPE:
@@ -87,7 +92,7 @@ class Turn(room.Room):
             (_('Return to Main Menu'), self.reset),
             (_('Return to O.S.'), utils.return_to_os)
         ]
-        menu = gui.Menu(menu_entries, f.MAIN, center=display.get_rect().center)
+        menu = gui.Menu(menu_entries, f.MAIN, layout_gravity=gui.Gravity.CENTER, dismiss_callback=True)
         room.run_room(menu)
 
     def reset(self, *_):
@@ -132,6 +137,7 @@ def play(map_file):
     while True:
         if map_file is None:
             room.run(rooms.SplashScreen())
+            room.run(rooms.Fadeout(2000))
         else:
             s.load_map(map_file)
         sidebar = gui.Sidebar(die_when_done=False)

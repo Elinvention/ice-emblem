@@ -7,6 +7,7 @@ import pygame
 import logging
 
 import room
+import gui
 import rooms
 import tmx
 import display
@@ -24,7 +25,7 @@ from map.cellhighlight import CellHighlight
 from map.cursor import Cursor
 
 
-class TileMap(room.Room):
+class TileMap(gui.GUI):
     """
     TileMap rendering.
     """
@@ -33,7 +34,7 @@ class TileMap(room.Room):
         """
         
         """
-        super().__init__(wait=False, alpha=False, allowed_events=[pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN, pygame.MOUSEMOTION], **kwargs)
+        super().__init__(wait=False, bg_color=None, **kwargs)
 
         self.tilemap = tmx.load(map_path, self.rect.size, self.rect.topleft)
         self.zoom = self.tilemap.zoom = 2
@@ -391,9 +392,11 @@ class TileMap(room.Room):
 
     def handle_videoresize(self, event):
         w, h = event.size
-        viewport_size = (w - 200, h)
+        viewport_size = (w - self.parent.children[0].rect.w, h)
         self.tilemap.viewport.size = viewport_size
         self.tilemap.view_w, self.tilemap.view_h = viewport_size
+        self.tilemap.set_focus(self.tilemap.restricted_fx, self.tilemap.restricted_fy)
+        self.resize(viewport_size)
 
     def loop(self, _events, dt):
         super().loop(_events, dt)
@@ -413,7 +416,6 @@ class TileMap(room.Room):
     def draw(self):
         self.surface.fill(pygame.Color('black'))
         self.tilemap.draw(self.surface)
-        super().draw()
 
     def select(self, coord):
         """

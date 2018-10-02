@@ -45,4 +45,3 @@ class LifeBar(gui.GUI):
                 self.surface.blit(self._life, (x, y))
             else:
                 self.surface.blit(self._damage, (x, y))
-        super().draw()

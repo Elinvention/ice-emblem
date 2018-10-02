@@ -37,9 +37,6 @@ class Room(object):
         self.visible = kwargs.get('visible', True)
         self.rect = Rect(**kwargs)
         self.surface = kwargs.get('surface', pygame.Surface(self.rect.size))
-        self.per_pixel_alpha = kwargs.get('alpha', False)
-        if self.per_pixel_alpha:
-            self.surface = self.surface.convert_alpha()
         self.callbacks = {}
         self.next = None
 
@@ -71,10 +68,13 @@ class Room(object):
     def resize(self, size):
         self.rect.settings['size'] = size
         self.rect.apply()
+        self.logger.debug("Requested resize to %s, actual %s" % (size, self.rect.size))
         self.surface = pygame.Surface(self.rect.size)
-        if self.per_pixel_alpha:
-            self.surface = self.surface.convert_alpha()
         self.invalidate()
+
+    def handle_videoresize(self, event):
+        if self.root:
+            self.resize(event.size)
 
     def begin_children(self):
         for child in self.children:

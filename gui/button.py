@@ -62,9 +62,10 @@ class Button(gui.GUI):
                 self.clicked = True
 
     def draw(self):
-        self.surface.fill(self.bg_color)
+        self.fill()
         self.surface.blit(self.rendered_text, (self.padding[3], self.padding[0]))
-        super().draw()
+        self.draw_children()
+        self.valid = True
 
 
 class CheckBox(Button):

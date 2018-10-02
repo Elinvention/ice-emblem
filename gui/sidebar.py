@@ -3,19 +3,16 @@
 """
 
 
-import display
 import gui
 import fonts as f
 import state as s
-import colors as c
 
 from .common import Gravity
 
 
 class Sidebar(gui.Container):
     def __init__(self, **kwargs):
-        super().__init__(w=250, h=display.window.get_height(), right=display.window.get_width(),
-                         gravity=Gravity.TOPLEFT, padding=10, **kwargs)
+        super().__init__(w=250, layout_gravity=gui.Gravity.FILL_VERTICAL|gui.Gravity.RIGHT, gravity=Gravity.TOPLEFT, padding=10, **kwargs)
         self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: s.units_manager.active_team.end_turn())
         self.turn_label = gui.Label(_("{team} turn"), f.SMALL)
         self.terrain_label = gui.Label(f'{{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', f.SMALL)
@@ -27,11 +24,6 @@ class Sidebar(gui.Container):
     def begin(self):
         super().begin()
         s.loaded_map.cursor.register_cursor_moved(self.coord_changed)
-
-    def handle_videoresize(self, event):
-        self.resize((250, event.h))
-        self.rect.right = event.w
-        self.endturn_btn.rect.bottomright = self.rect.bottomright
 
     def turn_changed(self, team):
         self.turn_label.txt_color = team.color

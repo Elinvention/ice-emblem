@@ -1,44 +1,36 @@
-import pygame
 import logging
 import traceback
 
 import room
+import rooms
 import gui
 import resources
-import display
 import colors as c
 import fonts as f
 import state as s
 
 
-class MapMenu(room.Room):
+class MapMenu(gui.Container):
     def __init__(self, image):
-        super().__init__(size=display.get_size())
-        self.image = image
-        self.files = [(f, None) for f in resources.list_maps()]
+        super().__init__(layout_gravity=gui.Gravity.FILL, gravity=gui.Gravity.CENTER, bg_color=c.BLACK, bg_image=image)
+        self.files = [(f, self.chosen) for f in resources.list_maps()]
         self.choose_label = gui.Label(_("Choose a map!"), f.MAIN_MENU, txt_color=c.ICE, bg_color=c.MENU_BG)
-        self.menu = gui.Menu(self.files, f.MAIN, padding=(25, 25), center=display.window.get_rect().center)
-        self.add_children(self.choose_label, self.menu)
+        self.menu = gui.Menu(self.files, f.MAIN, padding=(25, 25), die_when_done=False)
+        self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=self.back, layout_gravity=gui.Gravity.BOTTOMRIGHT)
+        self.add_children(self.choose_label, self.menu, self.back_btn)
 
-    def draw(self):
-        self.surface = pygame.Surface(self.rect.size)
-        self.rect.center = display.get_rect().center
-        self.surface.blit(self.image, self.image.get_rect(center=display.get_rect().center))
-        self.choose_label.rect.top = 50
-        self.choose_label.rect.centerx = self.rect.w // 2
-        self.menu.rect.centerx = self.rect.w // 2
-        self.menu.rect.centery = self.rect.h // 2
-        super().draw()
+    def back(self, *_):
+        self.done = True
+        self.next = rooms.MainMenu()
 
-    def loop(self, _events, dt):
-        self.done = self.menu.choice is not None
-
-    def end(self):
-        super().end()
-        map_path = resources.map_path(self.files[self.menu.choice][0])
+    def chosen(self, menu, choice):
+        map_path = resources.map_path(choice)
         try:
             s.load_map(map_path)
         except:
-            msg = _("Error while loading map \"%s\"! Please report this issue.\n%s") % (map_path, traceback.format_exc())
+            msg = _("Error while loading map \"%s\"! Please report this issue.\n\n%s") % (map_path, traceback.format_exc())
             logging.error(msg)
-            room.run_room(gui.Dialog(msg, f.SMALL, center=display.get_rect().center))
+            dialog = gui.Dialog(msg, f.MONOSPACE, layout_gravity=gui.Gravity.FILL, padding=25)
+            room.run_room(dialog)
+        else:
+            self.done = True

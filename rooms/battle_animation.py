@@ -15,7 +15,7 @@ class AttackAnimation(gui.Tween):
     def __init__(self, image, vector, on_animation_finished):
         super().__init__(vector, 200, callback=on_animation_finished, die_when_done=False,
                          bg_color=(0, 0, 0, 0))
-        self.text = gui.Label("", f.SMALL, visible=False, alpha=True, bg_color=(0, 0, 0, 0))
+        self.text = gui.Label("", f.SMALL, visible=False, bg_color=(0, 0, 0, 0))
         self.add_children(self.text, image)
 
 

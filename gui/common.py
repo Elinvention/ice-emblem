@@ -22,8 +22,13 @@
 
 import pygame
 
-import room
 from enum import Flag, auto
+
+import room
+import display
+import utils
+
+import colors as c
 
 
 class Gravity(Flag):
@@ -42,8 +47,8 @@ class Gravity(Flag):
     FILL_HORIZONTAL = auto()  # Grow the horizontal size of the object if needed so it completely fills its container.
     FILL_VERTICAL = auto()  # Grow the vertical size of the object if needed so it completely fills its container.
     FILL = FILL_HORIZONTAL | FILL_VERTICAL  # Grow the horizontal and vertical size of the object if needed so it completely fills its container.
-    VERTICAL = TOP | BOTTOM | CENTER_HORIZONTAL | FILL_HORIZONTAL
-    HORIZONTAL = LEFT | RIGHT | CENTER_VERTICAL | FILL_VERTICAL
+    VERTICAL = TOP | BOTTOM | CENTER_VERTICAL
+    HORIZONTAL = LEFT | RIGHT | CENTER_HORIZONTAL
 
 
 class GUI(room.Room):
@@ -54,6 +59,9 @@ class GUI(room.Room):
         self._content_size = self.rect.size
         self.padding = kwargs.get('padding', (0, 0, 0, 0))
         self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
+        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
+        self.bg_image = kwargs.get('bg_image', None)
+
 
     @property
     def content_size(self):
@@ -92,19 +100,41 @@ class GUI(room.Room):
         self.surface = pygame.Surface(self.rect.size).convert_alpha()
         self.invalidate()
 
+    def handle_videoresize(self, event):
+        self.root_gravity(event.w, event.h)
+
+    def root_gravity(self, w, h):
+        if self.root:
+            size = self.rect.size
+            if Gravity.FILL_HORIZONTAL in self.layout_gravity:
+                size = (w, size[1])
+            if Gravity.FILL_VERTICAL in self.layout_gravity:
+                size = (size[0], h)
+            self.resize(size)
+
+    def begin(self):
+        super().begin()
+        self.root_gravity(*display.get_size())
+
+    def fill(self):
+        if self.bg_color:
+            self.surface.fill(self.bg_color)
+        if self.bg_image:
+            resized = pygame.transform.smoothscale(self.bg_image, utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size))
+            pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
+            self.surface.blit(resized, pos)
+
+    def draw(self):
+        self.fill()
+        super().draw()
+
 
 class Image(GUI):
     def __init__(self, image, **kwargs):
-        self.image = image
-        super().__init__(**kwargs)
+        super().__init__(bg_image=image, **kwargs)
         self.compute_content_size()
-        self.bg_color = kwargs.get('bg_color', (0, 0, 0, 0))
+        self.bg_color = kwargs.get('bg_color', None)
 
     def compute_content_size(self):
-        self.content_size = self.image.get_size()
-
-    def draw(self):
-        self.surface.fill(self.bg_color)
-        self.surface.blit(self.image, (0, 0))
-        super().draw()
+        self.content_size = self.bg_image.get_size()
 

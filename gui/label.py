@@ -2,11 +2,10 @@
 
 """
 
+import pygame
 
 import gui
 import colors as c
-
-from basictypes import Point
 
 
 class Label(gui.GUI):
@@ -17,23 +16,22 @@ class Label(gui.GUI):
         self.tabs = kwargs.get('tabs', 100)
         self.txt_color = kwargs.get('txt_color', c.WHITE)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
-        self.align = kwargs.get('align', 'center')
+        #self.align = kwargs.get('align', 'center')
         self.text = self.format_string = format_string
         self._render_text()
 
     def draw(self):
-        self.surface.fill(self.bg_color)
-        offset = Point((0, 0))
-        if self.align == 'center':
-            offset = (Point(self.rect.size) - Point(self.content_size)) / 2
-        y = self.padding[0] + offset.y
+        self.fill()
+        padded = pygame.Rect((self.padding[3], self.padding[0]), (self.rect.w -self.padding[1] - self.padding[3], self.rect.h-self.padding[0] - self.padding[2]))
+        y = padded.centery - self.content_size[1] // 2
         for i, line in enumerate(self.rendered_text):
-            x = self.padding[1] + offset.x
+            x = padded.centerx - self.content_size[0] // 2
             for tab in line:
                 self.surface.blit(tab, (x, y))
                 x += self.tab_space(tab.get_width())
             y += self.font.get_linesize() + self.leading
-        super().draw()
+        self.draw_children()
+        self.valid = True
 
     def _render_text(self):
         lines = map(lambda x: x.split('\t'), self.text.split('\n'))
