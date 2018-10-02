@@ -66,11 +66,11 @@ class Room(object):
             node = node.parent
 
     def resize(self, size):
-        self.rect.settings['size'] = size
-        self.rect.apply()
-        self.logger.debug("Requested resize to %s, actual %s" % (size, self.rect.size))
-        self.surface = pygame.Surface(self.rect.size)
-        self.invalidate()
+        if self.rect.size != size:
+            self.rect.settings['size'] = size
+            self.rect.apply()
+            self.surface = pygame.Surface(self.rect.size)
+            self.invalidate()
 
     def handle_videoresize(self, event):
         if self.root:
