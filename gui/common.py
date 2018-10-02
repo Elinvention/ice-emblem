@@ -69,10 +69,11 @@ class GUI(room.Room):
 
     @content_size.setter
     def content_size(self, size):
-        self._content_size = size
-        self.update_size()
-        if isinstance(self.parent, GUI):
-            self.parent.compute_content_size()
+        if self._content_size != size:
+            self._content_size = size
+            self.update_size()
+            if isinstance(self.parent, GUI):
+                self.parent.compute_content_size()
 
     def compute_content_size(self):
         self.rect.apply()
