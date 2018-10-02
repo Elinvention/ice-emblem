@@ -76,3 +76,9 @@ def get_width():
 
 def get_height():
     return window.get_height()
+
+def darken(alpha):
+    s = pygame.Surface(window.get_size())
+    s.fill((0, 0, 0))
+    s.set_alpha(alpha)
+    window.blit(s, (0, 0))

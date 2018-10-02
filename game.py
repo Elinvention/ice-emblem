@@ -92,7 +92,8 @@ class Turn(gui.Container):
             (_('Return to Main Menu'), self.reset),
             (_('Return to O.S.'), utils.return_to_os)
         ]
-        menu = gui.Menu(menu_entries, f.MAIN, layout_gravity=gui.Gravity.CENTER, dismiss_callback=True)
+        display.darken(200)
+        menu = gui.Menu(menu_entries, f.MAIN, layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
         room.run_room(menu)
 
     def reset(self, *_):
