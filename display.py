@@ -50,12 +50,10 @@ def handle_videoresize(event):
         screen_size = (screen_size[0], min_resolution[1])
     window = pygame.display.set_mode(screen_size, mode)
 
-def draw_fps(font=None):
-    if font is None:
-        font = FPS_FONT
+def draw_fps(font=FPS_FONT):
     screen_w, screen_h = window.get_size()
     fps = clock.get_fps()
-    fpslabel = font.render('%d FPS' % int(fps), True, c.WHITE)
+    fpslabel = font.render('%d FPS' % int(fps), True, c.WHITE, c.BLACK).convert()
     rec = fpslabel.get_rect(top=5, right=screen_w - 5)
     window.blit(fpslabel, rec)
 
@@ -72,3 +70,9 @@ def get_rect(**kwargs):
 
 def get_size():
     return window.get_size()
+
+def get_width():
+    return window.get_width()
+
+def get_height():
+    return window.get_height()
