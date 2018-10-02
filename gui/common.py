@@ -112,6 +112,11 @@ class GUI(room.Room):
                 size = (size[0], h)
             self.resize(size)
 
+            if Gravity.CENTER_HORIZONTAL in self.layout_gravity:
+                self.rect.centerx = w // 2
+            if Gravity.CENTER_VERTICAL in self.layout_gravity:
+                self.rect.centery = h // 2
+
     def begin(self):
         super().begin()
         self.root_gravity(*display.get_size())
