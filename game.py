@@ -65,8 +65,7 @@ class Turn(gui.Container):
     def begin(self):
         self.team = s.units_manager.active_team
         self.team.play_music('map')
-        self.bind_keys((p.K_SPACE, ), lambda *_: s.units_manager.active_team.end_turn())
-
+        self.bind_keys((p.K_BACKSPACE, ), self.end_turn)
 
     def handle_keydown(self, event):
         if event.key == pygame.K_ESCAPE:
@@ -79,12 +78,8 @@ class Turn(gui.Container):
         super().loop(_events, dt)
         if s.winner is not None:
             self.done = True
-        elif self.team.is_turn_over():
-            self.switch_turn()
-
-    def draw(self):
-        self.surface.fill(c.BLACK)
-        super().draw()
+        elif self.team.is_turn_over() and not self.done:
+            self.end_turn()
 
     def pause_menu(self):
         menu_entries = [
@@ -100,7 +95,8 @@ class Turn(gui.Container):
         room.run_room(rooms.Fadeout(1000))
         room.stop()
 
-    def switch_turn(self, *args):
+    def end_turn(self, *args):
+        self.team.end_turn()
         next_team = s.units_manager.switch_turn()
         self.next = NextTurnTransition(next_team)
         self.done = True
@@ -113,6 +109,15 @@ class PlayerTurn(Turn):
 
     def __init__(self):
         super().__init__(allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN, p.MOUSEMOTION])
+
+    def end_turn(self, *args):
+        if self.team.is_turn_over():
+            super().end_turn()
+        else:
+            modal = gui.Modal(_("Are you sure you want to end your turn?"), f.SMALL, layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
+            room.run_room(modal)
+            if modal.answer:
+                super().end_turn()
 
 
 class AITurn(Turn):
