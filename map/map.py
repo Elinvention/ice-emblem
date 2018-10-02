@@ -34,9 +34,10 @@ class TileMap(gui.GUI):
         """
         
         """
-        super().__init__(wait=False, bg_color=None, **kwargs)
+        super().__init__(wait=False, **kwargs)
 
         self.tilemap = tmx.load(map_path, self.rect.size, self.rect.topleft)
+
         self.zoom = self.tilemap.zoom = 2
         self.tw, self.th = (self.tilemap.tile_width, self.tilemap.tile_height)
         self.w, self.h = self.tilemap.width, self.tilemap.height
@@ -414,8 +415,10 @@ class TileMap(gui.GUI):
             self.update_highlight()
 
     def draw(self):
-        self.surface.fill(pygame.Color('black'))
+        self.fill()
         self.tilemap.draw(self.surface)
+        self.draw_children()
+        self.valid = True
 
     def select(self, coord):
         """
