@@ -58,6 +58,12 @@ def resize_keep_ratio(size, max_size):
     resize_ratio = min(max_w / w, max_h / h)
     return int(w * resize_ratio), int(h * resize_ratio)
 
+def resize_cover(size, max_size):
+    w, h = size
+    max_w, max_h = max_size
+    resize_ratio = max(max_w / w, max_h / h)
+    return int(w * resize_ratio), int(h * resize_ratio)
+
 def center(rect1, rect2, xoffset=0, yoffset=0):
     """Center rect2 in rect1 with offset."""
     return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)

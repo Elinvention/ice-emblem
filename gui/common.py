@@ -61,6 +61,7 @@ class GUI(room.Room):
         self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
         self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.bg_image = kwargs.get('bg_image', None)
+        self.bg_size = kwargs.get('bg_size', 'contain')  # Possible values: 'contain', 'cover', (int, int)
         self._bg_image_size = None
 
     @property
@@ -123,9 +124,14 @@ class GUI(room.Room):
         self.root_gravity(*display.get_size())
 
     def bg_image_resized(self):
-        if self._bg_image_size == self.rect.size:
+        if self.bg_size == 'contain':
+            new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
+        elif self.bg_size == 'cover':
+            new_size =  utils.resize_cover(self.bg_image.get_size(), self.rect.size)
+        else:
+            new_size = (int(self.bg_size[0] / 100 * self.rect.w), int(self.bg_size[1] / 100 * self.rect.h))
+        if new_size == self._bg_image_size:
             return self._bg_image_resized
-        new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
         self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size)
         self._bg_image_size = self.rect.size
         return self._bg_image_resized
