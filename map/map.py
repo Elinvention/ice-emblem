@@ -34,7 +34,7 @@ class TileMap(gui.GUI):
         """
         
         """
-        super().__init__(wait=False, **kwargs)
+        super().__init__(wait=False, bg_image=resources.load_image("old-paper.jpg"), bg_size='cover', **kwargs)
 
         self.tilemap = tmx.load(map_path, self.rect.size, self.rect.topleft)
 
