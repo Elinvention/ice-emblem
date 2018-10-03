@@ -99,7 +99,7 @@ class GUI(room.Room):
         self.rect.size = (self.padding[1] + self.padding[3] + self.content_size[0],
                         self.padding[0] + self.padding[2] + self.content_size[1])
         self.rect.apply()
-        self.surface = pygame.Surface(self.rect.size).convert_alpha()
+        self.surface = pygame.Surface(self.rect.size)
         self.invalidate()
 
     def handle_videoresize(self, event):
