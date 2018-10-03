@@ -6,5 +6,6 @@ from .dialog import *
 from .label import *
 from .menu import *
 from .tween import *
+from .ninepatch import NinePatch
 from .sidebar import Sidebar
 from .clock import Clock
