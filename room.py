@@ -8,11 +8,54 @@ import pygame
 import pygame.locals as p
 import logging
 
+from enum import Flag, Enum, auto
+import colors as c
+
 import events
 import display
 import utils
 
-from basictypes import Rect, Point
+from basictypes import Point, NESW
+
+
+class Gravity(Flag):
+    NO_GRAVITY = 0  # Constant indicating that no gravity has been set
+    TOP = auto()  # Push object to the top of its container, not changing its size.
+    BOTTOM = auto()  # Push object to the bottom of its container, not changing its size.
+    LEFT = auto()  # Push object to the left of its container, not changing its size.
+    RIGHT = auto()  # Push object to the right of its container, not changing its size.
+    TOPLEFT = TOP | LEFT
+    TOPRIGHT = TOP | RIGHT
+    BOTTOMLEFT = BOTTOM | LEFT
+    BOTTOMRIGHT = BOTTOM | RIGHT
+    CENTER_HORIZONTAL = auto()  # Place object in the horizontal center of its container, not changing its size.
+    CENTER_VERTICAL   = auto()  # Place object in the vertical center of its container, not changing its size.
+    CENTER = CENTER_HORIZONTAL | CENTER_VERTICAL  # Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.
+    FILL_HORIZONTAL = auto()  # Grow the horizontal size of the object if needed so it completely fills its container.
+    FILL_VERTICAL = auto()  # Grow the vertical size of the object if needed so it completely fills its container.
+    FILL = FILL_HORIZONTAL | FILL_VERTICAL  # Grow the horizontal and vertical size of the object if needed so it completely fills its container.
+    VERTICAL = TOP | BOTTOM | CENTER_VERTICAL
+    HORIZONTAL = LEFT | RIGHT | CENTER_HORIZONTAL
+
+
+class LayoutParams(Enum):
+    FILL_PARENT = auto()
+    WRAP_CONTENT = auto()
+
+
+class MeasureSpec(Enum):
+    EXACTLY = auto()
+    AT_MOST = auto()
+    UNSPECIFIED = auto()
+
+
+class MeasureParams(object):
+    def __init__(self, mode, value):
+        self.mode = mode
+        self.value = value
+
+    def __str__(self):
+        return "%s, %s" % (self.mode, self.value)
 
 
 class Room(object):
@@ -35,10 +78,28 @@ class Room(object):
         self.root = False
         self.valid = False
         self.visible = kwargs.get('visible', True)
-        self.rect = Rect(**kwargs)
-        self.surface = kwargs.get('surface', pygame.Surface(self.rect.size))
+        self.rect = pygame.Rect((0, 0), (0, 0))
+        self.surface = pygame.Surface(self.rect.size)
         self.callbacks = {}
         self.next = None
+
+        self.layout_width = kwargs.get('layout_width', LayoutParams.WRAP_CONTENT)
+        self.layout_height = kwargs.get('layout_height', LayoutParams.WRAP_CONTENT)
+        self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
+        self.layout_valid = False
+
+        self.padding = NESW(kwargs.get('padding', 0))
+        self.border = NESW(kwargs.get('border', 0))
+        self.margin = NESW(kwargs.get('margin', 0))
+
+        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
+        self.bg_image = kwargs.get('bg_image', None)
+        self.bg_size = kwargs.get('bg_size', 'contain')  # Possible values: 'contain', 'cover', (int, int)
+        self._bg_image_size = None
+
+    @property
+    def layout_wh(self):
+        return self.layout_width, self.layout_height
 
     def prepare_child(self, child):
         child.parent = self
@@ -51,13 +112,19 @@ class Room(object):
         for child in children:
             self.prepare_child(child)
         self.children.extend(children)
+        self.layout_request()
+        self.invalidate()
 
     def add_child(self, child):
         self.add_children(child)
+        self.layout_request()
+        self.invalidate()
 
     def remove_child(self, child):
         self.children.remove(child)
         child.parent = None
+        self.layout_request()
+        self.invalidate()
 
     def invalidate(self):
         node = self
@@ -65,16 +132,67 @@ class Room(object):
             node.valid = False
             node = node.parent
 
+    def get_root(self):
+        node = self
+        while node:
+            if node.root:
+                assert(node.parent is None)
+                return node
+            node = node.parent
+
+    def layout_request(self):
+        node = self
+        while node and node.layout_valid:
+            node.layout_valid = False
+            node = node.parent
+
+    def measure(self, spec_width, spec_height):
+        """
+        Top-down traversal of the tree. The parent asks its children to measure their size.
+        The measured size should not exceed max_width and max_height otherwise the parent may clip the child.
+        """
+        self.resolve_measure(spec_width, spec_height, self.rect.w, self.rect.h)
+
+    def resolve_measure(self, spec_width, spec_height, content_width, content_height):
+        if spec_width.mode == MeasureSpec.EXACTLY:
+            self.measured_width = spec_width.value
+        else:
+            if self.layout_width == LayoutParams.FILL_PARENT:
+                self.measured_width = spec_width.value
+            elif self.layout_width == LayoutParams.WRAP_CONTENT:
+                self.measured_width = content_width
+            else:
+                self.measured_width = min(spec_width.value, self.layout_width)
+
+        if spec_height == MeasureSpec.EXACTLY:
+            self.measured_height = spec_height.value
+        else:
+            if self.layout_height == LayoutParams.FILL_PARENT:
+                self.measured_height = spec_height.value
+            elif self.layout_height == LayoutParams.WRAP_CONTENT:
+                self.measured_height = content_height
+            else:
+                self.measured_height = min(spec_height.value, self.layout_height)
+        self.logger.debug("W: (%s) -> %s; H: (%s) -> %s", spec_width, self.measured_width, spec_height, self.measured_height)
+
+    def layout(self, rect):
+        """
+        Top-down traversal of the tree. The parent positions its children.
+        This method must be called after measure.
+        """
+        self.rect.topleft = rect.topleft
+        self.resize(rect.size)
+        self.layout_valid = True
+        self.logger.debug("layout gravity: %s; rect: %s", self.layout_gravity, self.rect)
+
     def resize(self, size):
         if self.rect.size != size:
-            self.rect.settings['size'] = size
-            self.rect.apply()
+            self.rect.size = size
             self.surface = pygame.Surface(self.rect.size)
             self.invalidate()
 
     def handle_videoresize(self, event):
-        if self.root:
-            self.resize(event.size)
+        self.layout_request()
 
     def begin_children(self):
         for child in self.children:
@@ -90,6 +208,11 @@ class Room(object):
             if child.done and child.die_when_done:
                 child.end()
 
+    def draw(self):
+        self.fill()
+        self.draw_children()
+        self.valid = True
+
     def draw_children(self):
         for child in self.children:
             if child.visible:
@@ -97,9 +220,28 @@ class Room(object):
                     child.draw()
                 self.surface.blit(child.surface, child.rect)
 
-    def draw(self):
-        self.draw_children()
-        self.valid = True
+    def fill(self):
+        if self.bg_color:
+            if len(self.bg_color) == 4:
+                self.surface = self.surface.convert_alpha()
+            self.surface.fill(self.bg_color)
+        if self.bg_image:
+            resized = self.bg_image_resized()
+            pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
+            self.surface.blit(resized, pos)
+
+    def bg_image_resized(self):
+        if self.bg_size == 'contain':
+            new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
+        elif self.bg_size == 'cover':
+            new_size =  utils.resize_cover(self.bg_image.get_size(), self.rect.size)
+        else:
+            new_size = (int(self.bg_size[0] / 100 * self.rect.w), int(self.bg_size[1] / 100 * self.rect.h))
+        if new_size == self._bg_image_size:
+            return self._bg_image_resized
+        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size)
+        self._bg_image_size = self.rect.size
+        return self._bg_image_resized
 
     def end_children(self):
         for child in self.children:
@@ -187,10 +329,9 @@ class Room(object):
         self.process_events(_events)
 
     def global_coord(self, coord):
-        coord = Point(coord)
         node = self
         while node:
-            coord += Point(node.rect.topleft)
+            coord = coord[0] + node.rect.x, coord[1] + node.rect.y
             node = node.parent
         return coord
 
@@ -198,7 +339,17 @@ class Room(object):
         return self.global_coord((0, 0))
 
     def global_rect(self):
-        return Rect(rect=[self.global_pos(), self.rect.size])
+        return pygame.Rect(self.global_pos(), self.rect.size)
+
+    def local_coord(self, coord):
+        node = self
+        while node:
+            coord = coord[0] - node.rect.x, coord[1] - node.rect.y
+            node = node.parent
+        return coord
+
+    def local_rect(self):
+        return pygame.Rect(self.local_coord((0, 0)), self.rect.size)
 
 
 class RoomStop(Exception):
@@ -208,12 +359,14 @@ class RoomStop(Exception):
 def draw_room(room):
     if room.clear_screen:
         display.window.fill(room.clear_screen)
+    if not room.layout_valid:
+        room.measure(MeasureParams(MeasureSpec.EXACTLY, display.get_width()), MeasureParams(MeasureSpec.EXACTLY, display.get_height()))
+        room.layout(display.get_rect())
     if not room.valid:
         room.draw()
     display.window.blit(room.surface, room.rect)
     display.draw_fps()
     display.flip()
-    return display.tick(room.fps)
 
 def generic_event_handler(_events):
     for event in _events:
@@ -227,6 +380,9 @@ def run_room(room):
     if room.allowed_events:
         events.set_allowed(room.allowed_events)
     room.root = True
+    room.done = False
+    room.valid = False
+    room.layout_valid = False
     room.begin()
     draw_room(room)
     dt = display.tick(room.fps)
@@ -235,7 +391,8 @@ def run_room(room):
         generic_event_handler(_events)
         room.process_events(_events)
         room.loop(_events, dt)
-        dt = draw_room(room)
+        draw_room(room)
+        dt = display.tick(room.fps)
         return room.done
     events.event_loop(loop, room.wait)
     room.end()
@@ -250,7 +407,7 @@ def run(first_room):
             run_room(room)
             room = room.next
     except RoomStop:
-        pass
+        room.root = False
 
 def stop():
     raise RoomStop()

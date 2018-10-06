@@ -6,11 +6,12 @@
 import pygame
 import pygame.locals as p
 
-import gui
+import room
+
 import colors as c
 
 
-class Menu(gui.GUI):
+class Menu(room.Room):
     K_INDEX_INCREASE = p.K_DOWN
     K_INDEX_DECREASE = p.K_UP
 
@@ -32,13 +33,12 @@ class Menu(gui.GUI):
     def __getitem__(self, key):
         return self.menu_entries[key]
 
-    def compute_content_size(self):
+    def measure(self, spec_width, spec_height):
         w = 0
         for entry in self.rendered_entries:
             w = max(w, entry.get_width())
         h = self.font.get_linesize() * len(self.menu_entries) + self.leading * (len(self.menu_entries) - 1)
-        self.content_size = w, h
-        self.invalidate()
+        self.resolve_measure(spec_width, spec_height, w + self.padding.we, h + self.padding.ns)
 
     @property
     def menu_entries(self):
@@ -48,7 +48,7 @@ class Menu(gui.GUI):
     def menu_entries(self, entries):
         self._menu_entries = entries
         self.rendered_entries = [self.font.render(entry[0], True, self.txt_color).convert_alpha() for entry in entries]
-        self.compute_content_size()
+        self.layout_request()
         self.prev_index = self.index = None
 
     def dismiss(self):
@@ -148,13 +148,13 @@ class HorizontalMenu(Menu):
     def __init__(self, menu_entries, font, **kwargs):
         super().__init__(menu_entries, font, **kwargs)
 
-    def compute_content_size(self):
+    def measure(self, spec_width, spec_height):
         w = 0
         for entry in self.rendered_entries:
             w += entry.get_width()
         w += self.leading * (len(self.menu_entries) - 1)
         h = self.font.get_linesize()
-        self.content_size = w, h
+        self.resolve_measure(spec_width, spec_height, w, h)
 
     def get_entry_pos(self, index):
         x = self.padding[3]

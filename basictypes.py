@@ -3,9 +3,6 @@ Basic types definitions used all over Ice Emblem's code base
 """
 
 
-import pygame
-
-
 class Point(tuple):
     """
     A tuple with more convenient operators to use for points
@@ -43,21 +40,51 @@ class Point(tuple):
             raise AttributeError('%s is not an attribute of this Point' % attr)
 
 
-class Rect(pygame.Rect):
+class NESW(object):
     """
-    Improved pygame's Rect
+    North East South West. Used to specify padding, border and margin like HTML.
     """
-    def __init__(self, **kwargs):
-        if 'rect' in kwargs:
-            super().__init__(*kwargs['rect'])
+    def __init__(self, *args):
+        if len(args) == 1:
+            args = args[0]
+        if isinstance(args, int):
+            self.n = self.e = self.s = self.w = args
+        elif len(args) == 2:
+            self.n = self.s = args[0]
+            self.e = self.w = args[1]
+        elif len(args) == 4:
+            self.n = args[0]
+            self.e = args[1]
+            self.s = args[2]
+            self.w = args[3]
         else:
-            super().__init__(0, 0, 0, 0)
-        self.settings = {k: v for k, v in kwargs.items() if not k.startswith('_') and k in dir(self)}
-        self.apply()
+            raise ValueError("'padding' shold be either 1, 2 or 4 ints")
 
-    def apply(self):
-        for attr in self.settings:
-            setattr(self, attr, self.settings[attr])
+    @property
+    def ns(self):
+        return self.n + self.s
+
+    @property
+    def ew(self):
+        return self.e + self.w
+
+    we = ew
+    sn = ns
+
+    def __getitem__(self, index):
+        return getattr(self, ['n', 'e', 's', 'w'][index])
+
+    def grow(self, rect):
+        rect = rect.move(-self.w, -self.n)
+        rect.w += self.w + self.e
+        rect.h += self.n + self.s
+        return rect
+
+    def shrink(self, rect):
+        rect = rect.move(self.w, self.n)
+        rect.w -= self.w + self.e
+        rect.h += self.n + self.s
+        return rect
 
 
 if __name__ == '__main__':

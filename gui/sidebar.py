@@ -8,12 +8,15 @@ import fonts as f
 import state as s
 import resources
 
-from .common import Gravity
+from room import Gravity
 
 
 class Sidebar(gui.NinePatch):
     def __init__(self, **kwargs):
-        super().__init__(resources.load_image('WindowBorder.png'), (70, 70), w=250, layout_gravity=gui.Gravity.FILL_VERTICAL|gui.Gravity.RIGHT, gravity=Gravity.TOPLEFT, padding=30, **kwargs)
+        super().__init__(resources.load_image('WindowBorder.png'), (70, 70),
+                         layout_height=gui.LayoutParams.FILL_PARENT,
+                         layout_width=250,
+                         layout_gravity=gui.Gravity.RIGHT, gravity=Gravity.TOPLEFT, padding=30, **kwargs)
         self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: s.units_manager.active_team.end_turn())
         self.turn_label = gui.Label(_("{team} turn"), f.SMALL)
         self.terrain_label = gui.Label(f'{{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', f.SMALL)

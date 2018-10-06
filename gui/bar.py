@@ -5,11 +5,11 @@
 
 import pygame
 
-import gui
+import room
 import colors as c
 
 
-class LifeBar(gui.GUI):
+class LifeBar(room.Room):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.max = kwargs.get('max', 99)

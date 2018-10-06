@@ -6,7 +6,7 @@
 import math
 
 from basictypes import Point
-from .container import Container
+from .container import LinearLayout
 
 
 def linear(t, initial, change, duration):
@@ -162,7 +162,7 @@ def outInBounce(t, initial, change, duration):
 easing_functions = [linear] + [f for name, f in locals().items() if name.startswith('in') or name.startswith('out')]
 
 
-class Tween(Container):
+class Tween(LinearLayout):
     """
     
     """

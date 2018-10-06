@@ -39,7 +39,9 @@ class NextTurnTransition(gui.Label):
     def __init__(self, team):
         bg = display.window.copy().convert()
         bg.set_alpha(100)
-        super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color, bg_color=c.BLACK, bg_image=bg, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], wait=True, layout_gravity=gui.Gravity.FILL)
+        super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color,
+                         bg_color=c.BLACK, bg_image=bg,
+                         allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], wait=True)
         self.next_team = team
 
     def begin(self):
@@ -57,10 +59,11 @@ class NextTurnTransition(gui.Label):
         sidebar.turn_changed(self.next_team)
 
 
-class Turn(gui.Container):
+class Turn(gui.LinearLayout):
     def __init__(self, **kwargs):
-        super().__init__(layout_gravity=gui.Gravity.FILL, gravity=gui.Gravity.NO_GRAVITY, wait=False, **kwargs)
-        self.add_children(sidebar, s.loaded_map)
+        self.sidebar = sidebar
+        super().__init__(wait=False, orientation=gui.Orientation.HORIZONTAL, **kwargs)
+        self.add_children(s.loaded_map, sidebar)
 
     def begin(self):
         self.team = s.units_manager.active_team

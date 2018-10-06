@@ -10,7 +10,7 @@ import math
 import gui
 
 
-class NinePatch(gui.Container):
+class NinePatch(gui.LinearLayout):
     def __init__(self, image, patch, **kwargs):
         super().__init__(**kwargs)
 

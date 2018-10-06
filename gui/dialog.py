@@ -5,13 +5,13 @@
 
 import pygame.locals as p
 
-from .container import Container
+from .container import LinearLayout
 from .label import Label
 from .button import Button
 from .menu import HorizontalMenu
 
 
-class Dialog(Container):
+class Dialog(LinearLayout):
     def __init__(self, text, font, **kwargs):
         super().__init__(**kwargs)
         self.label = Label(text, font)
@@ -28,7 +28,7 @@ class Dialog(Container):
         self.label.set_text(text)
 
 
-class Modal(Container):
+class Modal(LinearLayout):
     def __init__(self, text, font, **kwargs):
         super().__init__(**kwargs)
         self.callback = kwargs.get('callback', None)

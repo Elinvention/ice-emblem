@@ -10,7 +10,7 @@ import fonts as f
 import state as s
 
 
-class MapMenu(gui.Container):
+class MapMenu(gui.LinearLayout):
     def __init__(self, image):
         super().__init__(layout_gravity=gui.Gravity.FILL, gravity=gui.Gravity.CENTER, bg_color=c.BLACK, bg_image=image)
         self.files = [(f, self.chosen) for f in resources.list_maps()]

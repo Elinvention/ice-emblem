@@ -5,11 +5,11 @@
 
 import pygame
 
-import gui
+import room
 import colors as c
 
 
-class Button(gui.GUI):
+class Button(room.Room):
     def __init__(self, text, font, **kwargs):
         super().__init__(**kwargs)
         self.font = font
@@ -18,17 +18,15 @@ class Button(gui.GUI):
         self.callback = kwargs.get('callback', None)
         self.txt_color = kwargs.get('txt_color', c.ICE)
         self.sel_color = kwargs.get('sel_color', c.MENU_SEL)
-        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
         self.set_text(text)
 
     def set_text(self, text):
         self.text = text
         self.rendered_text = self.font.render(text, True, self.txt_color, self.sel_color if self._focus else self.bg_color)
-        self.compute_content_size()
+        self.layout_request()
 
-    def compute_content_size(self):
-        self.content_size = self.rendered_text.get_size()
-        self.rect.apply()
+    def measure(self, spec_width, spec_height):
+        self.resolve_measure(spec_width, spec_height, *self.rendered_text.get_size())
 
     def loop(self, _events, dt):
         return self.clicked
@@ -72,12 +70,10 @@ class CheckBox(Button):
     def __init__(self, text, font, checked=False, **kwargs):
         super().__init__(text, font, **kwargs)
         self.checked = checked
-        self.compute_content_size()
 
-    def compute_content_size(self):
-        super().compute_content_size()
-        self.content_size = (self.content_size[0] + self.content_size[1], self.content_size[1])
-        self.rect.apply()
+    def measure(self, spec_width, spec_height):
+        w = self.rendered_text.get_width() + self.rendered_text.get_height()
+        self.resolve_measure(spec_width, spec_height, w + self.padding.we, self.rendered_text.get_height() + self.padding.ns)
 
     def handle_mousebuttondown(self, event):
         if event.button == 1:
@@ -89,13 +85,14 @@ class CheckBox(Button):
                 self.handle_mousemotion(event)
 
     def draw(self):
-        self.surface.fill(self.bg_color)
-        btn_pos = (self.padding[3] + self.content_size[1], self.padding[0])
+        self.fill()
+        btn_pos = (self.padding[3] + self.rendered_text.get_height(), self.padding[0])
         self.surface.blit(self.rendered_text, btn_pos)
-        checkbox = pygame.Surface((self.content_size[1],) * 2)
+        checkbox = pygame.Surface((self.rendered_text.get_height(),) * 2)
         if self.checked:
             checkbox.fill(c.GREEN)
         else:
             checkbox.fill(c.RED)
         self.surface.blit(checkbox, (self.padding[3], self.padding[0]))
-        super(gui.GUI, self).draw()
+        self.draw_children()
+        self.valid = True

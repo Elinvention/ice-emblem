@@ -19,7 +19,7 @@ class AttackAnimation(gui.Tween):
         self.add_children(self.text, image)
 
 
-class BattleUnitStats(gui.Container):
+class BattleUnitStats(gui.LinearLayout):
     def __init__(self, unit, vector, on_animation_finished, **kwargs):
         super().__init__(padding=100, **kwargs)
         self.unit = unit
@@ -146,7 +146,7 @@ class BattleAnimation(room.Room):
         print("#" * 12 + " " + _("Battle ends") + " " + "#" * 12 + "\r\n")
 
 
-class ExperienceAnimation(gui.Container):
+class ExperienceAnimation(gui.LinearLayout):
     def __init__(self, unit, **kwargs):
         super().__init__(bg_color=(0, 0, 0, 0), wait=False, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], **kwargs)
         self.unit = unit
