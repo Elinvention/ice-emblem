@@ -15,7 +15,7 @@ import events
 import display
 import utils
 
-from basictypes import Point, NESW
+from basictypes import NESW
 
 
 class Gravity(Flag):
@@ -164,7 +164,7 @@ class Room(object):
             else:
                 self.measured_width = min(spec_width.value, self.layout_width)
 
-        if spec_height == MeasureSpec.EXACTLY:
+        if spec_height.mode == MeasureSpec.EXACTLY:
             self.measured_height = spec_height.value
         else:
             if self.layout_height == LayoutParams.FILL_PARENT:
@@ -189,6 +189,7 @@ class Room(object):
         if self.rect.size != size:
             self.rect.size = size
             self.surface = pygame.Surface(self.rect.size)
+            self.fill()
             self.invalidate()
 
     def handle_videoresize(self, event):
@@ -209,7 +210,6 @@ class Room(object):
                 child.end()
 
     def draw(self):
-        self.fill()
         self.draw_children()
         self.valid = True
 
@@ -222,13 +222,16 @@ class Room(object):
 
     def fill(self):
         if self.bg_color:
-            if len(self.bg_color) == 4:
-                self.surface = self.surface.convert_alpha()
             self.surface.fill(self.bg_color)
         if self.bg_image:
             resized = self.bg_image_resized()
             pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
             self.surface.blit(resized, pos)
+
+    def fill_recursive(self):
+        self.fill()
+        for child in self.children:
+            child.fill_recursive()
 
     def bg_image_resized(self):
         if self.bg_size == 'contain':
@@ -239,7 +242,7 @@ class Room(object):
             new_size = (int(self.bg_size[0] / 100 * self.rect.w), int(self.bg_size[1] / 100 * self.rect.h))
         if new_size == self._bg_image_size:
             return self._bg_image_resized
-        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size)
+        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size).convert()
         self._bg_image_size = self.rect.size
         return self._bg_image_resized
 
@@ -356,12 +359,14 @@ class RoomStop(Exception):
     pass
 
 
-def draw_room(room):
+def draw_room(room, first_draw=False):
     if room.clear_screen:
         display.window.fill(room.clear_screen)
     if not room.layout_valid:
         room.measure(MeasureParams(MeasureSpec.EXACTLY, display.get_width()), MeasureParams(MeasureSpec.EXACTLY, display.get_height()))
         room.layout(display.get_rect())
+    if first_draw:
+        room.fill_recursive()
     if not room.valid:
         room.draw()
     display.window.blit(room.surface, room.rect)
@@ -384,7 +389,7 @@ def run_room(room):
     room.valid = False
     room.layout_valid = False
     room.begin()
-    draw_room(room)
+    draw_room(room, first_draw=True)
     dt = display.tick(room.fps)
     def loop(_events):
         nonlocal dt

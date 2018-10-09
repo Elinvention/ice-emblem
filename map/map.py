@@ -33,7 +33,7 @@ class TileMap(room.Room):
         """
         
         """
-        super().__init__(wait=False, bg_image=resources.load_image("old-paper.jpg"),
+        super().__init__(wait=False, bg_image=resources.load_image("old-paper.jpg").convert(),
                          bg_size='cover', layout_width=room.LayoutParams.FILL_PARENT,
                          layout_height=room.LayoutParams.FILL_PARENT, **kwargs)
 
@@ -415,10 +415,10 @@ class TileMap(room.Room):
             self.update_highlight()
 
     def draw(self):
-        self.fill()
         self.tilemap.draw(self.surface)
         self.draw_children()
         self.valid = True
+        self.surface = self.surface.convert()
 
     def select(self, coord):
         """
