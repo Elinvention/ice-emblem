@@ -393,9 +393,10 @@ class TileMap(room.Room):
         self.invalidate()
 
     def layout(self, rect):
-        self.tilemap.viewport.size = rect.size
-        self.tilemap.view_w, self.tilemap.view_h = rect.size
-        self.tilemap.set_focus(self.tilemap.restricted_fx, self.tilemap.restricted_fy)
+        if self.tilemap.viewport.size != rect.size:
+            self.tilemap.viewport.size = rect.size
+            self.tilemap.view_w, self.tilemap.view_h = rect.size
+            self.tilemap.set_focus(self.tilemap.restricted_fx, self.tilemap.restricted_fy)
         super().layout(rect)
 
     def loop(self, _events, dt):
