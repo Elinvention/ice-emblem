@@ -91,6 +91,8 @@ class LinearLayout(room.Room):
 
     def layout(self, rect):
         size = rect.size
+        NOT_FILL = ~Gravity.FILL
+
         if self.orientation == Orientation.VERTICAL:
             top = self.padding.n
             nbottoms, bottom = 0, size[1] - self.padding.s
@@ -112,7 +114,7 @@ class LinearLayout(room.Room):
 
             for child in self.children:
                 gravity = child.layout_gravity
-                gravity &= ~Gravity.FILL
+                gravity &= NOT_FILL
                 if not gravity & Gravity.VERTICAL:
                     gravity |= self.gravity & Gravity.VERTICAL
                 if not gravity & Gravity.HORIZONTAL:
@@ -159,7 +161,7 @@ class LinearLayout(room.Room):
 
             for child in self.children:
                 gravity = child.layout_gravity
-                gravity &= ~Gravity.FILL
+                gravity &= NOT_FILL
                 if not gravity & Gravity.VERTICAL:
                     gravity |= self.gravity & Gravity.VERTICAL
                 if not gravity & Gravity.HORIZONTAL:
