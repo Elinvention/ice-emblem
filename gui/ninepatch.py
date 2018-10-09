@@ -18,10 +18,6 @@ class NinePatch(gui.LinearLayout):
         rects = self.make_rects(image.get_size())
         self.nine = [pygame.Surface.subsurface(image, rect) for rect in rects]
 
-        for i, n in enumerate(self.nine):
-            print(i, n)
-            #pygame.image.save(n, '/tmp/%s.png' % i)
-
     def make_rects(self, area):
         w, h = area
         pw, ph = self.patch

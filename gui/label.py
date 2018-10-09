@@ -2,8 +2,6 @@
 
 """
 
-import pygame
-
 import room
 
 import colors as c
