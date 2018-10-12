@@ -62,7 +62,7 @@ class NextTurnTransition(gui.Label):
 class Turn(gui.LinearLayout):
     def __init__(self, **kwargs):
         self.sidebar = sidebar
-        super().__init__(wait=False, orientation=gui.Orientation.HORIZONTAL, **kwargs)
+        super().__init__(wait=True, orientation=gui.Orientation.HORIZONTAL, **kwargs)
         self.add_children(s.loaded_map, sidebar)
 
     def begin(self):
