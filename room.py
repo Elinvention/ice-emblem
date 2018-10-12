@@ -220,13 +220,18 @@ class Room(object):
                     child.draw()
                 self.surface.blit(child.surface, child.rect)
 
-    def fill(self):
+    def fill(self, area=None):
         if self.bg_color:
-            self.surface.fill(self.bg_color)
+            if area:
+                surf = pygame.Surface(area.size)
+                surf.fill(self.bg_color)
+                self.surface.blit(surf, area)
+            else:
+                self.surface.fill(self.bg_color)
         if self.bg_image:
             resized = self.bg_image_resized()
             pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
-            self.surface.blit(resized, pos)
+            self.surface.blit(resized, pos, area)
 
     def fill_recursive(self):
         self.fill()

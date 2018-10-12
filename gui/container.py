@@ -139,6 +139,9 @@ class LinearLayout(room.Room):
                 elif Gravity.RIGHT in gravity:
                     child_rect.right = size[0] - self.padding.e
 
+                if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
+                    or child.rect.topleft != child_rect.topleft):
+                    self.fill(child.rect)
                 child.layout(child_rect)
         else:
             left = self.padding.w
@@ -186,6 +189,9 @@ class LinearLayout(room.Room):
                 elif Gravity.BOTTOM in gravity:
                     child_rect.right = size[1] - self.padding.s
 
+                if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
+                    or child.rect.topleft != child_rect.topleft):
+                    self.fill(child.rect)
                 child.layout(child_rect)
 
         super().layout(rect)

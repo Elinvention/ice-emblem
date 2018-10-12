@@ -25,8 +25,8 @@ class NinePatch(gui.LinearLayout):
         sizes = itertools.product((pw, w - 2 * pw, pw), (ph, h - 2 * ph, ph))
         return [pygame.Rect(pos, size) for pos, size in zip(positions, sizes)]
 
-    def fill(self):
-        super().fill()
+    def fill(self, area=None):
+        super().fill(area)
         for i, (nine, rect) in enumerate(zip(self.nine, self.make_rects(self.rect.size))):
             self.surface.blit(nine, rect)
             if i in [1, 3, 4, 5, 7]:
