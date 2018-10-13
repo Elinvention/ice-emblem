@@ -413,6 +413,7 @@ class TileMap(room.Room):
             self.cursor.update()
             self.arrow.update()
             self.update_highlight()
+            self.fill()
 
     def draw(self):
         self.tilemap.draw(self.surface)
