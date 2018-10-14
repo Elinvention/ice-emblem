@@ -28,6 +28,8 @@ class NinePatch(gui.LinearLayout):
     def fill(self, area=None):
         super().fill(area)
         for i, (nine, rect) in enumerate(zip(self.nine, self.make_rects(self.rect.size))):
+            if area and not area.colliderect(rect):
+                continue
             self.surface.blit(nine, rect)
             if i in [1, 3, 4, 5, 7]:
                 patch_rect = nine.get_rect(topleft=rect.topleft)
