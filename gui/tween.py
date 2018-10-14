@@ -176,9 +176,9 @@ class Tween(LinearLayout):
         self.backward = kwargs.get('backward', False)
         self.playing = False
 
-    def begin(self):
-        super().begin()
-        self.initial = Point(self.rect.topleft)
+    def layout(self, rect):
+        super().layout(rect)
+        self.initial = Point(rect.topleft)
         self.target = self.initial + self.change
 
     def reset(self, *_):
@@ -196,6 +196,7 @@ class Tween(LinearLayout):
         super().loop(_events, dt)
         if not self.playing:
             return
+        prev_rect = self.rect.copy()
         if self.clock <= 0:
             self.done = self.backward
             self.rect.topleft = self.initial
@@ -211,4 +212,7 @@ class Tween(LinearLayout):
             if self.done and callable(self.callback):
                 self.callback(self)
         self.clock = self.clock - dt if self.backward else self.clock + dt
-        self.invalidate()
+
+        if prev_rect.topleft != self.rect.topleft:
+            self.parent.invalidate()
+            self.parent.fill(area=prev_rect)
