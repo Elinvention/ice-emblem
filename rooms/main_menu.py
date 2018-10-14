@@ -1,6 +1,7 @@
 import pygame
 import pygame.locals as pl
 
+import display
 import gui
 import resources
 import fonts as f
