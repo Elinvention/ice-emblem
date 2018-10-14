@@ -2,6 +2,9 @@
 
 """
 
+
+import pygame
+
 import room
 
 import colors as c
@@ -24,13 +27,16 @@ class Label(room.Room):
 
     def draw(self):
         self.fill()
-        y = self.padding.n
+        text_surf = pygame.Surface(self.text_area(), flags=pygame.SRCALPHA)
+        y = 0
         for i, line in enumerate(self.rendered_text):
-            x = self.padding.w
+            x = 0
             for tab in line:
-                self.surface.blit(tab, (x, y))
+                text_surf.blit(tab, (x, y))
                 x += self.tab_space(tab.get_width())
             y += self.font.get_linesize() + self.leading
+        pos_rect = text_surf.get_rect(centerx=self.rect.w//2, centery=self.rect.h//2)
+        self.surface.blit(text_surf, pos_rect)
         self.draw_children()
         self.valid = True
 
@@ -48,7 +54,21 @@ class Label(room.Room):
     def tab_space(self, tab):
         return (tab // self.tabs + 1) * self.tabs
 
-    def measure(self, spec_width, spec_height):
-        w = max((sum((self.tab_space(t.get_width()) for t in l)) if len(l) > 1 else l[0].get_width() for l in self.rendered_text))
+    def line_width(self, line):
+        if len(line) == 1:
+            return line[0].get_width()
+        line_w = 0
+        for tab in line:
+            line_w += self.tab_space(tab.get_width())
+        return line_w
+
+    def text_area(self):
+        w = 0
+        for line in self.rendered_text:
+            w = max(w, self.line_width(line))
         h = self.font.get_linesize() * len(self.rendered_text) + self.leading * (len(self.rendered_text) - 1)
+        return w, h
+
+    def measure(self, spec_width, spec_height):
+        w, h = self.text_area()
         self.resolve_measure(spec_width, spec_height, w + self.padding.we, h + self.padding.ns)
