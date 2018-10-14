@@ -40,6 +40,7 @@ def set_resolution(res):
     global resolution
     resolution = res
     modeset()
+    pygame.event.post(pygame.event.Event(pygame.VIDEORESIZE, size=res, w=res[0], h=res[1]))
 
 def handle_videoresize(event):
     global window
