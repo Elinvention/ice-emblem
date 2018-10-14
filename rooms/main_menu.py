@@ -16,7 +16,7 @@ class MainMenu(gui.LinearLayout):
                          allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN],
                          bg_color=c.BLACK, bg_image=resources.load_image('Ice Emblem.png'),
                          spacing=50)
-        self.click_to_start = gui.Label(_("Click to Start"), f.MAIN_MENU, bg_color=c.TRANSPARENT,
+        self.click_to_start = gui.Label(_("Click to Start"), f.MAIN_MENU, padding=10,
                                         txt_color=c.ICE, layout_gravity=gui.Gravity.BOTTOM, die_when_done=False)
         self.hmenu = gui.HorizontalMenu([(_("License"), self.show_license), (_("Settings"), self.settings_menu)],
                                         f.SMALL, die_when_done=False, layout_gravity=gui.Gravity.BOTTOMRIGHT)

@@ -15,7 +15,7 @@ class Sidebar(gui.NinePatch):
     def __init__(self, **kwargs):
         super().__init__(resources.load_image('WindowBorder.png'), (70, 70),
                          layout_height=gui.LayoutParams.FILL_PARENT,
-                         layout_width=250,
+                         layout_width=270,
                          layout_gravity=gui.Gravity.RIGHT, gravity=Gravity.TOPLEFT, padding=30, **kwargs)
         self.endturn_btn = gui.Button(_("End Turn"), f.SMALL, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: s.units_manager.active_team.end_turn())
         self.turn_label = gui.Label(_("{team} turn"), f.SMALL)

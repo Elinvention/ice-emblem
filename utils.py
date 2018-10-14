@@ -24,7 +24,6 @@
 import pygame
 import sys
 import yaml
-from pathlib import Path
 
 
 def timeit(f):
