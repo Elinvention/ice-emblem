@@ -470,7 +470,7 @@ class TileMap(room.Room):
         self.vx, self.vy = 0, 0
         if pos is None:
             pos = self.tilemap.pixel_at(*self.curr_sel, False) - self.tilemap.viewport.topleft + self.tilemap.zoom_tile_size / 2
-        menu = rooms.ActionMenu(topleft=pos, padding=10, leading=5)
+        menu = rooms.ActionMenu(layout_position=pos, padding=10, leading=5)
         self.add_child(menu)
 
     def prepare_attack(self, unit=None):

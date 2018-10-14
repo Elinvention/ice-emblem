@@ -57,6 +57,14 @@ class MeasureParams(object):
     def __str__(self):
         return "%s, %s" % (self.mode, self.value)
 
+    def exactly(self):
+        return MeasureParams(MeasureSpec.EXACTLY, self.value)
+
+    def at_most(self):
+        return MeasureParams(MeasureSpec.AT_MOST, self.value)
+
+
+
 
 class Room(object):
     """
@@ -86,6 +94,7 @@ class Room(object):
         self.layout_width = kwargs.get('layout_width', LayoutParams.WRAP_CONTENT)
         self.layout_height = kwargs.get('layout_height', LayoutParams.WRAP_CONTENT)
         self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
+        self.layout_position = kwargs.get('layout_position', (0, 0))
         self.layout_valid = False
 
         self.padding = NESW(kwargs.get('padding', 0))
@@ -100,6 +109,10 @@ class Room(object):
     @property
     def layout_wh(self):
         return self.layout_width, self.layout_height
+
+    @property
+    def measured_size(self):
+        return self.measured_width, self.measured_height
 
     def prepare_child(self, child):
         child.parent = self
@@ -151,6 +164,8 @@ class Room(object):
         Top-down traversal of the tree. The parent asks its children to measure their size.
         The measured size should not exceed max_width and max_height otherwise the parent may clip the child.
         """
+        for child in self.children:
+            child.measure(spec_width.at_most(), spec_height.at_most())
         self.resolve_measure(spec_width, spec_height, self.rect.w, self.rect.h)
 
     def resolve_measure(self, spec_width, spec_height, content_width, content_height):
@@ -180,6 +195,11 @@ class Room(object):
         Top-down traversal of the tree. The parent positions its children.
         This method must be called after measure.
         """
+        for child in self.children:
+            child.layout(pygame.Rect(child.layout_position, child.measured_size))
+        self.resolve_layout(rect)
+
+    def resolve_layout(self, rect):
         self.rect.topleft = rect.topleft
         self.resize(rect.size)
         self.layout_valid = True

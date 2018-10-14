@@ -120,7 +120,7 @@ class LinearLayout(room.Room):
                 if not gravity & Gravity.HORIZONTAL:
                     gravity |= self.gravity & Gravity.HORIZONTAL
 
-                child_rect = pygame.Rect((self.padding.w, top), (child.measured_width, child.measured_height))
+                child_rect = pygame.Rect((self.padding.w, top), child.measured_size)
 
                 if Gravity.TOP in gravity:
                     child_rect.top = top
@@ -170,7 +170,7 @@ class LinearLayout(room.Room):
                 if not gravity & Gravity.HORIZONTAL:
                     gravity |= self.gravity & Gravity.HORIZONTAL
 
-                child_rect = pygame.Rect((left, self.padding.n), (child.measured_width, child.measured_height))
+                child_rect = pygame.Rect((left, self.padding.n), child.measured_size)
 
                 if Gravity.LEFT in gravity:
                     child_rect.left = left
@@ -194,5 +194,5 @@ class LinearLayout(room.Room):
                     self.fill(child.rect)
                 child.layout(child_rect)
 
-        super().layout(rect)
+        self.resolve_layout(rect)
 
