@@ -4,3 +4,5 @@
 .DS_Store
 .*project
 *.e4p
+.idea
+.mypy_cache
