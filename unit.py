@@ -49,7 +49,7 @@ class Unit(object):
     """
     This class is a unit with stats
     """
-    def __init__(self, name, health, level, experience, strength, skill, speed, luck, defence, resistence, movement, constitution, aid, affinity, condition, wrank, health_max=None):
+    def __init__(self, name, health, level, experience, strength, skill, speed, luck, defence, resistance, movement, constitution, aid, affinity, condition, wrank, health_max=None):
         self.name         = str(name)          # name of the Unit
         self.health       = int(health)        # current health
         self.health_max   = health_max if health_max else self.health  # maximum health
@@ -63,7 +63,7 @@ class Unit(object):
         self.speed        = int(speed)         # speed chance to avoid enemy's attack
         self.luck         = int(luck)          # luck influences many things
         self.defence      = int(defence)       # defence reduces phisical damages
-        self.resistence   = int(resistence)    # resistence reduces magical damages
+        self.resistance   = int(resistance)    # resistance reduces magical damages
         self.movement     = int(movement)      # movement determines how far the unit can move in a turn
         self.constitution = int(constitution)  # constitution, or phisical size. affects rescues.
         self.aid          = int(aid)           # max rescuing constitution. units with lower con can be rescued.
@@ -93,7 +93,7 @@ class Unit(object):
         'LV: {level}\tEXP: {experience}\n'
         'Str: {strength}\tSkill: {skill}\n'
         'Spd: {speed}\tLuck: {luck}\n'
-        'Def: {defence}\tRes: {resistence}\n'
+        'Def: {defence}\tRes: {resistance}\n'
         'Move: {movement}\tCon: {constitution}\n'
         'Aid: {aid}\tAffin: {affinity}\n'
         'Weapon: {items.active}'

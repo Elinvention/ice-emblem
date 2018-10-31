@@ -9,7 +9,7 @@
     speed: 2
     luck: 10
     defence: 10
-    resistence: 1
+    resistance: 1
     movement: 1
     constitution: 1
     aid: 5
@@ -29,7 +29,7 @@
     speed: 2
     luck: 10
     defence: 10
-    resistence: 1
+    resistance: 1
     movement: 3
     constitution: 1
     aid: 5
@@ -48,7 +48,7 @@
     speed: 4
     luck: 1
     defence: 8
-    resistence: 3
+    resistance: 3
     movement: 2
     constitution: 2
     aid: 3
@@ -67,7 +67,7 @@
     speed: 3
     luck: 2
     defence: 7
-    resistence: 3
+    resistance: 3
     movement: 3
     constitution: 2
     aid: 4
@@ -86,7 +86,7 @@
     speed: 8
     luck: 6
     defence: 3
-    resistence: 3
+    resistance: 3
     movement: 5
     constitution: 2
     aid: 2
@@ -105,7 +105,7 @@
     speed: 2
     luck: 3
     defence: 5
-    resistence: 1
+    resistance: 1
     movement: 3
     constitution: 3
     aid: 4
