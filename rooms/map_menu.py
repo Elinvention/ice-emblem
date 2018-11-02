@@ -12,8 +12,10 @@ import state as s
 
 class MapMenu(gui.LinearLayout):
     def __init__(self, image):
-        super().__init__(layout_gravity=gui.Gravity.FILL, gravity=gui.Gravity.CENTER, bg_color=c.BLACK, bg_image=image)
-        self.files = [(f, self.chosen) for f in resources.list_maps()]
+        super().__init__(layout_width=gui.LayoutParams.FILL_PARENT,
+                         layout_height=gui.LayoutParams.FILL_PARENT,
+                         gravity=gui.Gravity.CENTER, bg_color=c.BLACK, bg_image=image)
+        self.files = [(file, self.chosen) for file in resources.list_maps()]
         self.choose_label = gui.Label(_("Choose a map!"), f.MAIN_MENU, txt_color=c.ICE, bg_color=c.MENU_BG)
         self.menu = gui.Menu(self.files, f.MAIN, padding=(25, 25), die_when_done=False)
         self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=self.back, layout_gravity=gui.Gravity.BOTTOMRIGHT)

@@ -10,11 +10,14 @@ import colors as c
 from rooms.map_menu import MapMenu
 
 
+FILL = gui.LayoutParams.FILL_PARENT
+
+
 class MainMenu(gui.LinearLayout):
     def __init__(self):
-        super().__init__(layout_gravity=gui.Gravity.FILL,
-                         allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN],
+        super().__init__(allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN],
                          bg_color=c.BLACK, bg_image=resources.load_image('Ice Emblem.png'),
+                         layout_width=FILL, layout_height=FILL,
                          spacing=50)
         self.click_to_start = gui.Label(_("Click to Start"), f.MAIN_MENU, padding=10,
                                         txt_color=c.ICE, layout_gravity=gui.Gravity.BOTTOM, die_when_done=False)
@@ -48,9 +51,10 @@ class License(gui.Image):
 class SettingsMenu(gui.LinearLayout):
 
     def __init__(self):
-        super().__init__(layout_gravity=gui.Gravity.FILL)
+        super().__init__()
         self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=lambda *_: setattr(self, 'done', True), layout_gravity=gui.Gravity.BOTTOMRIGHT)
         self.fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), f.MAIN, callback=lambda *_: display.toggle_fullscreen(), padding=25)
+
         def res_setter(res):
             return lambda *_: display.set_resolution(res)
         resolutions = [("{0[0]}x{0[1]}".format(res), res_setter(res)) for res in pygame.display.list_modes()]
