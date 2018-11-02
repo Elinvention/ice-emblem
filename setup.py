@@ -20,5 +20,5 @@ if __name__ == '__main__':
             "Development Status :: 1 - Planning",
             "Topic :: Videogame",
             "License :: OSI Approved :: GPLv3 License",
-        ],
+        ], requires=['pygame', 'PyYAML']
     )
