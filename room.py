@@ -78,7 +78,7 @@ class Room(object):
         self.allowed_events = kwargs.get('allowed_events', [])
         self.die_when_done = kwargs.get('die_when_done', True)
         self.clear_screen = kwargs.get('clear_screen', (0, 0, 0))
-        self.children = [self.prepare_child(child) for child in kwargs.get('children', [])]
+
         self.parent = None
         self.done = False
         self.root = False
@@ -94,6 +94,9 @@ class Room(object):
         self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
         self.layout_position = kwargs.get('layout_position', (0, 0))
         self.layout_valid = False
+
+        self.children = []
+        self.add_children(*kwargs.get('children', []))
 
         self.padding = NESW(kwargs.get('padding', 0))
         self.border = NESW(kwargs.get('border', 0))
@@ -138,7 +141,8 @@ class Room(object):
         self.invalidate()
 
     def invalidate(self):
-        node = self
+        self.valid = False
+        node = self.parent
         while node and node.valid:
             node.valid = False
             node = node.parent
@@ -254,6 +258,7 @@ class Room(object):
 
     def fill_recursive(self):
         self.fill()
+        self.valid = False
         for child in self.children:
             child.fill_recursive()
 
