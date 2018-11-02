@@ -107,6 +107,9 @@ class Room(object):
         self.bg_size = kwargs.get('bg_size', 'contain')  # Possible values: 'contain', 'cover', (int, int)
         self._bg_image_size = None
 
+    def __str__(self):
+        return self.logger.name
+
     @property
     def layout_wh(self):
         return self.layout_width, self.layout_height
@@ -117,6 +120,7 @@ class Room(object):
 
     def prepare_child(self, child):
         child.parent = self
+        child.logger = self.logger.getChild(child.__class__.__name__)
         child.begin()
         for grandchild in child.children:
             child.prepare_child(grandchild)
@@ -137,6 +141,7 @@ class Room(object):
     def remove_child(self, child):
         self.children.remove(child)
         child.parent = None
+        child.logger = logging.getLogger(child.__class__.__name__)
         self.layout_request()
         self.invalidate()
 
