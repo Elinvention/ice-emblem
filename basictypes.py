@@ -9,24 +9,33 @@ class Point(tuple):
     """
     def __new__(cls, *args):
         return tuple.__new__(cls, *args)
+
     def __add__(self, other):
         if isinstance(other, int):
             return Point(int(x + other) for x in self)
         return Point(int(x + y) for x, y in zip(self, other))
+
     def __sub__(self, other):
         return self.__add__(int(-i) for i in other)
+
     def __neg__(self):
         return Point(int(-x) for x in self)
+
     def __abs__(self):
         return Point(abs(int(x)) for x in self)
+
     def __mul__(self, other):
         return Point(int(x * other) for x in self)
+
     def __truediv__(self, other):
         return Point(int(x / other) for x in self)
+
     def __floordiv__(self, other):
         return Point(int(x // other) for x in self)
+
     def __repr__(self):
         return f'({"; ".join(str(x) for x in self)})'
+
     def norm(self):
         return sum(abs(x) for x in self)
 
@@ -90,12 +99,14 @@ class NESW(object):
 if __name__ == '__main__':
     p = Point((10, 0)).normalized()
     q = Point((1, 0, 2, 3))
+
     def test_getattr(point):
         for attr in ['x', 'y', 'z', 'w', 'a']:
             try:
                 print(getattr(point, attr))
             except AttributeError as e:
                 print(e)
+
     test_getattr(p)
     test_getattr(q)
     print(p, q)

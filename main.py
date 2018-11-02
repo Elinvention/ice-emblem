@@ -68,6 +68,7 @@ if pygame.version.vernum < (1, 9, 2):
     logging.warning(_('You are running a version of Pygame that might be outdated.'))
     logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
 
+
 def launch():
     import game
 
@@ -82,6 +83,7 @@ def launch():
         logging.debug(_('No map on command line: choose the map via the main menu'))
 
     game.play(map_file)
+
 
 if args.logging < 20:
     # When in debug mode launch without kind error message
@@ -131,4 +133,3 @@ print("-" * 80)
 print(_("Game terminated normally."))
 
 utils.return_to_os()
-
