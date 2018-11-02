@@ -175,7 +175,7 @@ class Room(object):
             if self.layout_width == LayoutParams.FILL_PARENT:
                 self.measured_width = spec_width.value
             elif self.layout_width == LayoutParams.WRAP_CONTENT:
-                self.measured_width = content_width
+                self.measured_width = min(spec_width.value, content_width)
             else:
                 self.measured_width = min(spec_width.value, self.layout_width)
 
@@ -185,7 +185,7 @@ class Room(object):
             if self.layout_height == LayoutParams.FILL_PARENT:
                 self.measured_height = spec_height.value
             elif self.layout_height == LayoutParams.WRAP_CONTENT:
-                self.measured_height = content_height
+                self.measured_height = min(spec_height.value, content_height)
             else:
                 self.measured_height = min(spec_height.value, self.layout_height)
         self.logger.debug("W: (%s) -> %s; H: (%s) -> %s", spec_width, self.measured_width, spec_height, self.measured_height)
@@ -384,12 +384,37 @@ class RoomStop(Exception):
     pass
 
 
+def layout_room(room):
+    room.measure(MeasureParams(MeasureSpec.AT_MOST, display.get_width()),
+                 MeasureParams(MeasureSpec.AT_MOST, display.get_height()))
+
+    rect = pygame.Rect((0, 0), room.measured_size)
+
+    if room.layout_gravity == Gravity.NO_GRAVITY:
+        rect.center = display.get_rect().center
+
+    if Gravity.LEFT in room.layout_gravity:
+        rect.left = 0
+    elif Gravity.RIGHT in room.layout_gravity:
+        rect.right = display.get_width()
+    elif Gravity.CENTER_HORIZONTAL in room.layout_gravity:
+        rect.centerx = display.get_width() // 2
+
+    if Gravity.TOP in room.layout_gravity:
+        rect.top = 0
+    elif Gravity.BOTTOM in room.layout_gravity:
+        rect.bottom = display.get_height()
+    elif Gravity.CENTER_VERTICAL in room.layout_gravity:
+        rect.centery = display.get_height() // 2
+
+    room.layout(rect)
+
+
 def draw_room(room, first_draw=False):
     if room.clear_screen:
         display.window.fill(room.clear_screen)
     if not room.layout_valid:
-        room.measure(MeasureParams(MeasureSpec.EXACTLY, display.get_width()), MeasureParams(MeasureSpec.EXACTLY, display.get_height()))
-        room.layout(display.get_rect())
+        layout_room(room)
     if first_draw:
         room.fill_recursive()
     if not room.valid:
