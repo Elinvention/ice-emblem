@@ -28,7 +28,7 @@ class LinearLayout(room.Room):
     def measure(self, spec_width, spec_height):
         if self.orientation == Orientation.VERTICAL:
             w, h = self.measure_vertical(spec_width, spec_height)
-        elif self.orientation == Orientation.HORIZONTAL:
+        else:
             w, h = self.measure_horizontal(spec_width, spec_height)
         self.resolve_measure(spec_width, spec_height, w, h)
 
@@ -58,7 +58,7 @@ class LinearLayout(room.Room):
             width_children = max(width_children, child.measured_width + self.padding.we)
             height_children += child.measured_height
 
-        return width_children, height_children
+        return min(spec_width.value, width_children), min(spec_height.value, height_children)
 
 
     def measure_horizontal(self, spec_width, spec_height):
@@ -87,7 +87,7 @@ class LinearLayout(room.Room):
             width_children += child.measured_width
             height_children = max(height_children, child.measured_height + self.padding.ns)
 
-        return width_children, height_children
+        return min(spec_width.value, width_children), min(spec_height.value, height_children)
 
     def layout(self, rect):
         size = rect.size
