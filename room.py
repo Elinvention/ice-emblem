@@ -3,7 +3,6 @@ This module is central in Ice Emblem's engine since it provides the Room class
 and some functions that uniformly act upon Room objects.
 """
 
-
 import pygame
 import pygame.locals as p
 import logging
@@ -64,8 +63,6 @@ class MeasureParams(object):
         return MeasureParams(MeasureSpec.AT_MOST, self.value)
 
 
-
-
 class Room(object):
     """
     Room class is at the heart of Ice Emblem's engine.
@@ -73,6 +70,7 @@ class Room(object):
     run_room function and allow to route events to registered callbacks or methods
     named like handle_videoresize.
     """
+
     def __init__(self, **kwargs):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.fps = kwargs.get('fps', display.fps)
@@ -149,7 +147,7 @@ class Room(object):
         node = self
         while node:
             if node.root:
-                assert(node.parent is None)
+                assert (node.parent is None)
                 return node
             node = node.parent
 
@@ -188,7 +186,8 @@ class Room(object):
                 self.measured_height = min(spec_height.value, content_height)
             else:
                 self.measured_height = min(spec_height.value, self.layout_height)
-        self.logger.debug("W: (%s) -> %s; H: (%s) -> %s", spec_width, self.measured_width, spec_height, self.measured_height)
+        self.logger.debug("W: (%s) -> %s; H: (%s) -> %s", spec_width, self.measured_width, spec_height,
+                          self.measured_height)
 
     def layout(self, rect):
         """
@@ -262,12 +261,12 @@ class Room(object):
         if self.bg_size == 'contain':
             new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
         elif self.bg_size == 'cover':
-            new_size =  utils.resize_cover(self.bg_image.get_size(), self.rect.size)
+            new_size = utils.resize_cover(self.bg_image.get_size(), self.rect.size)
         else:
             new_size = (int(self.bg_size[0] / 100 * self.rect.w), int(self.bg_size[1] / 100 * self.rect.h))
         if new_size == self._bg_image_size:
             return self._bg_image_resized
-        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size).convert()
+        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size)
         self._bg_image_size = self.rect.size
         return self._bg_image_resized
 
@@ -320,16 +319,18 @@ class Room(object):
                 self.callbacks[event_type].remove(callback)
         elif len(self.callbacks[event_type]) > 0:
             self.callbacks[event_type].pop()
-        self.logger.debug('unregistered %s -> %s',  pygame.event.event_name(event_type), callback)
+        self.logger.debug('unregistered %s -> %s', pygame.event.event_name(event_type), callback)
 
     def bind_keys(self, keys, callback):
         """
         Binds a keyboard key to a callback function.
         """
+
         def f(event):
             for key in keys:
                 if event.key == key:
                     callback(self)
+
         self.register(p.KEYDOWN, f)
 
     def bind_click(self, mouse_buttons, callback, area=None, inside=True):
@@ -338,6 +339,7 @@ class Room(object):
         The call to the callback can be filtered by area (pygame.Rect) and specify if
         the event position must be inside or outside that area.
         """
+
         def f(event):
             for mouse_button in mouse_buttons:
                 if event.button == mouse_button:
@@ -349,6 +351,7 @@ class Room(object):
                             callback(self)
                         elif not inside and not collide:
                             callback(self)
+
         self.register(p.MOUSEBUTTONDOWN, f)
 
     def wait_event(self, timeout=-1):
@@ -423,12 +426,14 @@ def draw_room(room, first_draw=False):
     display.draw_fps()
     display.flip()
 
+
 def generic_event_handler(_events):
     for event in _events:
         if event.type == pygame.QUIT:
             utils.return_to_os()
         if event.type == pygame.VIDEORESIZE:
             display.handle_videoresize(event)
+
 
 def run_room(room):
     allowed_events = list(events.get_allowed())
@@ -441,6 +446,7 @@ def run_room(room):
     room.begin()
     draw_room(room, first_draw=True)
     dt = display.tick(room.fps)
+
     def loop(_events):
         nonlocal dt
         generic_event_handler(_events)
@@ -449,11 +455,13 @@ def run_room(room):
         draw_room(room)
         dt = display.tick(room.fps)
         return room.done
+
     events.event_loop(loop, room.wait)
     room.end()
     if room.allowed_events:
         events.set_allowed(allowed_events)
     room.root = False
+
 
 def run(first_room):
     room = first_room
@@ -463,6 +471,7 @@ def run(first_room):
             room = room.next
     except RoomStop:
         room.root = False
+
 
 def stop():
     raise RoomStop()
