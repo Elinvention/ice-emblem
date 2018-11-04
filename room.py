@@ -2,6 +2,7 @@
 This module is central in Ice Emblem's engine since it provides the Room class
 and some functions that uniformly act upon Room objects.
 """
+from typing import Callable
 
 import pygame
 import pygame.locals as p
@@ -285,6 +286,9 @@ class Room(object):
             child.end()
 
     def end(self):
+        for event_type in self.callbacks:
+            if event_type >= p.USEREVENT and self.callbacks[event_type]:
+                events.stop_timer(event_type)
         self.logger.debug("end")
         self.end_children()
         if self.parent and self.die_when_done:
@@ -309,7 +313,7 @@ class Room(object):
                 processed = processed or method(event)
         return processed
 
-    def register(self, event_type, callback):
+    def register(self, event_type: int, callback: Callable) -> None:
         """
         Bind a callback function to an event type.
         """
@@ -320,7 +324,7 @@ class Room(object):
             self.callbacks[event_type] = [callback]
         self.logger.debug('registered %s -> %s', pygame.event.event_name(event_type), callback)
 
-    def unregister(self, event_type, callback=None):
+    def unregister(self, event_type: int, callback: Callable=None):
         """
         Unregister the latest or the specified callback function from event_type.
         """
@@ -330,6 +334,38 @@ class Room(object):
         elif len(self.callbacks[event_type]) > 0:
             self.callbacks[event_type].pop()
         self.logger.debug('unregistered %s -> %s', pygame.event.event_name(event_type), callback)
+
+    def set_timeout(self, time: int, callback: Callable) -> int:
+        """
+        This method is kind of inspired from JS's SetTimeout. It calls callback only once approximately after time
+        milliseconds. When this room ends the timer is cancelled too.
+        :param time: time in milliseconds
+        :param callback: callback function
+        :return: an int between pygame.USEREVENT and pygame.NUMEVENTS which can be used to stop the timer by calling
+        Room.unregister
+        """
+        event_type = events.new_timer(time)
+
+        def callme(_event: int) -> bool:
+            events.stop_timer(event_type)
+            self.unregister(event_type, callme)
+            return callback(_event)
+
+        self.register(event_type, callme)
+        return event_type
+
+    def set_interval(self, time: int, callback: Callable) -> int:
+        """
+        This method is kind of inspired from JS's setInterval. It calls callback every time milliseconds until this room
+        ends or Room.unregister is called.
+        :param time: time in milliseconds
+        :param callback: callback function
+        :return: an int between pygame.USEREVENT and pygame.NUMEVENTS which can be used to stop the timer by calling
+        Room.unregister
+        """
+        event_type = events.new_timer(time)
+        self.register(event_type, callback)
+        return event_type
 
     def bind_keys(self, keys, callback):
         """
@@ -363,11 +399,6 @@ class Room(object):
                             callback(self)
 
         self.register(p.MOUSEBUTTONDOWN, f)
-
-    def wait_event(self, timeout=-1):
-        _events = events.wait(timeout)
-        generic_event_handler(_events)
-        self.process_events(_events)
 
     def global_coord(self, coord):
         node = self

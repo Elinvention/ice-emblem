@@ -51,12 +51,19 @@ class NextTurnTransition(gui.Label):
             self.next = AITurn()
         else:
             self.next = PlayerTurn()
+        self.set_timeout(2000, self.handle_timeout)
+
+    def handle_timeout(self, _event):
+        sidebar.turn_changed(self.next_team)
         self.done = True
 
-    def end(self):
-        super().end()
-        self.wait_event(timeout=2000)
-        sidebar.turn_changed(self.next_team)
+    def handle_mousebuttondown(self, event):
+        if event.button == 1:
+            self.done = True
+
+    def handle_keydown(self, event):
+        if event.key in [p.K_SPACE, p.K_RETURN]:
+            self.done = True
 
 
 class Turn(gui.LinearLayout):

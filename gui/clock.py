@@ -14,11 +14,13 @@ class Clock(gui.Label):
     def __init__(self, font, **kwargs):
         super().__init__("0", font, **kwargs)
         self.time = 0
+        self.timeout = None
         self.playing = kwargs.get('playing', True)
 
     def begin(self):
         super().begin()
-        pygame.time.set_timer(events.CLOCK, 1000)
+        if not self.timeout:
+            self.timeout = events.new_timer(100)  # generate an event every 100ms
 
     def reset(self):
         self.time = 0
@@ -30,7 +32,3 @@ class Clock(gui.Label):
             self.time += dt
             fdate = str(timedelta(seconds=self.time // 1000))
             self.set_text(fdate)
-
-    def end(self):
-        super().end()
-        pygame.time.set_timer(events.CLOCK, 0)
