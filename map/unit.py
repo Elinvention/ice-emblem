@@ -17,10 +17,10 @@ class UnitSprite(pygame.sprite.Sprite):
     """
     def __init__(self, tilemap, unit, team, *groups):
         """
-        size: sprite size in pixels
-        obj: unit data from tmx
-        unit: unit object
-        groups: sprite layers
+        :param tilemap:
+        :param unit: unit object
+        :param team:
+        :param groups: sprite layers
         """
         super().__init__(*groups)
 
@@ -36,21 +36,23 @@ class UnitSprite(pygame.sprite.Sprite):
         self.rect.top = int(self.rect.h * self.unit.coord[1])
 
     def move_animation(self, delta, dest):
-        delta /= 100
+        if self.rect.topleft == dest:
+            return True
+        delta /= 200
         x, y = dest
         dist = Point((x - self.rect.left, y - self.rect.top))
+        if dist.x != 0 and dist.y != 0:
+            dist = Point((dist.x, 0)) if abs(dist.x) < abs(dist.y) else Point((0, dist.y))
         normal = dist.normalized()
         self.rect.left += int(self.rect.w * delta) * normal.x
         self.rect.top += int(self.rect.h * delta) * normal.y
 
-        reached = False
         if (normal.x == 1 and self.rect.left >= x) or (normal.x == -1 and self.rect.left <= x):
             self.rect.left = x
-            reached = True
         if (normal.y == 1 and self.rect.top >= y) or (normal.y == -1 and self.rect.top <= y):
             self.rect.top = y
-            reached = True
-        return reached
+
+        return self.rect.topleft == dest
 
     def zoom_changed(self):
         size = self.tilemap.zoom_tile_size

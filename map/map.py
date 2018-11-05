@@ -123,6 +123,7 @@ class TileMap(room.Room):
 
         self.path = Pathfinder(self)
         self.return_path = None  # stores the path to undo a move
+        self.moving = None
 
     @property
     def curr_unit(self):
@@ -190,25 +191,15 @@ class TileMap(room.Room):
 
         return ret
 
-    def move_animation(self, unit, target, path=None):
+    def move_animation(self, _unit, target, path=None):
         if not path:
-            path = self.path.shortest_path(unit.coord, target, unit.movement)
+            path = self.path.shortest_path(_unit.coord, target, _unit.movement)
         px_path = list(map(lambda x: self.tilemap.pixel_at(*x, False), path))
-        sprite = self.find_sprite(unit=unit)
-
-        def event_loop(_events):
-            self.draw()
-            display.window.blit(self.surface, self.rect)
-            pygame.display.flip()
-            delta = display.tick()
-            reached = sprite.move_animation(delta, px_path[0])
-            if reached and len(px_path) > 1:
-                px_path.pop(0)
-                reached = False
-            return reached
-
-        display.tick()
-        events.event_loop(event_loop, False)
+        sprite = self.find_sprite(unit=_unit)
+        if self.moving is not None and self.moving in self.children:
+            self.remove_child(self.moving)
+        self.moving = MoveAnimation(sprite, target, px_path)
+        self.add_child(self.moving)
         return path
 
     def move(self, unit, new_coord):
@@ -499,6 +490,31 @@ class TileMap(room.Room):
 
     def is_enemy_cursor(self):
         return self.cursor.coord in self.attack_area
+
+
+class MoveAnimation(room.Room):
+    def __init__(self, sprite, target, path):
+        super().__init__(wait=False, visible=False)
+        self.sprite = sprite
+        self.target = target
+        self.path = path
+
+    def begin(self):
+        super().begin()
+        self.get_root().wait = False
+
+    def loop(self, _events, dt):
+        reached = self.sprite.move_animation(dt, self.path[0])
+        self.invalidate()
+        if reached and len(self.path) > 0:
+            self.path.pop(0)
+        self.done = len(self.path) == 0
+
+    def end(self):
+        self.get_root().wait = True
+        self.parent.moving = None
+        self.sprite.reposition()
+        super().end()
 
 
 if __name__ == '__main__':

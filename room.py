@@ -488,16 +488,17 @@ def run_room(room):
     draw_room(room, first_draw=True)
     dt = display.tick(room.fps)
 
-    def loop(_events):
-        nonlocal dt
+    while not room.done:
+        if room.wait and not pygame.event.peek(list(events.get_allowed())):
+            _events = [pygame.event.wait()]
+        else:
+            _events = pygame.event.get()
         generic_event_handler(_events)
         room.process_events(_events)
         room.loop(_events, dt)
         draw_room(room)
         dt = display.tick(room.fps)
-        return room.done
 
-    events.event_loop(loop, room.wait)
     room.end()
     if room.allowed_events:
         events.set_allowed(allowed_events)
