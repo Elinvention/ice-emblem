@@ -40,7 +40,7 @@ class Point(tuple):
         return sum(abs(x) for x in self)
 
     def normalized(self):
-        return self / self.norm()
+        return self / self.norm() if self.norm() > 0 else self
 
     def __getattr__(self, attr):
         try:
