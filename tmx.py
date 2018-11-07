@@ -848,6 +848,16 @@ class TileMap(object):
         for layer in self.layers:
             layer.set_view(x, y, w, h, self.zoom)
 
+    def can_scroll(self, vx, vy):
+        x_axis, y_axis = True, True
+        if ((vx == 0) or (self.zoom_px_width <= self.view_w) or (self.viewport.x == 0 and vx < 0)
+                or (self.viewport.x == self.zoom_px_width - self.view_w and vx > 0)):
+            x_axis = False
+        if ((vy == 0) or (self.zoom_px_height <= self.view_h) or (self.viewport.y == 0 and vy < 0)
+                or (self.viewport.y == self.zoom_px_height - self.view_h and vy > 0)):
+            y_axis = False
+        return x_axis or y_axis
+
     def scroll(self, vx, vy):
         self.set_focus(self.restricted_fx + vx, self.restricted_fy + vy)
 
