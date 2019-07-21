@@ -373,7 +373,7 @@ class TileMap(room.Room):
         else:
             self.vx = self.vy = 0
 
-        self.get_root().wait = not self.tilemap.can_scroll(self.vx, self.vy)
+        self.wait_set(not self.tilemap.can_scroll(self.vx, self.vy))
 
     def handle_keydown(self, event):
         self.cursor.update(event)
@@ -400,7 +400,7 @@ class TileMap(room.Room):
             if prev != (self.tilemap.restricted_fx, self.tilemap.restricted_fy):
                 self.cursor.update()
                 self.invalidate()
-            self.get_root().wait = not self.tilemap.can_scroll(self.vx, self.vy)
+            self.wait_set(not self.tilemap.can_scroll(self.vx, self.vy))
         if self.zoom != self.tilemap.zoom:
             self.tilemap.set_zoom(self.zoom, *self.cursor.rect.topleft)
             self.sprites.update()
@@ -502,10 +502,6 @@ class MoveAnimation(room.Room):
         self.target = target
         self.path = path
 
-    def begin(self):
-        super().begin()
-        self.get_root().wait = False
-
     def loop(self, _events, dt):
         reached = self.sprite.move_animation(dt, self.path[0])
         self.invalidate()
@@ -514,7 +510,6 @@ class MoveAnimation(room.Room):
         self.done = len(self.path) == 0
 
     def end(self):
-        self.get_root().wait = True
         self.parent.moving = None
         self.sprite.reposition()
         super().end()

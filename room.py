@@ -75,7 +75,8 @@ class Room(object):
     def __init__(self, **kwargs):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.fps = kwargs.get('fps', display.fps)
-        self.wait = kwargs.get('wait', True)
+        self.wait_prefer = self.wait = kwargs.get('wait', True)
+        self.wait_valid = True
         self.allowed_events = kwargs.get('allowed_events', [])
         self.die_when_done = kwargs.get('die_when_done', True)
         self.clear_screen = kwargs.get('clear_screen', (0, 0, 0))
@@ -136,8 +137,6 @@ class Room(object):
 
     def add_child(self, child):
         self.add_children(child)
-        self.layout_request()
-        self.invalidate()
 
     def remove_child(self, child):
         self.children.remove(child)
@@ -145,6 +144,7 @@ class Room(object):
         child.logger = logging.getLogger(child.__class__.__name__)
         self.layout_request()
         self.invalidate()
+        self.wait_invalidate()
 
     def invalidate(self):
         self.valid = False
@@ -152,20 +152,38 @@ class Room(object):
         while node and node.valid:
             node.valid = False
             node = node.parent
-
-    def get_root(self):
-        node = self
-        while node:
-            if node.root:
-                assert (node.parent is None)
-                return node
-            node = node.parent
+        self.logger.debug("Invalidated")
 
     def layout_request(self):
         node = self
         while node and node.layout_valid:
             node.layout_valid = False
             node = node.parent
+        self.logger.debug("Layout requested")
+
+    def wait_invalidate(self):
+        if self.wait_valid:
+            self.logger.debug("Wait invalidated")
+        self.wait_valid = False
+        node = self.parent
+        while node and node.wait_valid:
+            node.wait_valid = False
+            node = node.parent
+
+    def wait_set(self, wait):
+        if wait != self.wait_prefer:
+            self.wait_prefer = wait
+            self.wait_invalidate()
+
+    def wait_update(self):
+        if self.wait_valid:
+            return self.wait
+        self.wait = self.wait_prefer
+        for child in self.children:
+            self.wait = self.wait and child.wait_update()
+        self.wait_valid = True
+        self.logger.debug("Wait updated: %s", self.wait)
+        return self.wait
 
     def measure(self, spec_width, spec_height):
         """
@@ -230,6 +248,8 @@ class Room(object):
 
     def begin(self):
         self.begin_children()
+        self.invalidate()
+        self.wait_invalidate()
         self.logger.debug("begin")
 
     def loop(self, _events, dt):
@@ -496,6 +516,8 @@ def run_room(room):
     dt = display.tick(room.fps)
 
     while not room.done:
+        if not room.wait_valid:
+            room.wait_update()
         if room.wait and not pygame.event.peek(list(events.get_allowed())):
             _events = [pygame.event.wait()]
         else:
