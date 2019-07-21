@@ -45,7 +45,9 @@ class Label(room.Room):
             self.text = text
             self._render_text()
             self.invalidate()
-            self.layout_request()
+            required_w, required_h = self.full_area()
+            if self.rect.w != required_w or self.rect.h != required_h:
+                self.layout_request()
 
     def format(self, *args, **kwargs):
         text = self.format_string.format(*args, **kwargs)
@@ -69,6 +71,10 @@ class Label(room.Room):
         h = self.font.get_linesize() * len(self.rendered_text) + self.leading * (len(self.rendered_text) - 1)
         return w, h
 
-    def measure(self, spec_width, spec_height):
+    def full_area(self):
         w, h = self.text_area()
-        self.resolve_measure(spec_width, spec_height, w + self.padding.we, h + self.padding.ns)
+        return w + self.padding.we, h + self.padding.ns
+
+    def measure(self, spec_width, spec_height):
+        w, h = self.full_area()
+        self.resolve_measure(spec_width, spec_height, w, h)
