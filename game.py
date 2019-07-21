@@ -39,7 +39,7 @@ class NextTurnTransition(gui.Label):
     def __init__(self, team):
         bg = display.window.copy().convert()
         bg.set_alpha(100)
-        super().__init__(_('%s phase') % team.name, f.MAIN_MENU, txt_color=team.color,
+        super().__init__(_("%s phase") % team.name, f.MAIN_MENU, txt_color=team.color, layout_gravity=gui.Gravity.FILL,
                          bg_color=c.BLACK, bg_image=bg,
                          allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], wait=True)
         self.next_team = team
