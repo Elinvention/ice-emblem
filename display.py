@@ -27,25 +27,30 @@ spinner_size = (15, 15)
 
 FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
+
 def modeset():
     global window
     window = pygame.display.set_mode(resolution, mode)
+
 
 def set_fullscreen(enable):
     global mode
     mode = pygame.FULLSCREEN if enable else pygame.RESIZABLE
     modeset()
 
+
 def toggle_fullscreen():
     global mode
     mode = pygame.FULLSCREEN if mode != pygame.FULLSCREEN else pygame.RESIZABLE
     modeset()
+
 
 def set_resolution(res):
     global resolution
     resolution = res
     modeset()
     pygame.event.post(pygame.event.Event(pygame.VIDEORESIZE, size=res, w=res[0], h=res[1]))
+
 
 def handle_videoresize(event):
     global window
@@ -55,6 +60,7 @@ def handle_videoresize(event):
     if screen_size[1] < min_resolution[1]:
         screen_size = (screen_size[0], min_resolution[1])
     window = pygame.display.set_mode(screen_size, mode)
+
 
 def draw_fps(font=FPS_FONT):
     global spinner_angle
@@ -76,20 +82,26 @@ def tick(_fps=None):
         return clock.tick(fps)
     return clock.tick(_fps)
 
+
 def flip():
     pygame.display.flip()
+
 
 def get_rect(**kwargs):
     return window.get_rect(**kwargs)
 
+
 def get_size():
     return window.get_size()
+
 
 def get_width():
     return window.get_width()
 
+
 def get_height():
     return window.get_height()
+
 
 def darken(alpha):
     s = pygame.Surface(window.get_size())

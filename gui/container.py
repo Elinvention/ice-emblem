@@ -60,7 +60,6 @@ class LinearLayout(room.Room):
 
         return min(spec_width.value, width_children), min(spec_height.value, height_children)
 
-
     def measure_horizontal(self, spec_width, spec_height):
         w, h = spec_width.value, spec_height.value
 

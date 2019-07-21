@@ -8,13 +8,14 @@ import heapq
 
 class Terrain(object):
     def __init__(self, tile, unit):
-        self.name = tile.properties.get('name', _('Unknown'))
+        self.name = tile.properties.get('name', 'Unknown')
         self.moves = float(tile.properties.get('moves', 1))  # how many moves are required to move a unit through
         self.defense = int(tile.properties.get('defense', 0))  # bonus defense
         self.avoid = int(tile.properties.get('avoid', 0))  # bonus avoid
-        self.allowed = tile.properties.get('allowed', _('any')).split(',')
+        self.allowed = tile.properties.get('allowed', 'earth').split(',')
         self.surface = tile.surface
         self.unit = unit
+
 
 class Pathfinder(object):
     """Cached pathfinder"""
@@ -63,7 +64,7 @@ class Pathfinder(object):
             for el in Q:
                 if self.dist[el] < min_dist:
                     min_dist = self.dist[el]
-                    u = el  #  Source node in first case
+                    u = el  # Source node in first case
 
             Q.remove(u)
 

@@ -328,8 +328,8 @@ class TileMap(room.Room):
 
     def can_selection_move(self):
         return (self.prev_unit is not None and not self.prev_unit.played and
-            self.units_manager.active_team.is_mine(self.prev_unit) and
-            self.curr_sel in self.move_area)
+                self.units_manager.active_team.is_mine(self.prev_unit) and
+                self.curr_sel in self.move_area)
 
     def handle_mousebuttondown(self, event):
         if event.button == 1:
