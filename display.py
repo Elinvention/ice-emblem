@@ -4,6 +4,8 @@ import resources
 import utils
 import colors as c
 
+import math
+
 
 VERSION = utils.get_version()
 
@@ -19,6 +21,9 @@ window = pygame.display.set_mode(resolution, mode)
 pygame.display.set_caption("Ice Emblem " + VERSION)
 pygame.key.set_repeat(200, 50)
 clock = pygame.time.Clock()
+
+spinner_angle = 0
+spinner_size = (15, 15)
 
 FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
@@ -52,11 +57,19 @@ def handle_videoresize(event):
     window = pygame.display.set_mode(screen_size, mode)
 
 def draw_fps(font=FPS_FONT):
+    global spinner_angle
     screen_w, screen_h = window.get_size()
     fps = clock.get_fps()
     fpslabel = font.render('%d FPS' % int(fps), True, c.WHITE, c.BLACK).convert()
-    rec = fpslabel.get_rect(top=5, right=screen_w - 5)
+    rec = fpslabel.get_rect(top=5, right=screen_w - 5 - spinner_size[0])
     window.blit(fpslabel, rec)
+
+    spinner_angle -= math.pi / 4
+    spinner_angle %= math.pi * 2
+    surf = pygame.Surface(spinner_size)
+    pygame.draw.arc(surf, c.WHITE, surf.get_rect(), spinner_angle, spinner_angle + math.pi / 4, 2)
+    window.blit(surf, surf.get_rect(top=5, right=screen_w - 5))
+
 
 def tick(_fps=None):
     if _fps is None:
