@@ -202,7 +202,7 @@ class Room(object):
     def layout(self, rect):
         """
         Top-down traversal of the tree. The parent positions its children.
-        This method must be called after measure.
+        This method will be called after measure.
         """
         for child in self.children:
             child.layout(pygame.Rect(child.layout_position, child.measured_size))
@@ -429,8 +429,15 @@ class RoomStop(Exception):
 
 
 def layout_room(room):
-    room.measure(MeasureParams(MeasureSpec.AT_MOST, display.get_width()),
-                 MeasureParams(MeasureSpec.AT_MOST, display.get_height()))
+    if Gravity.FILL_HORIZONTAL in room.layout_gravity:
+        spec_width = MeasureParams(MeasureSpec.EXACTLY, display.get_width())
+    else:
+        spec_width = MeasureParams(MeasureSpec.AT_MOST, display.get_width())
+    if Gravity.FILL_VERTICAL in room.layout_gravity:
+        spec_height = MeasureParams(MeasureSpec.EXACTLY, display.get_height())
+    else:
+        spec_height = MeasureParams(MeasureSpec.AT_MOST, display.get_height())
+    room.measure(spec_width, spec_height)
 
     rect = pygame.Rect((0, 0), room.measured_size)
 
