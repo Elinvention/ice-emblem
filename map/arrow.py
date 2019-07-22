@@ -5,6 +5,10 @@
 
 import pygame
 
+from basictypes import Point
+
+from typing import Tuple
+
 
 class Arrow(pygame.sprite.Sprite):
     def __init__(self, tilemap, image, *groups):
@@ -73,6 +77,27 @@ class Arrow(pygame.sprite.Sprite):
             self.valid = False
         self.update()
 
+    def add_or_remove_coord(self, coord: Tuple[int, int]) -> None:
+        """
+        Adds a coordinate to the path if coord is not the source. If coord is already in path removes all elements from
+        path until the last one is coord.
+        :param coord: new selected coordinate.
+        """
+        if self.source == coord:
+            # Arrow starts where it ends
+            self.path = []
+        elif coord not in self.path:
+            # Add to path if the new one is adjacent to the last one
+            prev = self.path[-1] if self.path else self.source
+            if (Point(prev) - Point(coord)).norm() == 1:
+                self.path.append(coord)
+        else:
+            # The new one is a cell we already passed on.
+            while self.path[-1] != coord:
+                self.path.pop()
+        self.valid = False
+        self.update()
+
     def get_arrow_part(self, coord):
         index = self.path.index(coord)
         a = self.path[index - 1] if index - 1 >= 0 else self.source
@@ -111,5 +136,4 @@ class Arrow(pygame.sprite.Sprite):
             elif (ax == bx and ay > by and bx < cx and by == cy) or (ax > bx and ay == by and bx == cx and by < cy):
                 return self.arrow['topleft']
 
-            else:
-                raise ValueError("ArrowError: " + str((a, b, c)))
+        raise ValueError(f"ArrowError: {str((a, b, c))} {self.source} {self.path}")

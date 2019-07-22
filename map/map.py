@@ -14,8 +14,7 @@ import utils
 import resources
 import unit, item
 import ai
-import events
-
+from basictypes import Point
 
 from map.pathfinder import Pathfinder, Terrain, manhattan_path
 from map.unit import UnitSprite
@@ -201,7 +200,7 @@ class TileMap(room.Room):
         self.add_child(self.moving)
         return path
 
-    def move(self, unit, new_coord):
+    def move(self, unit, new_coord, path=None):
         """
         This method moves a unit from a node to another one. If the two
         coordinates are the same no action is performed.
@@ -209,7 +208,7 @@ class TileMap(room.Room):
         if unit.coord != new_coord:
             if self.get_unit(new_coord) is not None:
                 raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
-            self.return_path = self.move_animation(unit, new_coord)
+            self.return_path = self.move_animation(unit, new_coord, path)
             self.return_path.pop()
             self.return_path.reverse()
             self.return_path.append(unit.coord)
@@ -279,10 +278,29 @@ class TileMap(room.Room):
         self.move_area = []
         self.__set_attack_area(self.curr_sel, min_range, max_range)
 
+    def path_cost(self, path):
+        cost = 0
+        for coord in path:
+            cost += self.terrains[coord].moves
+        return cost
+
     def update_arrow(self, target=None):
         if self.curr_unit and not self.curr_unit.played and self.units_manager.active_team.is_mine(self.curr_unit) and target:
+            target_unit = self.get_unit(target)
             if target in self.move_area:
-                path = self.path.shortest_path(self.curr_sel, target, self.curr_unit.movement)
+                self.arrow.source = self.curr_sel
+                self.arrow.add_or_remove_coord(target)
+                if self.path_cost(self.arrow.path) > self.curr_unit.movement or target not in self.arrow.path:
+                    path = self.path.shortest_path(self.curr_sel, target, self.curr_unit.movement)
+                    self.arrow.set_path(path, self.curr_sel)
+            elif target in self.attack_area and target_unit:
+                if not self.arrow.path or target_unit not in self.nearby_enemies(self.curr_unit, self.arrow.path[-1]):
+                    path = self.path.shortest_path(self.curr_sel, target, self.curr_unit.movement)
+                else:
+                    path = self.arrow.path
+                min_range = self.curr_unit.get_weapon_range()[0]
+                while path and (Point(path[-1]) - Point(target)).norm() < min_range:
+                    print(path.pop())
                 self.arrow.set_path(path, self.curr_sel)
         else:
             self.arrow.set_path([])
@@ -300,19 +318,20 @@ class TileMap(room.Room):
                     and hole <= utils.distance((x, y), (i, j)) <= radius]
         return _area
 
-    def nearby_enemies(self, unit=None):
+    def nearby_enemies(self, _unit=None, coord=None):
         """
         Returns a list of near enemies that can be attacked without having to move.
-        If the unit is not specified it is assumed to be the currently selected unit.
         """
-        if unit is None:
-            unit = self.curr_unit
-        min_range, max_range = unit.get_weapon_range()
-        area = self.area(unit.coord, max_range, min_range)
+        if not _unit:
+            _unit = self.curr_unit
+        if not coord:
+            coord = _unit.coord
+        min_range, max_range = _unit.get_weapon_range()
+        area = self.area(coord, max_range, min_range)
         nearby_list = []
         for u in area:
             c_unit = self.get_unit(u)
-            if c_unit and self.units_manager.are_enemies(c_unit, unit):
+            if c_unit and self.units_manager.are_enemies(c_unit, _unit):
                 nearby_list.append(c_unit)
         return nearby_list
 
@@ -354,7 +373,7 @@ class TileMap(room.Room):
             if coord and coord != self.cursor.coord:
                 self.cursor.point(*coord)
                 self.invalidate()
-            self.update_arrow(coord)
+                self.update_arrow(coord)
 
             if x - self.rect.left < border:
                 self.vx = int(-speed * (1 - ((x - self.rect.left) / border)))
@@ -421,7 +440,6 @@ class TileMap(room.Room):
         active_team = self.units_manager.active_team
         self.prev_sel = self.curr_sel
         self.curr_sel = coord
-        self.arrow.set_path([])
 
         if self.prev_sel is None:
             # Nothing has been previously selected
@@ -470,6 +488,8 @@ class TileMap(room.Room):
                     # Selected a unit: show its move and attack area
                     self.update_move_area()
                     self.move_attack_area()
+
+        self.arrow.set_path([])
 
     def action_menu(self, pos=None):
         self.vx, self.vy = 0, 0
