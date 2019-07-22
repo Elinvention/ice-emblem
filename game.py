@@ -54,7 +54,6 @@ class NextTurnTransition(gui.Label):
         self.set_timeout(2000, self.handle_timeout)
 
     def handle_timeout(self, _event):
-        sidebar.turn_changed(self.next_team)
         self.done = True
 
     def handle_mousebuttondown(self, event):
@@ -64,6 +63,10 @@ class NextTurnTransition(gui.Label):
     def handle_keydown(self, event):
         if event.key in [p.K_SPACE, p.K_RETURN]:
             self.done = True
+
+    def end(self):
+        super().end()
+        sidebar.turn_changed(self.next_team)
 
 
 class Turn(gui.LinearLayout):
