@@ -13,8 +13,7 @@
     movement: 1
     constitution: 1
     aid: 5
-    affinity:
-    condition: 0
+    affinity: "Anima"
     wrank:
         Axe: E
         Sword: D
@@ -33,8 +32,7 @@
     movement: 3
     constitution: 1
     aid: 5
-    affinity:
-    condition: 0
+    affinity: "Anima"
     wrank:
         Bow: E
 
@@ -52,8 +50,7 @@
     movement: 2
     constitution: 2
     aid: 3
-    affinity:
-    condition: 0
+    affinity: "Anima"
     wrank:
         DarkTome: E
 
@@ -71,8 +68,7 @@
     movement: 3
     constitution: 2
     aid: 4
-    affinity:
-    condition: 0
+    affinity: "Anima"
     wrank:
         Bow: E
 
@@ -90,8 +86,7 @@
     movement: 5
     constitution: 2
     aid: 2
-    affinity:
-    condition: 0
+    affinity: "Anima"
     wrank:
         Sword: E
 
@@ -106,11 +101,10 @@
     luck: 3
     defence: 5
     resistance: 1
-    movement: 3
+    movement: 10
     constitution: 3
     aid: 4
-    affinity:
-    condition: 0
+    affinity: "Anima"
     wrank:
         Sword: E
 

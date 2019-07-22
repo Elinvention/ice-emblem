@@ -20,8 +20,8 @@ class Sidebar(gui.NinePatch):
         font = f.MEDIEVAL18
         self.endturn_btn = gui.Button(_("End Turn"), font, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: s.units_manager.active_team.end_turn())
         self.turn_label = gui.Label(_("{team} turn"), font)
-        self.terrain_label = gui.Label(f'{{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', font)
-        self.unit_label = gui.Label('{0}\n{1}', font)
+        self.terrain_label = gui.Label(f'Terrain: {{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', font)
+        self.unit_label = gui.Label('Unit: {0}\nHealth: {1}\nCan move on: {2}\nWeapon: {3}', font)
         self.coord_label = gui.Label('X: {0} Y: {1}', font, layout_gravity=Gravity.BOTTOM)
         self.clock = gui.Clock(font, layout_gravity=Gravity.BOTTOM)
         self.add_children(self.turn_label, self.terrain_label, self.unit_label, self.coord_label, self.clock, self.endturn_btn)
@@ -39,11 +39,11 @@ class Sidebar(gui.NinePatch):
         terrain = s.loaded_map[coord]
 
         if terrain:
-            self.terrain_label.format(terrain.name, terrain.defense, terrain.avoid, ", ".join(terrain.allowed))
+            self.terrain_label.format(_(terrain.name), terrain.defense, terrain.avoid, ', '.join(map(_, terrain.allowed)))
 
         if unit:
             weapon = unit.items.active
-            self.unit_label.format(unit.name, weapon.name if weapon else _("No Weapon"))
+            self.unit_label.format(unit.name, unit.condition, ', '.join(map(_, unit.ALLOWED_TERRAINS)), str(weapon) if weapon else _("No Weapon"))
         else:
             self.unit_label.set_text("No unit")
 

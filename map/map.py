@@ -164,13 +164,12 @@ class TileMap(room.Room):
         except AttributeError:
             if unit is None:
                 return False
-            unit_allowed = unit.get_allowed_terrains()
             for allowed in terrain.allowed:
                 if allowed == 'any':
                     return False
-                elif allowed == 'none':
+                if allowed == 'none':
                     return True
-                if allowed in unit_allowed:
+                if allowed in unit.ALLOWED_TERRAINS:
                     return False
             return True
 
@@ -441,14 +440,26 @@ class TileMap(room.Room):
                 if self.prev_sel == self.curr_sel and not self.prev_unit.played and active_team.is_mine(self.prev_unit):
                     # Two times on the same playable unit. Show the action menu.
                     self.action_menu()
+                elif self.curr_sel in self.attack_area:
+                    # Two different units: prev_unit can attack curr_unit
+                    # This results in a combined action: move the unit next to the enemy and propose the user to attack
+                    nearest = self.arrow.path[-1] if self.arrow.path else self.prev_sel
+                    if self.nearby_enemies(self.prev_unit, nearest):
+                        self.move(self.prev_unit, nearest, self.arrow.path)
+                        self.curr_sel = nearest
+                        self.still_attack_area()
+                        self.action_menu()
+                    else:
+                        self.reset_selection()
                 else:
-                    # Two different units
+                    # Two different units: prev_unit can't attack curr_unit
                     # show the current unit's move and attack area
                     self.update_move_area()
                     self.move_attack_area()
             elif self.can_selection_move():
                 # Move the previously selected unit to the currently selected coordinate.
-                self.move(self.prev_unit, self.curr_sel)
+                self.move(self.prev_unit, self.curr_sel, self.arrow.path)
+                self.still_attack_area()
                 self.action_menu()
             else:
                 # Previously something irrelevant was chosen
@@ -467,11 +478,11 @@ class TileMap(room.Room):
         menu = rooms.ActionMenu(layout_position=pos, padding=10, leading=5)
         self.add_child(menu)
 
-    def prepare_attack(self, unit=None):
-        if unit:
-            self.curr_unit = unit
+    def prepare_attack(self, _unit=None):
+        if not _unit:
+            _unit = self.curr_unit
         self.move_area = []
-        self.attack_area = [u.coord for u in self.nearby_enemies(unit)]
+        self.attack_area = [u.coord for u in self.nearby_enemies(_unit, _unit.coord)]
         self.update_highlight()
 
     def attack(self, attacking=None, defending=None):

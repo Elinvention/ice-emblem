@@ -26,6 +26,11 @@ import logging
 
 import utils
 import resources
+import string
+
+from typing import Tuple, List, Dict
+from gettext import gettext as _
+from abc import ABC, abstractmethod
 
 
 class Items(list):
@@ -45,11 +50,129 @@ class Items(list):
             raise ValueError("Active Item must be in list")
 
 
+class HealthCondition(ABC):
+    ICON = pygame.Surface((10, 10))
+
+    def __init__(self, unit):
+        self.unit = unit
+
+    @abstractmethod
+    def turn_begin(self):
+        pass
+
+    @abstractmethod
+    def turn_end(self):
+        pass
+
+    @abstractmethod
+    def attack(self, damage):
+        pass
+
+    @abstractmethod
+    def defend(self, damage):
+        pass
+
+
+class NormalHealthCondition(HealthCondition):
+    def turn_begin(self):
+        return
+
+    def turn_end(self):
+        return
+
+    def attack(self, damage):
+        return damage
+
+    def defend(self, damage):
+        return damage
+
+    def __str__(self):
+        return f"OK"
+
+
+class HealingHealthCondition(NormalHealthCondition):
+    def __init__(self, unit, amount):
+        super().__init__(unit)
+        self.amount = amount
+
+    def turn_begin(self):
+        self.unit.heal(self.amount)
+
+    def __str__(self):
+        return f"Healing (+{self.amount} HP/turn)"
+
+
+class PoisonedHealthCondition(NormalHealthCondition):
+    def __init__(self, unit, amount):
+        super().__init__(unit)
+        self.amount = amount
+
+    def turn_end(self):
+        self.unit.inflict_damage(self.amount)
+
+    def __str__(self):
+        return f"Poisoned (-{self.amount} HP/turn)"
+
+
+class ElementalAffinity(ABC):
+    ICON = None
+    NAME = ""
+    DESCRIPTION = ""
+
+    def attack(self, unit, ally, att):
+        if isinstance(ally.affinity, type(self)):
+            print(f"There is affinity between {unit} and {ally}. Attack * 2.")
+            return att * 2
+        return att
+
+    def __str__(self):
+        return self.NAME
+
+
+class AnimaAffinity(ElementalAffinity):
+    NAME = _("Anima")
+    DESCRIPTION = _("")
+
+
+class DarkAffinity(ElementalAffinity):
+    NAME = _("Dark")
+    DESCRIPTION = _("")
+
+
+class FireAffinity(ElementalAffinity):
+    NAME = _("Fire")
+    DESCRIPTION = _("")
+
+
+class IceAffinity(ElementalAffinity):
+    NAME = _("Ice")
+    DESCRIPTION = _("")
+
+
+class LightAffinity(ElementalAffinity):
+    NAME = _("Light")
+    DESCRIPTION = _("")
+
+
+class ThunderAffinity(ElementalAffinity):
+    NAME = _("Thunder")
+    DESCRIPTION = _("")
+
+
+class WindAffinity(ElementalAffinity):
+    NAME = _("Wind")
+    DESCRIPTION = _("")
+
+
 class Unit(object):
     """
     This class is a unit with stats
     """
-    def __init__(self, name, health, level, experience, strength, skill, speed, luck, defence, resistance, movement, constitution, aid, affinity, condition, wrank, health_max=None):
+
+    ALLOWED_TERRAINS = ['earth']
+
+    def __init__(self, name, health, level, experience, strength, skill, speed, luck, defence, resistance, movement,
+                 constitution, aid, affinity, wrank, health_max=None):
         self.name         = str(name)          # name of the Unit
         self.health       = int(health)        # current health
         self.health_max   = health_max if health_max else self.health  # maximum health
@@ -68,7 +191,7 @@ class Unit(object):
         self.constitution = int(constitution)  # constitution, or phisical size. affects rescues.
         self.aid          = int(aid)           # max rescuing constitution. units with lower con can be rescued.
         self.affinity     = affinity           # elemental affinity. determines compatibility with other units.
-        self.condition    = condition          # health conditions.
+        self.condition    = NormalHealthCondition(self)
         self.wrank        = wrank              # weapons' levels.
         self.items        = Items()            # list of items
         self.played       = False              # wether unit was used or not in a turn
@@ -79,7 +202,7 @@ class Unit(object):
             self.image = resources.load_sprite(self.name).convert_alpha()
             new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
             self.image = pygame.transform.smoothscale(self.image, new_size)
-        except pygame.error as e:
+        except pygame.error:
             logging.warning("Couldn't load %s! Loading default image", resources.sprite_path(self.name))
             self.image = resources.load_sprite('no_image.png').convert_alpha()
 
@@ -88,22 +211,23 @@ class Unit(object):
 
     def __str__(self):
         return (
-        'Unit: "{name}"\n'
-        'HP: {health}/{health_max}\n'
-        'LV: {level}\tEXP: {experience}\n'
-        'Str: {strength}\tSkill: {skill}\n'
-        'Spd: {speed}\tLuck: {luck}\n'
-        'Def: {defence}\tRes: {resistance}\n'
-        'Move: {movement}\tCon: {constitution}\n'
-        'Aid: {aid}\tAffin: {affinity}\n'
-        'Weapon: {items.active}'
-        .format_map(self.__dict__))
+            'Unit: "{name}"\n'
+            'HP: {health}/{health_max}\n'
+            'LV: {level}\tEXP: {experience}\n'
+            'Str: {strength}\tSkill: {skill}\n'
+            'Spd: {speed}\tLuck: {luck}\n'
+            'Def: {defence}\tRes: {resistance}\n'
+            'Move: {movement}\tCon: {constitution}\n'
+            'Aid: {aid}\tAffin: {affinity}\n'
+            'Weapon: {items.active}'
+            .format_map(self.__dict__)
+        )
 
     @property
     def weapon(self):
         return self.items.active
 
-    def give_weapon(self, weapon, activate=True):
+    def give_weapon(self, weapon, activate=True) -> None:
         """
         Gives a weapon to the unit. The weapon becomes active by default if
         its rank is lower or equals to the rank of the unit. 
@@ -117,24 +241,32 @@ class Unit(object):
                 print("Unit %s can't use a %s" % (self.name, weapon_class))
         self.modified = True
 
-    def inflict_damage(self, dmg):
-        """Inflicts damages to the unit."""
-        self.health -= dmg
+    def health_variation(self, amount: int):
+        self.health += amount
         if self.health <= 0:
             self.health = 0
             print(_("%s died") % self.name)
+        elif self.health > self.health_max:
+            self.health = self.health_max
+            print(_("%s fully recovered.") % self.name)
         self.modified = True
 
-    def get_weapon_range(self):
+    def inflict_damage(self, dmg: int) -> None:
+        """Inflicts damages to the unit."""
+        if dmg > 0:
+            self.health_variation(-dmg)
+
+    def heal(self, amount):
+        if amount > 0:
+            self.health_variation(amount)
+
+    def get_weapon_range(self) -> Tuple[int, int]:
         active_weapon = self.items.active
         if active_weapon:
             return active_weapon.min_range, active_weapon.max_range
         return 1, 1
 
-    def get_attack_distance(self):
-        return self.get_weapon_range() + self.movement
-
-    def number_of_attacks(self, enemy):
+    def number_of_attacks(self, enemy: 'Unit') -> Tuple[int, int]:
         """
         Returns a tuple: how many times this unit can attack the enemy
         and how many times the enemy can attack this unit in a single battle
@@ -154,12 +286,12 @@ class Unit(object):
         if not enemy_range[0] <= distance <= enemy_range[1]:
             enemy_attacks = 0
 
-        return (self_attacks, enemy_attacks)
+        return self_attacks, enemy_attacks
 
-    def life_percent(self):
+    def life_percent(self) -> int:
         return int(float(self.health) / float(self.health_max) * 100.0)
 
-    def attack(self, enemy):
+    def attack(self, enemy: 'Unit') -> Tuple[str, int]:
         if self.weapon is None or self.weapon.uses == 0:
             print(_("%s attacks %s with his bare hands") % (self.name, enemy.name))
             hit_probability = self.skill * 2 + self.luck / 2
@@ -168,7 +300,8 @@ class Unit(object):
         else:
             print(_("%s attacks %s with %s") % (self.name, enemy.name, self.weapon.name))
             hit_probability = (self.skill * 2) + self.weapon.hit + (self.luck / 2)
-            dmg = (self.strength + self.weapon.might) - enemy.defence # TODO
+            dmg = (self.strength + self.weapon.might) - enemy.defence
+            # TODO add damage modifiers like HealthCondition, ElementalAffinity
             critical_probability = self.skill // 2 + self.weapon.crit - enemy.luck
 
         print("Dmg: %d  Hit: %d" % (dmg, hit_probability))
@@ -195,22 +328,22 @@ class Unit(object):
                 self.weapon.use()
             return 'hit', dmg
 
-    def value(self):
+    def value(self) -> int:
         """
         the return value is used by ai to choose who enemy attack
         """
         # TODO add type unit influence
         return self.health + self.strength + self.skill + self.speed + self.luck + self.defence
 
-    def prepare_battle(self):
+    def prepare_battle(self) -> None:
         self.health_prev = self.health
         self.level_prev = self.level
 
-    def get_damage(self):
+    def get_damage(self) -> int:
         return self.health_prev - self.health
 
-    def gain_exp(self, enemy):
-        self.prev_exp = self.experience
+    def gain_exp(self, enemy: 'Unit') -> None:
+        self.exp_prev = self.experience
         exp = 1
         damages = enemy.get_damage()
         if damages > 0:
@@ -231,66 +364,88 @@ class Unit(object):
         self.modified = True
         print(_("%s gained %d experience points! EXP: %d") % (self.name, exp, self.experience))
 
-    def gained_exp(self):
+    def gained_exp(self) -> int:
         """Return the gained experience with latest battle"""
-        if self.experience > self.prev_exp:
-            return self.experience - self.prev_exp
-        return self.experience + 100 - self.prev_exp
+        if self.experience > self.exp_prev:
+            return self.experience - self.exp_prev
+        return self.experience + 100 - self.exp_prev
 
-    def level_up(self):
+    def level_up(self) -> None:
         self.level_prev = self.level
         self.level += 1
         print(_("%s levelled up!") % self.name)
 
-    def levelled_up(self):
+    def levelled_up(self) -> bool:
         """Returns True if the latest attack caused a level-up"""
         return self.level > self.level_prev
 
-    def is_dead(self):
+    def is_dead(self) -> bool:
         return self.health == 0
 
-    def get_allowed_terrains(self):
-        return [_('any')]
-
-    def was_modified(self):
-        """Tells wether the unit was modified since last call"""
+    def was_modified(self) -> bool:
+        """Tells whether the unit was modified since last call"""
         m = self.modified
         self.modified = False
         return m
 
-    def move(self, coord):
+    def move(self, coord) -> None:
         self.modified = True
         self.coord = coord
 
-    def wait(self):
+    def wait(self) -> None:
         self.played = True
 
 
 class Flying(Unit):
-    def __init__(self, *args):
-        super().__init__(*args)
+    pass
 
 
 class Water(Unit):
-    def __init__(self, *args):
-        super().__init__(*args)
+    pass
+
+
+class UnitFactory(ABC):
+    @abstractmethod
+    def make_unit(self) -> Unit:
+        raise NotImplementedError("Method not implemented.")
+
+
+class RandomUnitFactory(UnitFactory):
+    def make_unit(self) -> Unit:
+        name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        health = random.randint(5, 70)
+        level = health // 4
+        experience = 0
+        strength = random.randint(1, 20)
+        skill = random.randint(1, 20)
+        speed = random.randint(1, 20)
+        luck = random.randint(1, 20)
+        defence = random.randint(1, 20)
+        resistance = random.randint(1, 20)
+        movement = random.randint(1, 10)
+        constitution = random.randint(1, 5)
+        aid = random.randint(1, 5)
+        affinity = IceAffinity()
+        wrank = {k: random.randint(0, 3) for k in ["Lance", "Sword", "Bow", "Axe"]}
+        return Unit(name, health, level, experience, strength, skill, speed, luck, defence, resistance, movement,
+                    constitution, aid, affinity, wrank, health_max=None)
 
 
 class Team(object):
     """Every unit is part of a Team."""
 
-    def __init__(self, name, color, relation, units, boss, music):
+    def __init__(self, name: str, color: Tuple[int, int, int], relation: int, units: List[Unit], boss: Unit,
+                 music: Dict[str, str]):
         """
-        name [str]: name of the Team
-        color [tuple of 3 ints]: color of the Team
-        relation [number]: used to represent relationship between teams.
+        :param name: name of the Team
+        :param color: color of the Team
+        :param relation: used to represent relationship between teams.
             Two Teams can be allied, neutral or enemy. If the difference
             between the two teams' value is 0 they are allied, if it is
             1 they are neutral otherwise they are enemy.
-        my_turn [bool]: if it is this team's turn
-        units [list of units]: units part of the team
-        boss [Unit]: the boss of this team that must be inside the units list
-        music [Dict of music_key : String filename ]
+        :param units: units part of the team
+        :param boss: the boss of this team that must be inside the units list
+        :param music: Dictionary
         """
         self.name = name
         self.color = color
@@ -300,57 +455,57 @@ class Team(object):
         self.units = units
         self.boss = boss
         self.music = music
-        self.music_pos = {k:0 for k,v in music.items()}
+        self.music_pos = {k: 0 for k, v in music.items()}
 
-    def __str__(self):
+    def __str__(self) -> str:
         units = "["
         for unit in self.units:
             units += unit.name + ', '
         return '%s: %s]' % (self.name, units)
 
-    def is_mine(self, unit):
+    def is_mine(self, unit: Unit) -> bool:
         """Tells wether a unit belongs to this player or not"""
         return unit in self.units
 
-    def is_turn_over(self):
+    def is_turn_over(self) -> bool:
         for unit in self.units:
             if not unit.played:
                 return False
         return True
 
-    def end_turn(self):
+    def end_turn(self) -> None:
         for unit in self.units:
             unit.played = True
         print(_("Team %s ends its turn") % self.name)
 
-    def begin_turn(self):
+    def begin_turn(self) -> None:
         for unit in self.units:
             unit.played = False
         print(_("Team %s begins its turn") % self.name)
 
-    def is_defeated(self):
+    def is_defeated(self) -> bool:
         return len(self.units) == 0
 
-    def remove_unit(self, unit):
+    def remove_unit(self, unit: Unit) -> None:
         unit.team = None
         self.units.remove(unit)
 
-    def is_enemy(self, team):
+    def is_enemy(self, team: 'Team') -> bool:
         return abs(team.relation - self.relation) > 1
 
-    def is_neutral(self, team):
+    def is_neutral(self, team: 'Team') -> bool:
         return abs(team.relation - self.relation) == 1
 
-    def is_allied(self, team):
+    def is_allied(self, team: 'Team') -> bool:
         return team.relation == self.relation
 
-    def is_boss(self, unit):
+    def is_boss(self, unit: Unit) -> bool:
         return unit == self.boss
 
-    def list_played(self):
+    def list_played(self) -> List[Unit]:
         return [u for u in self.units if u.played]
 
-    def play_music(self, music_key, resume=False):
+    def play_music(self, music_key: str, resume: bool=False) -> None:
         music_pos = pygame.mixer.music.get_pos() // 1000
         try:
             pygame.mixer.music.load(self.music[music_key])
@@ -366,24 +521,23 @@ class Team(object):
 
 
 class UnitsManager(object):
-    def __init__(self, teams):
-        self.teams = teams
-        self.active_team = self.teams[0]
-        self.units = [u for t in teams for u in t.units]
+    def __init__(self, teams: List[Team]) -> None:
+        """
+        Manage all units in a match.
+        :param teams:
+        """
+        self.teams: List[Team] = teams
+        self.active_team: Team = self.teams[0]
+        self.units: List[Unit] = [u for t in teams for u in t.units]
 
-    def get_team(self, color):
-        for team in self.teams:
-            if team.color == color:
-                return team
-
-    def switch_turn(self):
+    def switch_turn(self) -> Team:
         self.active_team.end_turn()
         active_team_index = (self.teams.index(self.active_team) + 1) % len(self.teams)
         self.active_team = self.teams[active_team_index]
         self.active_team.begin_turn()
         return self.active_team
 
-    def get_units(self, **kwargs):
+    def get_units(self, **kwargs) -> List[Unit]:
         found = []
         for unit in self.units:
             for attr in kwargs:
@@ -392,7 +546,7 @@ class UnitsManager(object):
                         found.append(unit)
         return found
 
-    def get_enemies(self, team):
+    def get_enemies(self, team: Team) -> List[Unit]:
         enemies = []
         for enemy in self.units:
             if enemy not in enemies:
@@ -400,15 +554,18 @@ class UnitsManager(object):
                     enemies += enemy.team.units
         return enemies
 
-    def are_enemies(self, unit1, unit2):
+    @staticmethod
+    def are_enemies(unit1: Unit, unit2: Unit) -> bool:
         return unit1.team.is_enemy(unit2.team)
 
-    def are_neutrals(self, unit1, unit2):
+    @staticmethod
+    def are_neutrals(unit1: Unit, unit2: Unit) -> bool:
         return unit1.team.is_neutral(unit2.team)
 
-    def are_allied(self, unit1, unit2):
+    @staticmethod
+    def are_allied(unit1: Unit, unit2: Unit) -> bool:
         return unit1.team.is_allied(unit2.team)
 
-    def kill_unit(self, unit):
+    def kill_unit(self, unit: Unit) -> None:
         self.units.remove(unit)
         unit.team.units.remove(unit)

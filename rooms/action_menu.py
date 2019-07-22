@@ -51,11 +51,11 @@ class ActionMenu(gui.Menu):
     def menu_items(self):
         unit = self.parent.curr_unit
         def setitem(item):
-            def set(*args):
+            def _set(*_):
                 unit.items.active = item
                 unit.played = True
                 self.parent.reset_selection()
-            return set
+            return _set
         self.menu_entries = [(i.name, setitem(i)) for i in unit.items]
         self.done = False
 
