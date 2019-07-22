@@ -87,7 +87,6 @@ def launch():
 
 if args.logging < 20:
     # When in debug mode launch without kind error message
-    gc.set_debug(gc.DEBUG_LEAK)
     launch()
 else:
     try:
