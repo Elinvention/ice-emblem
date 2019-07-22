@@ -242,6 +242,10 @@ class Room(object):
     def handle_videoresize(self, event):
         self.layout_request()
 
+    def toggle_visibility(self):
+        self.visible = not self.visible
+        self.invalidate()
+
     def begin_children(self):
         for child in self.children:
             child.begin()
