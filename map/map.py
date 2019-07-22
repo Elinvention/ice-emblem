@@ -1,7 +1,7 @@
 """
 
 """
-
+from typing import Union
 
 import pygame
 import logging
@@ -126,26 +126,26 @@ class TileMap(room.Room):
         self.moving = None
 
     @property
-    def curr_unit(self):
+    def curr_unit(self) -> Union[unit.Unit, None]:
         try:
             return self.terrains[self.curr_sel].unit
         except KeyError:
             return None
 
     @curr_unit.setter
-    def curr_unit(self, unit):
-        self.curr_sel = unit.coord
+    def curr_unit(self, _unit: Union[unit.Unit, None]) -> None:
+        self.curr_sel = _unit.coord
 
     @property
-    def prev_unit(self):
+    def prev_unit(self) -> Union[unit.Unit, None]:
         try:
             return self.terrains[self.prev_sel].unit
         except KeyError:
             return None
 
     @prev_unit.setter
-    def prev_unit(self, unit):
-        self.prev_sel = unit.coord
+    def prev_unit(self, _unit: Union[unit.Unit, None]) -> None:
+        self.prev_sel = _unit.coord
 
     def __getitem__(self, coord):
         return self.terrains[coord]
