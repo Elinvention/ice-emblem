@@ -69,6 +69,8 @@ class Arrow(pygame.sprite.Sprite):
             self.valid = True
 
     def set_path(self, path, source=None):
+        if source in path:
+            path.remove(source)
         if source is not None:
             self.source = source
             self.valid = False
