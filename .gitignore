@@ -6,3 +6,5 @@
 *.e4p
 .idea
 .mypy_cache
+doc/_build
+doc/_autosummary

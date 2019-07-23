@@ -27,12 +27,10 @@ import traceback
 import logging
 import os
 import sys
-import gc
 import gettext
 
 import utils
 import resources
-
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -42,6 +40,7 @@ VERSION = utils.get_version()
 if sys.platform.startswith('win'):
     logging.debug('Windows detected')
     import locale
+
     if os.getenv('LANG') is None:
         logging.debug('Windows did not provide the LANG environment variable.')
         lang, enc = locale.getdefaultlocale()
@@ -49,13 +48,13 @@ if sys.platform.startswith('win'):
         logging.debug('Language: %s' % lang)
 gettext.install('ice-emblem', resources.LOCALE_PATH)  # load translations
 
-
 # command-line argument parsing
 parser = argparse.ArgumentParser(description=_('Ice Emblem, the free software clone of Fire Emblem'))
-parser.add_argument('--version', action='version', version='Ice Emblem '+VERSION)
+parser.add_argument('--version', action='version', version='Ice Emblem ' + VERSION)
 parser.add_argument('-s', '--skip', action='store_true', help=_('Skip main menu'), required=False)
 parser.add_argument('-m', '--map', action='store', help=_('Which map to load'), default=None, required=False)
-parser.add_argument('-l', '--logging', action='store', help=_('Choose logging level'), default=20, type=int, required=False)
+parser.add_argument('-l', '--logging', action='store', help=_('Choose logging level'), default=20, type=int,
+                    required=False)
 parser.add_argument('-d', '--debug', action='store_const', help=_('Debug mode'), const=0, dest='logging')
 parser.add_argument('-f', '--file', action='store', help=_('Log file'), default=None, required=False)
 args = parser.parse_args()
@@ -70,6 +69,10 @@ if pygame.version.vernum < (1, 9, 2):
 
 
 def launch():
+    import display
+
+    display.initialize()
+
     import game
 
     map_file = None
@@ -100,21 +103,20 @@ else:
 
     except:
         # other error
-        kind_error_message = _("""
-Oops, something went wrong. Dumping brain contents:
-
-%s
-%s
-%s
-
-Please open a report on our issue tracker lacated at %s
-along with a short description of what you did when this crash happened
-so that the error can be fixed.
-
-Thank you!
--- the Ice Emblem team
-
-""") % ('-' * 80 + '\n', traceback.format_exc(), '-' * 80, "https://gitlab.com/Elinvention/ice-emblem/issues")
+        kind_error_message = _("Oops, something went wrong. Dumping brain contents:\n"
+                               "\n"
+                               "%s\n"
+                               "%s\n"
+                               "%s\n"
+                               "\n"
+                               "Please open a report on our issue tracker lacated at %s\n"
+                               "along with a short description of what you did when this crash happened\n"
+                               "so that the error can be fixed.\n"
+                               "\n"
+                               "Thank you!\n"
+                               "-- the Ice Emblem team\n"
+                               ) % ('-' * 80 + '\n', traceback.format_exc(), '-' * 80,
+                                    "https://gitlab.com/Elinvention/ice-emblem/issues")
 
         print(kind_error_message)
 

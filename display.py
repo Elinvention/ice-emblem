@@ -1,3 +1,7 @@
+"""
+This module deals with "low level" handling of pygame.display.
+"""
+
 import pygame
 
 import resources
@@ -6,53 +10,81 @@ import colors as c
 
 import math
 
+from typing import Tuple
 
-VERSION = utils.get_version()
-
-pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
-pygame.init()
-pygame.display.set_icon(resources.load_image('icon.png'))
 
 resolution = (1280, 720)
 min_resolution = (800, 600)
 fps = 60
 mode = pygame.RESIZABLE
-window = pygame.display.set_mode(resolution, mode)
-pygame.display.set_caption("Ice Emblem " + VERSION)
-pygame.key.set_repeat(200, 50)
-clock = pygame.time.Clock()
-
 spinner_angle = 0
 spinner_size = (15, 15)
 
-FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
+
+def initialize() -> None:
+    """
+    Must be called first to initialize pygame and this module.
+    """
+    global window, clock, FPS_FONT
+    if pygame.get_init():
+        return
+    pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
+    pygame.init()
+    pygame.display.set_icon(resources.load_image('icon.png'))
+    version = utils.get_version()
+
+    window = pygame.display.set_mode(resolution, mode)
+    pygame.display.set_caption("Ice Emblem " + version)
+    pygame.key.set_repeat(200, 50)
+    clock = pygame.time.Clock()
+
+    FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
 
 
-def modeset():
+def modeset() -> None:
+    """
+    Create a window.
+    """
     global window
     window = pygame.display.set_mode(resolution, mode)
 
 
-def set_fullscreen(enable):
+def set_fullscreen(enable) -> None:
+    """
+    Makes the window fullscreen or resizable.
+    :param enable: True -> make fullscreen window, False -> make resizable window
+    :return: None
+    """
     global mode
     mode = pygame.FULLSCREEN if enable else pygame.RESIZABLE
     modeset()
 
 
-def toggle_fullscreen():
+def toggle_fullscreen() -> None:
+    """
+    Makes the windows fullscreen if it is resizable and viceversa.
+    """
     global mode
     mode = pygame.FULLSCREEN if mode != pygame.FULLSCREEN else pygame.RESIZABLE
     modeset()
 
 
-def set_resolution(res):
+def set_resolution(res: Tuple[int, int]):
+    """
+    Changes window resolution.
+    :param res: resolution as a Tuple[int, int]
+    """
     global resolution
     resolution = res
     modeset()
     pygame.event.post(pygame.event.Event(pygame.VIDEORESIZE, size=res, w=res[0], h=res[1]))
 
 
-def handle_videoresize(event):
+def handle_videoresize(event: pygame.event.EventType) -> None:
+    """
+    Handles pygame.VIDEORESIZE events.
+    :param event: a pygame.VIDEORESIZE event
+    """
     global window
     screen_size = event.size
     if screen_size[0] < min_resolution[0]:
@@ -62,8 +94,14 @@ def handle_videoresize(event):
     window = pygame.display.set_mode(screen_size, mode)
 
 
-def draw_fps(font=FPS_FONT):
+def draw_fps(font=None) -> None:
+    """
+    Draws an FPS counter and a spinner.
+    :param font: the font to use to render the counter. There is a default font if not specified.
+    """
     global spinner_angle
+    if not font:
+        font = FPS_FONT
     screen_w, screen_h = window.get_size()
     fps = clock.get_fps()
     fpslabel = font.render('%d FPS' % int(fps), True, c.WHITE, c.BLACK).convert()
@@ -77,33 +115,61 @@ def draw_fps(font=FPS_FONT):
     window.blit(surf, surf.get_rect(top=5, right=screen_w - 5))
 
 
-def tick(_fps=None):
+def tick(_fps=None) -> None:
+    """
+    Wait to reach target fps.
+    :param _fps: target fps
+    """
     if _fps is None:
         return clock.tick(fps)
     return clock.tick(_fps)
 
 
-def flip():
+def flip() -> None:
+    """
+    Equivalent to pygame.display.flip()
+    """
     pygame.display.flip()
 
 
-def get_rect(**kwargs):
+def get_rect(**kwargs) -> pygame.Rect:
+    """
+    Returns window's rect.
+    :param kwargs: same as pygame.Surface.get_rect()
+    """
     return window.get_rect(**kwargs)
 
 
-def get_size():
+def get_size() -> Tuple[int, int]:
+    """
+    Returns window size.
+    :return: size as (width, height).
+    """
     return window.get_size()
 
 
-def get_width():
+def get_width() -> int:
+    """
+    Same as get_size()[0].
+    :return: window width.
+    """
     return window.get_width()
 
 
-def get_height():
+def get_height() -> int:
+    """
+    Same as get_size()[1].
+    :return: window height
+    """
     return window.get_height()
 
 
-def darken(alpha):
+def darken(alpha) -> None:
+    """
+    Makes the whole window darker depending on alpha factor.
+    :param alpha: int from 0 to 255 representing how much darker to make the window. 0 means no darkening. 255 means go
+    dark abruptly.
+    """
     s = pygame.Surface(window.get_size())
     s.fill((0, 0, 0))
     s.set_alpha(alpha)

@@ -1,8 +1,9 @@
 """
-This module is central in Ice Emblem's engine since it provides the Room class
-and some functions that uniformly act upon Room objects.
+This module is central in Ice Emblem's engine since it provides the Room class and some functions that uniformly act
+upon Room objects.
 """
-from typing import Callable
+
+from typing import Callable, List, Tuple
 
 import pygame
 import pygame.locals as p
@@ -19,60 +20,147 @@ from basictypes import NESW
 
 
 class Gravity(Flag):
-    NO_GRAVITY = 0  # Constant indicating that no gravity has been set
-    TOP = auto()  # Push object to the top of its container, not changing its size.
-    BOTTOM = auto()  # Push object to the bottom of its container, not changing its size.
-    LEFT = auto()  # Push object to the left of its container, not changing its size.
-    RIGHT = auto()  # Push object to the right of its container, not changing its size.
+    """
+    Standard constants and tools for placing an object within a potentially larger container.
+
+    | Gravity is used in Room.layout_gravity and Room.layout.
+    | The former specify how a child would like to be positioned and sized by the parent.
+    | The latter specify how a parent should position and size it's children that have no preference.
+
+    This class has taken inspiration from android.view.Gravity.
+    """
+    NO_GRAVITY = 0  #: Constant indicating that no gravity has been set
+    TOP = auto()  #: Push object to the top of its container, not changing its size.
+    BOTTOM = auto()  #: Push object to the bottom of its container, not changing its size.
+    LEFT = auto()  #: Push object to the left of its container, not changing its size.
+    RIGHT = auto()  #: Push object to the right of its container, not changing its size.
     TOPLEFT = TOP | LEFT
     TOPRIGHT = TOP | RIGHT
     BOTTOMLEFT = BOTTOM | LEFT
     BOTTOMRIGHT = BOTTOM | RIGHT
-    CENTER_HORIZONTAL = auto()  # Place object in the horizontal center of its container, not changing its size.
-    CENTER_VERTICAL   = auto()  # Place object in the vertical center of its container, not changing its size.
-    CENTER = CENTER_HORIZONTAL | CENTER_VERTICAL  # Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.
-    FILL_HORIZONTAL = auto()  # Grow the horizontal size of the object if needed so it completely fills its container.
-    FILL_VERTICAL = auto()  # Grow the vertical size of the object if needed so it completely fills its container.
-    FILL = FILL_HORIZONTAL | FILL_VERTICAL  # Grow the horizontal and vertical size of the object if needed so it completely fills its container.
+    CENTER_HORIZONTAL = auto()  #: Place object in the horizontal center of its container, not changing its size.
+    CENTER_VERTICAL   = auto()  #: Place object in the vertical center of its container, not changing its size.
+    CENTER = CENTER_HORIZONTAL | CENTER_VERTICAL  #: Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.
+    FILL_HORIZONTAL = auto()  #: Grow the horizontal size of the object if needed so it completely fills its container.
+    FILL_VERTICAL = auto()  #: Grow the vertical size of the object if needed so it completely fills its container.
+    FILL = FILL_HORIZONTAL | FILL_VERTICAL  #: Grow the horizontal and vertical size of the object if needed so it completely fills its container.
     VERTICAL = TOP | BOTTOM | CENTER_VERTICAL
     HORIZONTAL = LEFT | RIGHT | CENTER_HORIZONTAL
 
 
 class LayoutParams(Enum):
+    """
+    LayoutParams are used by Room to tell their parents how they want to be laid out.
+
+    This class has taken inspiration from android.view.ViewGroup.LayoutParams.
+    """
     FILL_PARENT = auto()
     WRAP_CONTENT = auto()
 
 
 class MeasureSpec(Enum):
-    EXACTLY = auto()
-    AT_MOST = auto()
-    UNSPECIFIED = auto()
+    """
+    A MeasureSpec is an enumeration used by :class:`MeasureParams`.
+    It informs the child about the parent's layout decisions.
+
+    This class has taken inspiration from android.view.View.MeasureSpec.
+    """
+    EXACTLY = auto()  #: The parent has determined an exact size for the child. The child is going to be given those
+    # bounds regardless of how big it wants to be.
+    AT_MOST = auto()  #: The child can be as large as it wants up to the specified size.
+    UNSPECIFIED = auto()  #: The parent has not imposed any constraint on the child. It can be whatever size it wants.
 
 
 class MeasureParams(object):
-    def __init__(self, mode, value):
+    """
+    A MeasureParams encapsulates the layout requirements passed from parent to child.
+
+    Each MeasureParams represents a requirement for either the width or the height.
+    A MeasureParams is comprised of a size and a mode. A mode is a :class:`MeasureSpec` object.
+
+    This class has taken inspiration from android.view.View.MeasureSpec.
+    """
+
+    def __init__(self, mode: MeasureSpec, value: int):
+        """
+        Constructor of MeasureParams.
+        :param mode: a MeasureSpec
+        :param value: an int
+        """
         self.mode = mode
         self.value = value
 
     def __str__(self):
         return "%s, %s" % (self.mode, self.value)
 
-    def exactly(self):
+    def exactly(self) -> 'MeasureParams':
+        """
+        Make another MeasureParams with mode set to MeasureSpec.EXACTLY.
+        :return: a newly instanced MeasureParams with mode set to MeasureSpec.EXACTLY.
+        """
         return MeasureParams(MeasureSpec.EXACTLY, self.value)
 
-    def at_most(self):
+    def at_most(self) -> 'MeasureParams':
+        """
+        Make another MeasureParams with mode set to MeasureSpec.AT_MOST.
+        :return: a newly instanced MeasureParams with mode set to MeasureSpec.AT_MOST.
+        """
         return MeasureParams(MeasureSpec.AT_MOST, self.value)
 
 
 class Room(object):
     """
     Room class is at the heart of Ice Emblem's engine.
+
     It provides a tree like data structure that can be run in a uniform way by the
     run_room function and allow to route events to registered callbacks or methods
     named like handle_videoresize.
     """
 
     def __init__(self, **kwargs):
+        """
+        Initializes a Room object. You can pass no argument and the defaults will be used.
+
+        Parameters
+        ----------
+
+        fps: int, optional
+            Sets the required framerate (defaults to 60)
+        wait: bool, optional
+            should we wait for events or keep drawing at max fps? (defaults to true)
+        allowed_events: List[int], optional
+            a list of pygame event types that can be processed by the room (defaults to keep the previous events)
+        die_when_done: bool, optional
+            when self.done is set to True the life-cycle of the room terminates with a call to self.end.
+            This parameter determines whether this child should keep living or should die by removing itself from the
+            tree (defaults to True)
+        clear_screen: bool, optional
+            color to fill the main window with. If None no clear is performed. (defaults to black (0, 0, 0))
+        visible: bool, optional
+            whether this room is visible or not (if it is blit on the parent) (defaults to True)
+        layout_width: LayoutParams, optional
+            (defaults to LayoutParams.WRAP_CONTENT)
+        layout_height: LayoutParams, optional
+            (defaults to LayoutParams.WRAP_CONTENT)
+        layout_gravity: Gravity, optional
+            (defaults to Gravity.NO_GRAVITY)
+        layout_position: Tuple[int, int], optional
+            (defaults to (0, 0))
+        children: List[Room], optional
+            the list of children (defaults to [])
+        padding: Union[int, Tuple[int, int], Tuple[int, int, int, int], optional
+            (defaults to 0)
+        border: Union[int, Tuple[int, int], Tuple[int, int, int, int], optional
+            (defaults to 0)
+        margin: Union[int, Tuple[int, int], Tuple[int, int, int, int], optional
+            (defaults to 0)
+        bg_color: pygame.Color, optional
+            (defaults to c.MENU_BG)
+        bg_image: pygame.Surface, optional
+            (defaults to None)
+        bg_size: str, optional
+            (defaults to 'contain')
+        """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.fps = kwargs.get('fps', display.fps)
         self.wait_prefer = self.wait = kwargs.get('wait', True)
@@ -113,14 +201,24 @@ class Room(object):
         return self.logger.name
 
     @property
-    def layout_wh(self):
+    def layout_wh(self) -> Tuple[int, int]:
+        """
+        Layout's width and height.
+        """
         return self.layout_width, self.layout_height
 
     @property
-    def measured_size(self):
+    def measured_size(self) -> Tuple[int, int]:
+        """
+        Measured width and height.
+        """
         return self.measured_width, self.measured_height
 
-    def prepare_child(self, child):
+    def prepare_child(self, child: 'Room') -> None:
+        """
+        Called before adding a child to the tree.
+        :param child: the Room to prepare before being added to the tree to ensure it is consistent
+        """
         child.parent = self
         child.logger = self.logger.getChild(child.__class__.__name__)
         child.begin()
@@ -128,17 +226,30 @@ class Room(object):
             child.prepare_child(grandchild)
         return child
 
-    def add_children(self, *children):
+    def add_children(self, *children) -> None:
+        """
+        Adds many children to the tree.
+        :param children: Room children to add to the tree.
+        """
         for child in children:
             self.prepare_child(child)
         self.children.extend(children)
         self.layout_request()
         self.invalidate()
 
-    def add_child(self, child):
+    def add_child(self, child: 'Room') -> None:
+        """
+        Adds a child to the tree.
+        :param child: Room child to add to the tree.
+        """
         self.add_children(child)
 
-    def remove_child(self, child):
+    def remove_child(self, child: 'Room') -> None:
+        """
+        Removes a child from the tree.
+        :param child: which child to remove
+        :raises ValueError when the child is not part of the tree
+        """
         self.children.remove(child)
         child.parent = None
         child.logger = logging.getLogger(child.__class__.__name__)
@@ -146,7 +257,12 @@ class Room(object):
         self.invalidate()
         self.wait_invalidate()
 
-    def invalidate(self):
+    def invalidate(self) -> None:
+        """
+        Bottom-top traverse of the tree. Every parent is invalidated up until the root.
+
+        The draw method will be called at next frame if the Room is invalid.
+        """
         self.valid = False
         node = self.parent
         while node and node.valid:
@@ -154,14 +270,24 @@ class Room(object):
             node = node.parent
         self.logger.debug("Invalidated")
 
-    def layout_request(self):
+    def layout_request(self) -> None:
+        """
+        Bottom-top traverse of the tree. Every parent is invalidated up until the root.
+
+        The room_layout function will be called on the root Room before next frame.
+        """
         node = self
         while node and node.layout_valid:
             node.layout_valid = False
             node = node.parent
         self.logger.debug("Layout requested")
 
-    def wait_invalidate(self):
+    def wait_invalidate(self) -> None:
+        """
+        Bottom-top traverse of the tree. Every parent is invalidated up until the root.
+
+        The wait_update method of the root Room will be called before next frame.
+        """
         if self.wait_valid:
             self.logger.debug("Wait invalidated")
         self.wait_valid = False
@@ -170,12 +296,20 @@ class Room(object):
             node.wait_valid = False
             node = node.parent
 
-    def wait_set(self, wait):
+    def wait_set(self, wait: bool) -> None:
+        """
+        Sets wait_prefer and invalidates wait. When wait is invalidated self.wait_update gets called.
+        :param wait: Wether this Room wants the wait behaviour provided by pygame.event.wait or the behaviour of
+        pygame.event.get
+        """
         if wait != self.wait_prefer:
             self.wait_prefer = wait
             self.wait_invalidate()
 
-    def wait_update(self):
+    def wait_update(self) -> None:
+        """
+        Updates self.wait by recurring over all children.
+        """
         if self.wait_valid:
             return self.wait
         self.wait = self.wait_prefer
@@ -185,7 +319,7 @@ class Room(object):
         self.logger.debug("Wait updated: %s", self.wait)
         return self.wait
 
-    def measure(self, spec_width, spec_height):
+    def measure(self, spec_width: MeasureParams, spec_height: MeasureParams) -> None:
         """
         Top-down traversal of the tree. The parent asks its children to measure their size.
         The measured size should not exceed max_width and max_height otherwise the parent may clip the child.
@@ -194,7 +328,17 @@ class Room(object):
             child.measure(spec_width.at_most(), spec_height.at_most())
         self.resolve_measure(spec_width, spec_height, self.rect.w, self.rect.h)
 
-    def resolve_measure(self, spec_width, spec_height, content_width, content_height):
+    def resolve_measure(self, spec_width: MeasureParams, spec_height: MeasureParams, content_width: int,
+                        content_height: int) -> None:
+        """
+        Handy method that implements the basic logic of MeasureSpec.
+
+        Sets self.measured_width and self.measured_height.
+        :param spec_width:
+        :param spec_height:
+        :param content_width:
+        :param content_height:
+        """
         if spec_width.mode == MeasureSpec.EXACTLY:
             self.measured_width = spec_width.value
         else:
@@ -217,63 +361,109 @@ class Room(object):
         self.logger.debug("W: (%s) -> %s; H: (%s) -> %s", spec_width, self.measured_width, spec_height,
                           self.measured_height)
 
-    def layout(self, rect):
+    def layout(self, rect: pygame.Rect) -> None:
         """
-        Top-down traversal of the tree. The parent positions its children.
-        This method will be called after measure.
+        Top-down traversal of the tree. The parent positions its children. This method will be called after measure.
+
+        This method should be redefined by subclasses to enforce their layout.
+        :param rect: contains the position and size this child should use.
         """
         for child in self.children:
             child.layout(pygame.Rect(child.layout_position, child.measured_size))
         self.resolve_layout(rect)
 
-    def resolve_layout(self, rect):
+    def resolve_layout(self, rect: pygame.Rect) -> None:
+        """
+        An handy method to finalize layout.
+        :param rect: contains the position and size this child should use.
+        """
         self.rect.topleft = rect.topleft
         self.resize(rect.size)
         self.layout_valid = True
         self.logger.debug("layout gravity: %s; rect: %s", self.layout_gravity, self.rect)
 
-    def resize(self, size):
+    def resize(self, size: Tuple[int, int]) -> None:
+        """
+        If size is different from self.rect.size then resizes this.surface, calls self.fill and self.invalidate.
+        :param size:
+        :return:
+        """
         if self.rect.size != size:
             self.rect.size = size
             self.surface = pygame.Surface(self.rect.size)
             self.fill()
             self.invalidate()
 
-    def handle_videoresize(self, event):
+    def handle_videoresize(self, _event: pygame.event.EventType) -> None:
+        """
+        Request new layout on resize event.
+        :param _event: useless
+        """
         self.layout_request()
 
-    def toggle_visibility(self):
+    def toggle_visibility(self) -> None:
+        """
+        Toggles visibility of this Room.
+
+        If a Room is invisible all of it'ssubtree will not be rendered.
+        """
         self.visible = not self.visible
         self.invalidate()
 
-    def begin_children(self):
+    def begin_children(self) -> None:
+        """
+        Recursively begin all children's life-cycle.
+        """
         for child in self.children:
             child.begin()
 
-    def begin(self):
+    def begin(self) -> None:
+        """
+        Begins this Room's life-cycle. Called by run_room or when added as a child to another running Room.
+        """
         self.begin_children()
         self.invalidate()
         self.wait_invalidate()
         self.logger.debug("begin")
 
-    def loop(self, _events, dt):
+    def loop(self, _events: List[pygame.event.EventType], dt: int) -> None:
+        """
+        Called every frame.
+        :param _events: a list of pygame.event.Event
+        :param dt: number of elapsed milliseconds since last frame
+        """
         for child in self.children:
             child.loop(_events, dt)
             if child.done and child.die_when_done:
                 child.end()
 
-    def draw(self):
+    def draw(self) -> None:
+        """
+        Draw on self.surface. Called every frame if self.valid is false.
+
+        Use self.invalidate() to mark invalid and allow this method to be called at next frame.
+        """
         self.draw_children()
         self.valid = True
 
-    def draw_children(self):
+    def draw_children(self) -> None:
+        """
+        Draw children recursively by calling their draw method if they are visible and invalid.
+        """
         for child in self.children:
             if child.visible:
                 if not child.valid:
                     child.draw()
                 self.surface.blit(child.surface, child.rect)
 
-    def fill(self, area=None):
+    def fill(self, area=None) -> None:
+        """
+        Fill self.surface with self.bg_color and/or with self.bg_image.
+
+        This method is called before draw. and is generally avoided because filling a surface and drawing from scratch
+        is pretty expensive.
+        :param area: if not None restricts the fill to an area.
+        """
         if self.bg_color:
             if area:
                 surf = pygame.Surface(area.size)
@@ -286,13 +476,19 @@ class Room(object):
             pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
             self.surface.blit(resized, pos, area)
 
-    def fill_recursive(self):
+    def fill_recursive(self) -> None:
+        """
+        Fill every surface recursively.
+        """
         self.fill()
         self.valid = False
         for child in self.children:
             child.fill_recursive()
 
-    def bg_image_resized(self):
+    def bg_image_resized(self) -> None:
+        """
+        Resize self.bg_image so that it can fit self.surface respecting the type of resize specified by self.bg_size.
+        """
         if self.bg_size == 'contain':
             new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
         elif self.bg_size == 'cover':
@@ -305,11 +501,18 @@ class Room(object):
         self._bg_image_size = self.rect.size
         return self._bg_image_resized
 
-    def end_children(self):
+    def end_children(self) -> None:
+        """
+        If parent dies all children die with him.
+        """
         for child in self.children:
             child.end()
 
-    def end(self):
+    def end(self) -> None:
+        """
+        Ends life-cycle of this Room. Unregisters all callbacks and removes himself from parent if self.die_when_done is
+        true.
+        """
         for event_type in self.callbacks:
             if event_type >= p.USEREVENT and self.callbacks[event_type]:
                 events.stop_timer(event_type)
@@ -380,8 +583,9 @@ class Room(object):
 
     def set_interval(self, time: int, callback: Callable) -> int:
         """
-        This method is kind of inspired from JS's setInterval. It calls callback every time milliseconds until this room
-        ends or Room.unregister is called.
+        This method is kind of inspired from JS's setInterval.
+
+        It calls callback every time milliseconds until this room ends or Room.unregister is called.
         :param time: time in milliseconds
         :param callback: callback function
         :return: an int between pygame.USEREVENT and pygame.NUMEVENTS which can be used to stop the timer by calling
@@ -406,6 +610,7 @@ class Room(object):
     def bind_click(self, mouse_buttons, callback, area=None, inside=True):
         """
         Binds a mouse button to a callback functions.
+
         The call to the callback can be filtered by area (pygame.Rect) and specify if
         the event position must be inside or outside that area.
         """
@@ -425,34 +630,60 @@ class Room(object):
         self.register(p.MOUSEBUTTONDOWN, f)
 
     def global_coord(self, coord):
+        """
+        Translates local coordinates to global coordinates.
+
+        The inverse method is self.local_coord
+        :param coord: local coordinates (relative to the parent's top-left corner)
+        :return: global coordinates (relative to the window's top-left corner)
+        """
         node = self
         while node:
             coord = coord[0] + node.rect.x, coord[1] + node.rect.y
             node = node.parent
         return coord
 
-    def global_pos(self):
+    def global_pos(self) -> Tuple[int, int]:
+        """
+        Returns the position relative to the top-left corner of the window.
+        :return: global position
+        """
         return self.global_coord((0, 0))
 
     def global_rect(self):
+        """
+        Returns global rect, that is a rect having self.flobal_pos() as topleft and self.rect.size as size.
+        :return: global rect
+        """
         return pygame.Rect(self.global_pos(), self.rect.size)
 
-    def local_coord(self, coord):
+    def local_coord(self, coord: Tuple[int, int]) -> Tuple[int, int]:
+        """
+        Translates global coordinates to local coordinates.
+
+        The inverse method is self.global_coord
+        :param coord: global coordinates (relative to the window's top-left corner)
+        :return: local coordinates (relative to the parent's top-left corner)
+        """
         node = self
         while node:
             coord = coord[0] - node.rect.x, coord[1] - node.rect.y
             node = node.parent
         return coord
 
-    def local_rect(self):
-        return pygame.Rect(self.local_coord((0, 0)), self.rect.size)
-
 
 class RoomStop(Exception):
+    """
+    Exception used to interrupt abruptly the execution of currently running Rooms.
+    """
     pass
 
 
-def layout_room(room):
+def layout_room(room: Room) -> None:
+    """
+    Layout the root Room.
+    :param room: the root Room
+    """
     if Gravity.FILL_HORIZONTAL in room.layout_gravity:
         spec_width = MeasureParams(MeasureSpec.EXACTLY, display.get_width())
     else:
@@ -485,7 +716,12 @@ def layout_room(room):
     room.layout(rect)
 
 
-def draw_room(room, first_draw=False):
+def draw_room(room: Room, first_draw=False):
+    """
+    Draws the root Room.
+    :param room: the room to draw.
+    :param first_draw: True if it's the first frame.
+    """
     if room.clear_screen:
         display.window.fill(room.clear_screen)
     if not room.layout_valid:
@@ -499,7 +735,12 @@ def draw_room(room, first_draw=False):
     display.flip()
 
 
-def generic_event_handler(_events):
+def generic_event_handler(_events: List[pygame.event.EventType]) -> None:
+    """
+    Handle common events.
+    :param _events:
+    :return:
+    """
     for event in _events:
         if event.type == pygame.QUIT:
             utils.return_to_os()
@@ -507,7 +748,11 @@ def generic_event_handler(_events):
             display.handle_videoresize(event)
 
 
-def run_room(room):
+def run_room(room: Room) -> None:
+    """
+    Runs a Room.
+    :param room: root Room
+    """
     allowed_events = list(events.get_allowed())
     if room.allowed_events:
         events.set_allowed(room.allowed_events)
@@ -539,6 +784,10 @@ def run_room(room):
 
 
 def run(first_room):
+    """
+    Runs the first root room and keeps going until they keep providing a next room.
+    :param first_room: the first Room to execute.
+    """
     room = first_room
     try:
         while room:
@@ -548,5 +797,8 @@ def run(first_room):
         room.root = False
 
 
-def stop():
+def stop() -> None:
+    """
+    Stops all running room.
+    """
     raise RoomStop()
