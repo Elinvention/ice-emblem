@@ -461,12 +461,13 @@ class TileMap(room.Room):
                 elif self.curr_sel in self.attack_area:
                     # Two different units: prev_unit can attack curr_unit
                     # This results in a combined action: move the unit next to the enemy and propose the user to attack
+                    target_unit = self.curr_unit
                     nearest = self.arrow.path[-1] if self.arrow.path else self.prev_sel
                     if self.nearby_enemies(self.prev_unit, nearest):
                         self.move(self.prev_unit, nearest, self.arrow.path)
-                        self.curr_sel = nearest
+                        self.curr_sel = nearest  # otherwise move_undo will move back the defending unit!
                         self.still_attack_area()
-                        self.action_menu()
+                        self.action_menu(attacking=self.curr_unit, defending=target_unit)
                     else:
                         self.reset_selection()
                 else:
@@ -491,11 +492,11 @@ class TileMap(room.Room):
 
         self.arrow.set_path([])
 
-    def action_menu(self, pos=None):
+    def action_menu(self, attacking=None, defending=None, pos=None):
         self.vx, self.vy = 0, 0
         if pos is None:
             pos = self.tilemap.pixel_at(*self.curr_sel, False) - self.tilemap.viewport.topleft + self.tilemap.zoom_tile_size / 2
-        menu = rooms.ActionMenu(layout_position=pos, padding=10, leading=5)
+        menu = rooms.ActionMenu(attacking, defending, layout_position=pos, padding=10, leading=5)
         self.add_child(menu)
 
     def prepare_attack(self, _unit=None):

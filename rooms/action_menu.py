@@ -42,14 +42,20 @@ class ActionMenu(gui.Menu):
     Shows the action menu and handles input until it is dismissed.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, attacking, defending=None, **kwargs):
+        self.attacking = attacking
+        self.defending = defending
         super().__init__([], SMALL, dismiss_callback=self.undo, **kwargs)
 
     def menu_attack(self):
-        self.parent.add_child(AttackSelect())
+        if self.defending:
+            self.parent.attack(self.attacking, self.defending)
+        else:
+            self.parent.add_child(AttackSelect())
 
     def menu_items(self):
         unit = self.parent.curr_unit
+
         def setitem(item):
             def _set(*_):
                 unit.items.active = item
@@ -63,7 +69,7 @@ class ActionMenu(gui.Menu):
         self.parent.curr_unit.wait()
         self.parent.reset_selection()
 
-    def undo(self, *args):
+    def undo(self, *_):
         self.visible = False
         self.parent.move_undo()
 
