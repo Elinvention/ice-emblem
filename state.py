@@ -7,7 +7,7 @@ import display
 import map
 
 
-loaded_map = None
+loaded_map: map.Map = None
 units_manager = None
 winner = None
 

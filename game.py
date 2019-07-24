@@ -64,16 +64,11 @@ class NextTurnTransition(gui.Label):
         if event.key in [p.K_SPACE, p.K_RETURN]:
             self.done = True
 
-    def end(self):
-        super().end()
-        sidebar.turn_changed(self.next_team)
-
 
 class Turn(gui.LinearLayout):
     def __init__(self, **kwargs):
-        self.sidebar = sidebar
         super().__init__(wait=True, orientation=gui.Orientation.HORIZONTAL, **kwargs)
-        self.add_children(s.loaded_map, sidebar)
+        self.add_children(s.loaded_map, gui.Sidebar(self, die_when_done=False))
 
     def begin(self):
         self.team = s.units_manager.active_team
@@ -109,6 +104,8 @@ class Turn(gui.LinearLayout):
         room.stop()
 
     def end_turn(self, *args):
+        if s.loaded_map.moving:
+            return
         self.team.end_turn()
         next_team = s.units_manager.switch_turn()
         self.next = NextTurnTransition(next_team)
@@ -127,7 +124,8 @@ class PlayerTurn(Turn):
         if self.team.is_turn_over():
             super().end_turn()
         else:
-            modal = gui.Modal(_("Are you sure you want to end your turn?"), f.SMALL, layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
+            modal = gui.Modal(_("Are you sure you want to end your turn? There are still units that can move."), f.SMALL,
+                              layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
             room.run_room(modal)
             if modal.answer:
                 super().end_turn()
@@ -151,17 +149,26 @@ class AITurn(Turn):
             self.team.end_turn()
 
 
+def main_menu():
+    room.run(rooms.SplashScreen())
+    room.run(rooms.Fadeout(2000))
+
+
+def actual_game():
+    room.run(NextTurnTransition(s.units_manager.active_team))
+
+    s.loaded_map = None
+    s.units_manager = None
+    s.winner = None
+    gc.collect()
+
+
 def play(map_file):
-    global sidebar
+    if map_file is None:
+        main_menu()
+    else:
+        s.load_map(map_file)
+
     while True:
-        if map_file is None:
-            room.run(rooms.SplashScreen())
-            room.run(rooms.Fadeout(2000))
-        else:
-            s.load_map(map_file)
-        sidebar = gui.Sidebar(die_when_done=False)
-        room.run(NextTurnTransition(s.units_manager.active_team))
-        gc.collect()
-        s.loaded_map = None
-        s.units_manager = None
-        s.winner = None
+        actual_game()
+        main_menu()
