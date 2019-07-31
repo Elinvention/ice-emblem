@@ -121,10 +121,10 @@ class TileMap(room.Room):
 
         self.tilemap.set_focus(self.tilemap.view_w // 2, self.tilemap.view_h // 2)
 
-        self.prev_sel = None
-        self.curr_sel = None
-        self.move_area = []
-        self.attack_area = []
+        self.prev_sel: Union[None, Coord] = None
+        self.curr_sel: Union[None, Coord] = None
+        self.move_area: List[Coord] = []
+        self.attack_area: List[Coord] = []
 
         # Scroll speed
         self.vx, self.vy = 0, 0
@@ -466,7 +466,7 @@ class TileMap(room.Room):
         self.valid = True
         self.surface = self.surface.convert()
 
-    def select(self, coord):
+    def select(self, coord: Coord) -> None:
         """
         Handles selection on the map.
         :param coord: the selected coordinate on the map.
@@ -477,8 +477,8 @@ class TileMap(room.Room):
 
         if self.prev_sel is None:
             # Nothing has been previously selected
-            unit = self.get_unit(coord)
-            if unit is None or unit.played:
+            sel_unit = self.get_unit(coord)
+            if sel_unit is None or sel_unit.played:
                 self.move_area = []
                 self.attack_area = []
                 self.update_highlight()
@@ -532,7 +532,8 @@ class TileMap(room.Room):
                     # Selected a unit: show its move and attack area
                     self.update_move_area()
                     self.move_attack_area()
-                    self.update_highlight()
+
+                self.update_highlight()
 
         self.arrow.set_path([])
 
