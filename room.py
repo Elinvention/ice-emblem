@@ -160,6 +160,8 @@ class Room(object):
             (defaults to None)
         bg_size: str, optional
             (defaults to 'contain')
+        next: Room, optional
+            When this room is done the next one will take its place. (defaults to None)
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.fps = kwargs.get('fps', display.fps)
@@ -177,7 +179,7 @@ class Room(object):
         self.rect = pygame.Rect((0, 0), (0, 0))
         self.surface = pygame.Surface(self.rect.size)
         self.callbacks = {}
-        self.next = None
+        self.next = kwargs.get('next', None)
 
         self.layout_width = kwargs.get('layout_width', LayoutParams.WRAP_CONTENT)
         self.layout_height = kwargs.get('layout_height', LayoutParams.WRAP_CONTENT)
@@ -533,8 +535,11 @@ class Room(object):
                 events.stop_timer(event_type)
         self.logger.debug("end")
         self.end_children()
-        if self.parent and self.die_when_done:
-            self.parent.remove_child(self)
+        if self.parent:
+            if self.next:
+                self.parent.add_child(self.next)
+            if self.die_when_done:
+                self.parent.remove_child(self)
 
     def process_events(self, _events):
         """
@@ -566,7 +571,7 @@ class Room(object):
             self.callbacks[event_type] = [callback]
         self.logger.debug('registered %s -> %s', pygame.event.event_name(event_type), callback)
 
-    def unregister(self, event_type: int, callback: Callable=None):
+    def unregister(self, event_type: int, callback: Callable = None):
         """
         Unregister the latest or the specified callback function from event_type.
         """
@@ -685,6 +690,17 @@ class Room(object):
             coord = coord[0] - node.rect.x, coord[1] - node.rect.y
             node = node.parent
         return coord
+
+
+class RunRoomAsRoot(Room):
+    def __init__(self, room, **kwargs):
+        super().__init__(**kwargs)
+        self.room = room
+
+    def begin(self):
+        super().begin()
+        run_room(self.room)
+        self.done = True
 
 
 class RoomStop(Exception):
