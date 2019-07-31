@@ -37,15 +37,15 @@ import state as s
 
 class NextTurnTransition(gui.Label):
     def __init__(self, team):
-        bg = display.window.copy().convert()
-        bg.set_alpha(100)
         super().__init__(_("%s phase") % team.name, f.MAIN_MENU, txt_color=team.color, layout_gravity=gui.Gravity.FILL,
-                         bg_color=c.BLACK, bg_image=bg,
-                         allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], wait=True)
+                         bg_color=c.BLACK, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN])
         self.next_team = team
 
     def begin(self):
         super().begin()
+        bg = display.window.copy().convert()
+        bg.set_alpha(100)
+        self.bg_image = bg
         pygame.mixer.music.fadeout(1000)
         if isinstance(self.next_team, ai.AI):
             self.next = AITurn()
@@ -86,7 +86,7 @@ class Turn(gui.LinearLayout):
         super().loop(_events, dt)
         if s.winner is not None:
             self.done = True
-        elif self.team.is_turn_over() and not self.done:
+        elif self.team.is_turn_over() and not self.next:
             self.end_turn()
 
     def pause_menu(self):
@@ -104,12 +104,10 @@ class Turn(gui.LinearLayout):
         room.stop()
 
     def end_turn(self, *args):
-        if s.loaded_map.moving:
-            return
-        self.team.end_turn()
+        s.loaded_map.reset_selection()
         next_team = s.units_manager.switch_turn()
         self.next = NextTurnTransition(next_team)
-        self.done = True
+        self.set_timeout(1000, self.mark_done)
 
     def end(self):
         s.loaded_map.reset_selection()
@@ -123,12 +121,14 @@ class PlayerTurn(Turn):
     def end_turn(self, *args):
         if self.team.is_turn_over():
             super().end_turn()
+            self.set_timeout(100, self.mark_done)
         else:
             modal = gui.Modal(_("Are you sure you want to end your turn? There are still units that can move."), f.SMALL,
                               layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
             room.run_room(modal)
             if modal.answer:
                 super().end_turn()
+                self.set_timeout(100, self.mark_done)
 
 
 class AITurn(Turn):

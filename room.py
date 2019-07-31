@@ -214,6 +214,21 @@ class Room(object):
         """
         return self.measured_width, self.measured_height
 
+    def mark_done(self, *_) -> None:
+        """
+        Mark this Room as done.
+        """
+        self.done = True
+
+    def children_done(self) -> bool:
+        """
+        Returns True if all children are done. If there are no children returns True (like an universal quantifier).
+        """
+        for child in self.children:
+            if not child.done:
+                return False
+        return True
+
     def prepare_child(self, child: 'Room') -> None:
         """
         Called before adding a child to the tree.
