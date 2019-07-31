@@ -14,13 +14,21 @@ import utils
 import resources
 import unit, item
 import ai
-from basictypes import Point
+import action
+import game
 
+from basictypes import Point
 from map.pathfinder import Pathfinder, Terrain, manhattan_path
 from map.unit import UnitSprite
 from map.arrow import Arrow
 from map.cellhighlight import CellHighlight
 from map.cursor import Cursor
+
+from typing import List, Tuple
+from gettext import gettext as _
+
+
+Coord = Tuple[int, int]
 
 
 class TileMap(room.Room):
@@ -55,7 +63,7 @@ class TileMap(room.Room):
                 c = layer.color
                 layer.visible = False  # don't draw squares
                 color = (int(c[1:3], base=16), int(c[3:5], base=16),
-                        int(c[5:7], base=16))  # from '#RGB' to (R,G,B)
+                         int(c[5:7], base=16))  # from '#RGB' to (R,G,B)
                 units = {}
                 for obj in layer.objects:
                     if obj.type == 'unit':
@@ -69,6 +77,7 @@ class TileMap(room.Room):
                                 logging.warning("Weapon %s not found", weapon)
                 relation = layer.properties['relation']
                 boss = yaml_units[layer.properties['boss']]
+
                 def get(key):
                     v = layer.properties.get(key, None)
                     return str(resources.MUSIC_PATH / v) if v else None
@@ -122,7 +131,6 @@ class TileMap(room.Room):
 
         self.path = Pathfinder(self)
         self.return_path = None  # stores the path to undo a move
-        self.moving = None
 
     @property
     def curr_unit(self) -> Union[unit.Unit, None]:
@@ -149,26 +157,19 @@ class TileMap(room.Room):
     def __getitem__(self, coord):
         return self.terrains[coord]
 
-    def simulate_move(self, target):
-        path = manhattan_path(self.cursor.coord, target)
-        for next in path:
-            self.cursor.point(*next)
-            self.invalidate()
-            yield 10
-
-    def is_obstacle(self, coord, unit=None):
+    def is_obstacle(self, coord, for_unit=None):
         terrain = self.terrains[coord]
         try:
-            return self.units_manager.are_enemies(unit, terrain.unit)
+            return self.units_manager.are_enemies(for_unit, terrain.unit)
         except AttributeError:
-            if unit is None:
+            if for_unit is None:
                 return False
             for allowed in terrain.allowed:
                 if allowed == 'any':
                     return False
                 if allowed == 'none':
                     return True
-                if allowed in unit.ALLOWED_TERRAINS:
+                if allowed in for_unit.ALLOWED_TERRAINS:
                     return False
             return True
 
@@ -189,43 +190,70 @@ class TileMap(room.Room):
 
         return ret
 
-    def move_animation(self, _unit, target, path=None):
+    def make_move_unit_animation(self, who: unit.Unit, where: Coord, path=None) -> Union[None, 'MoveUnitAnimation']:
+        """
+        Factory method for MoveUnitAnimation.
+
+        :param who: the unit to move
+        :param where: the destination
+        :param path: optional, the path to follow to reach the destination
+        :return: the animation of the move
+        """
+        if who.coord == where:
+            return None
         if not path:
-            path = self.path.shortest_path(_unit.coord, target, _unit.movement)
+            path = self.path.shortest_path(who.coord, where, who.movement)
         px_path = list(map(lambda x: self.tilemap.pixel_at(*x, False), path))
-        sprite = self.find_sprite(unit=_unit)
-        if self.moving is not None and self.moving in self.children:
-            self.remove_child(self.moving)
-        self.moving = MoveAnimation(sprite, target, px_path)
-        self.add_child(self.moving)
-        return path
+        sprite = self.find_sprite(unit=who)
+        animation = MoveUnitAnimation(who, where, sprite, px_path)
+        # build the return path (used to undo the move)
+        path.pop()
+        path.reverse()
+        path.append(who.coord)
+        self.return_path = path
+        return animation
 
-    def move(self, unit, new_coord, path=None):
+    def add_move_unit_animation(self, animation: 'MoveUnitAnimation') -> None:
         """
-        This method moves a unit from a node to another one. If the two
-        coordinates are the same no action is performed.
-        """
-        if unit.coord != new_coord:
-            if self.get_unit(new_coord) is not None:
-                raise ValueError("Destination %s is already occupied by another unit" % str(new_coord))
-            self.return_path = self.move_animation(unit, new_coord, path)
-            self.return_path.pop()
-            self.return_path.reverse()
-            self.return_path.append(unit.coord)
-            self.terrains[unit.coord].unit = None
-            self.terrains[new_coord].unit = unit
-            print(_('Unit %s moved from %s to %s') % (unit.name, unit.coord, new_coord))
-            unit.move(new_coord)
+        Ensures there is only one MoveUnitAnimation children before adding the new animation.
 
-    def move_undo(self):
+        Pending animations are removed.
+        :param animation: the new animation to add as child
+        """
+        if animation is None:
+            return
+        for child in self.children:
+            if isinstance(child, MoveUnitAnimation):
+                child.end()
+        self.add_child(animation)
+
+    def move_unit(self, who: unit.Unit, where: Coord) -> None:
+        """
+        Moves a unit to a another place. If the unit is already at the destination, no action is performed.
+
+        This method does the actual movement of the unit, but does not perform any animation visible on the map.
+        For that see :method:`make_move_unit_animation` and :method:`add_move_unit_animation`.
+        :param who: the unit to move
+        :param where: the destination
+        """
+        if who.coord != where:
+            if self.get_unit(where) is not None:
+                raise ValueError("Destination %s is already occupied by another unit" % str(where))
+            self.terrains[who.coord].unit = None
+            self.terrains[where].unit = who
+            print(_('Unit %s moved from %s to %s') % (who.name, who.coord, where))
+            who.move(where)
+
+    def move_unit_undo(self):
         if self.curr_sel != self.prev_sel:
-            unit = self.curr_unit
+            _unit = self.curr_unit
             if self.return_path:
-                self.move_animation(unit, self.prev_sel, self.return_path)
+                animation = self.make_move_unit_animation(_unit, self.prev_sel, self.return_path)
+                self.add_move_unit_animation(animation)
                 self.return_path = None
-            self.terrains[self.prev_sel].unit = unit
+            self.terrains[self.prev_sel].unit = _unit
             self.terrains[self.curr_sel].unit = None
-            unit.move(self.prev_sel)
+            _unit.move(self.prev_sel)
         self.reset_selection()
 
     def kill_unit(self, _unit):
@@ -350,12 +378,13 @@ class TileMap(room.Room):
                 self.curr_sel in self.move_area)
 
     def handle_mousebuttondown(self, event):
+        if isinstance(self.parent, game.AITurn):
+            return
         if event.button == 1:
             if self.rect.collidepoint(event.pos):
                 coord = self.tilemap.index_at(*event.pos)
                 if coord:
                     self.select(coord)
-                    self.update_highlight()
         elif event.button == 3:
             self.reset_selection()
         elif event.button == 4:  # Mouse wheel up
@@ -366,6 +395,8 @@ class TileMap(room.Room):
                 self.zoom -= 1
 
     def handle_mousemotion(self, event):
+        if isinstance(self.parent, game.AITurn):
+            return
         x, y = event.pos
         border, speed = 200, 100
         if self.rect.collidepoint(event.pos):
@@ -373,7 +404,8 @@ class TileMap(room.Room):
             if coord and coord != self.cursor.coord:
                 self.cursor.point(*coord)
                 self.invalidate()
-                self.update_arrow(coord)
+                if self.children_done():
+                    self.update_arrow(coord)
 
             if x - self.rect.left < border:
                 self.vx = int(-speed * (1 - ((x - self.rect.left) / border)))
@@ -394,13 +426,14 @@ class TileMap(room.Room):
         self.wait_set(not self.tilemap.can_scroll(self.vx, self.vy))
 
     def handle_keydown(self, event):
+        if isinstance(self.parent, game.AITurn):
+            return
         self.cursor.update(event)
         self.update_arrow(self.cursor.coord)
         self.tilemap.set_focus(*self.cursor.rect.topleft)
 
         if event.key == pygame.K_SPACE:
             self.select(self.cursor.coord)
-            self.update_highlight()
         self.invalidate()
 
     def layout(self, rect):
@@ -436,6 +469,7 @@ class TileMap(room.Room):
     def select(self, coord):
         """
         Handles selection on the map.
+        :param coord: the selected coordinate on the map.
         """
         active_team = self.units_manager.active_team
         self.prev_sel = self.curr_sel
@@ -447,10 +481,12 @@ class TileMap(room.Room):
             if unit is None or unit.played:
                 self.move_area = []
                 self.attack_area = []
+                self.update_highlight()
             else:
                 # Show the currently selected unit's move and attack area
                 self.update_move_area()
                 self.move_attack_area()
+                self.update_highlight()
         else:
             # Something has been previously selected
             if self.prev_unit is not None and self.curr_unit is not None:
@@ -464,9 +500,12 @@ class TileMap(room.Room):
                     target_unit = self.curr_unit
                     nearest = self.arrow.path[-1] if self.arrow.path else self.prev_sel
                     if self.nearby_enemies(self.prev_unit, nearest):
-                        self.move(self.prev_unit, nearest, self.arrow.path)
+                        animation = self.make_move_unit_animation(self.prev_unit, nearest, self.arrow.path)
+                        self.add_move_unit_animation(animation)
+                        self.move_unit(self.prev_unit, nearest)
                         self.curr_sel = nearest  # otherwise move_undo will move back the defending unit!
                         self.still_attack_area()
+                        self.update_highlight()
                         self.action_menu(attacking=self.curr_unit, defending=target_unit)
                     else:
                         self.reset_selection()
@@ -475,10 +514,14 @@ class TileMap(room.Room):
                     # show the current unit's move and attack area
                     self.update_move_area()
                     self.move_attack_area()
+                    self.update_highlight()
             elif self.can_selection_move():
                 # Move the previously selected unit to the currently selected coordinate.
-                self.move(self.prev_unit, self.curr_sel, self.arrow.path)
+                animation = self.make_move_unit_animation(self.prev_unit, self.curr_sel, self.arrow.path)
+                self.add_move_unit_animation(animation)
+                self.move_unit(self.prev_unit, self.curr_sel)
                 self.still_attack_area()
+                self.update_highlight()
                 self.action_menu()
             else:
                 # Previously something irrelevant was chosen
@@ -489,6 +532,7 @@ class TileMap(room.Room):
                     # Selected a unit: show its move and attack area
                     self.update_move_area()
                     self.move_attack_area()
+                    self.update_highlight()
 
         self.arrow.set_path([])
 
@@ -526,25 +570,117 @@ class TileMap(room.Room):
     def is_enemy_cursor(self):
         return self.cursor.coord in self.attack_area
 
+    def do_action(self, _action: action.Action) -> None:
+        """
+        Makes an action actually happen on screen.
+        :param _action: the action to perform
+        :raise: NotImplementedError in case the type of action is not defined.
+        """
+        if isinstance(_action, action.Attack):
+            self.do_attack_action(_action)
+        elif isinstance(_action, action.Move):
+            self.do_move_action(_action)
+        else:
+            raise NotImplementedError(f"Action {type(_action)} not implemented!")
 
-class MoveAnimation(room.Room):
-    def __init__(self, sprite, target, path):
+    def do_attack_action(self, attack_action: action.Attack) -> None:
+        """
+        Makes the cursor move to the attacking unit, then to the defending one and finally makes the battle happen.
+        :param attack_action: the :class:`action.Attack` that describes who should attack who.
+        """
+        self.logger.debug("Executing action.Attack: %s", attack_action)
+        self.reset_selection()
+        # First move the cursor on the attacking unit
+        first = MoveCursorAnimation(self.cursor.coord, attack_action.attacking.coord)
+        # Then select the attacking unit
+        first.next = SelectAndWait(attack_action.attacking.coord)
+        # Then move the cursor on the defending unit
+        first.next.next = MoveCursorAnimation(attack_action.attacking.coord, attack_action.defending.coord)
+        # Finally do the attack
+        first.next.next.next = room.RunRoomAsRoot(rooms.BattleAnimation(attack_action.attacking, attack_action.defending))
+        self.add_child(first)
+
+    def do_move_action(self, move_action: action.Move) -> None:
+        """
+        Makes the cursor move to the unit to move, then to the destination and finally starts the move animation.
+        :param move_action: the :class:`action.Move` that describes who should move where.
+        """
+        self.logger.debug("Executing action.Move: %s", move_action)
+        self.reset_selection()
+        # First move the cursor on the unit to move
+        first = MoveCursorAnimation(self.cursor.coord, move_action.who.coord)
+        # Then select the unit to move
+        first.next = SelectAndWait(move_action.who.coord)
+        # Then move the cursor on the destination
+        first.next.next = MoveCursorAnimation(move_action.who.coord, move_action.where)
+        # Finally play the unit move animation
+        first.next.next.next = self.make_move_unit_animation(move_action.who, move_action.where)
+        self.add_child(first)
+
+
+class MoveUnitAnimation(room.Room):
+    """
+    Animate the movement of a sprite.
+
+    Objects instantiated from this class should be added as child of :class:`TileMap` using the method
+    :method:`TileMap.add_move_unit_animation`, to ensure that only one movement animation is taking place.
+    """
+    def __init__(self, who: unit.Unit, where: Coord, sprite: UnitSprite, path: List[Coord]):
         super().__init__(wait=False, visible=False)
+        self.who: unit.Unit = who
+        self.where: Coord = where
         self.sprite = sprite
-        self.target = target
-        self.path = path
+        self.path: List[Coord] = path
+        self.next_path: Coord = path.pop(0)
 
-    def loop(self, _events, dt):
-        reached = self.sprite.move_animation(dt, self.path[0])
+    def loop(self, _events: List[pygame.event.EventType], dt: int) -> None:
+        super().loop(_events, dt)
+        if self.next_path is None:
+            return
+        reached = self.sprite.move_animation(dt, self.next_path)
         self.invalidate()
-        if reached and len(self.path) > 0:
-            self.path.pop(0)
-        self.done = len(self.path) == 0
+        if reached:
+            try:
+                self.next_path = self.path.pop(0)
+            except IndexError:
+                self.set_timeout(100, lambda *_: self.mark_done())
+                self.next_path = None
 
-    def end(self):
-        self.parent.moving = None
+    def end(self) -> None:
+        self.parent.move_unit(self.who, self.where)
         self.sprite.reposition()
         super().end()
+
+
+class MoveCursorAnimation(room.Room):
+    """
+    Make the cursor move along a path. Should be a child of :class:`TileMap`.
+    """
+    def __init__(self, source: Coord, target: Coord):
+        super().__init__()
+        self.path = manhattan_path(source, target)
+        self.set_interval(100, self.step)
+
+    def step(self, *_) -> None:
+        try:
+            self.parent.cursor.point(*next(self.path))
+            self.parent.invalidate()
+        except StopIteration:
+            self.done = True
+
+
+class SelectAndWait(room.Room):
+    """
+    Select a coordinate and wait 100ms. Should be a child of :class:`TileMap`.
+    """
+    def __init__(self, coord: Coord):
+        super().__init__()
+        self.coord = coord
+
+    def begin(self) -> None:
+        super().begin()
+        self.parent.select(self.coord)
+        self.set_timeout(100, self.mark_done)
 
 
 if __name__ == '__main__':

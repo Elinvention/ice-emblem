@@ -4,6 +4,8 @@ import room
 import gui
 from fonts import SMALL
 
+from gettext import gettext as _
+
 
 class AttackSelect(room.Room):
     def begin(self):
@@ -18,7 +20,7 @@ class AttackSelect(room.Room):
             self.parent.attack()
             self.done = True
         elif event.button == 3:
-            self.parent.move_undo()
+            self.parent.move_unit_undo()
             self.done = True
         return True  # prevent event propagation to parent
 
@@ -31,7 +33,7 @@ class AttackSelect(room.Room):
             self.parent.attack()
             self.done = True
         elif event.key == pygame.K_ESCAPE:
-            self.parent.move_undo()
+            self.parent.move_unit_undo()
             self.done = True
         self.parent.invalidate()
         return True  # prevent event propagation to parent
@@ -71,7 +73,7 @@ class ActionMenu(gui.Menu):
 
     def undo(self, *_):
         self.visible = False
-        self.parent.move_undo()
+        self.parent.move_unit_undo()
 
     def handle_mousemotion(self, event):
         super().handle_mousemotion(event)
@@ -95,4 +97,3 @@ class ActionMenu(gui.Menu):
             (_("Items"), lambda *_: self.menu_items()),
             (_("Wait"), lambda *_: self.menu_wait()),
         ]
-

@@ -139,14 +139,12 @@ class AITurn(Turn):
 
     def loop(self, _events, dt):
         super().loop(_events, dt)
-        try:
-            action = next(self.actions)
-            for fps in action:
-                self.fps = fps
-                room.draw_room(self)
-            s.loaded_map.invalidate()
-        except StopIteration:
-            self.team.end_turn()
+        if len(s.loaded_map.children) == 0 and not self.next:
+            try:
+                action = next(self.actions)
+                s.loaded_map.do_action(action)
+            except StopIteration:
+                self.team.end_turn()
 
 
 def main_menu():
