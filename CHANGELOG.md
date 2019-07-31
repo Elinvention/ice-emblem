@@ -1,15 +1,27 @@
 # Changelog
 
-## Version 0.3-dev
+## Version 0.3 (31-07-2019)
 
 Added:
 
-- Simulation of AI movements
+- Sphinx documentation in doc folder.
+- python type annotations.
+- Room class abstraction. It is a composable tree data structure with many functionalities.
+- Add Tween class to implement animations.
+- Add NinePath class to implement nine-patch textures.
+- Android like two-pass (measure and layout) system to implement responsive and configurable (via Gravity and LayoutParams) container views.
+- Add a spinner next to the FPS counter to make more clear what's happening.
+- Animation of AI turn.
 
 Changed:
 
-- Split code in modules
-- Many bugs fixed
+- Huge refactoring. The majority of the code now uses the Room abstraction.
+- Spread code across many modules.
+- Many bugs fixed and others added :)
+- Improved overall performance thanks to profiling.
+- Only the part of surface that changed is filled.
+
+Unfortunately I don't think this changelog is actually complete, because I didn't fill it as I progressed. I will try to be more careful next time :)
 
 ## Version 0.2 (03-11-2016)
 
