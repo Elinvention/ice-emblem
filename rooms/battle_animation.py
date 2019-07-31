@@ -13,6 +13,8 @@ import colors as c
 from unit import Unit, Team
 from gui import Gravity
 
+from gettext import gettext as _
+
 
 class AttackAnimation(gui.Tween):
     def __init__(self, image, vector, on_animation_finished):
@@ -25,7 +27,8 @@ class BattleUnitStats(gui.LinearLayout):
     def __init__(self, unit: Unit, vector, on_animation_finished, **kwargs):
         super().__init__(padding=100, **kwargs)
         self.unit = unit
-        self.animation = AttackAnimation(gui.Image(unit.image, die_when_done=False, bg_color=c.MENU_BG), vector, on_animation_finished)
+        self.animation = AttackAnimation(
+            gui.Image(unit.image, die_when_done=False, bg_color=c.MENU_BG), vector, on_animation_finished)
         self.name = gui.Label(unit.name, f.MAIN, txt_color=unit.team.color)
         self.life = gui.LifeBar(points=unit.health_max, value=unit.health)
         self.stats = gui.Label(str(unit), f.SMALL)
@@ -46,14 +49,24 @@ class BattleAnimation(gui.LinearLayout):
         super().__init__(wait=False, orientation=gui.Orientation.HORIZONTAL, **kwargs)
         self.attacking = attacking
         self.defending = defending
-        self.att_stats = self.att_swap = BattleUnitStats(self.attacking, (50, 0), self.anim_finished, layout_gravity=Gravity.CENTER)
-        self.def_stats = self.def_swap = BattleUnitStats(self.defending, (-50, 0), self.anim_finished, layout_gravity=Gravity.CENTER)
+        self.att_stats = self.att_swap = BattleUnitStats(self.attacking, (50, 0), self.anim_finished,
+                                                         layout_gravity=Gravity.CENTER)
+        self.def_stats = self.def_swap = BattleUnitStats(self.defending, (-50, 0), self.anim_finished,
+                                                         layout_gravity=Gravity.CENTER)
         self.add_children(self.att_stats, self.def_stats)
         self.at = self.dt = self.round = 0
         self.outcome = self.damage = None
 
     def begin(self):
         super().begin()
+
+        if self.attacking.health <= 0:
+            raise ValueError(f"{self.attacking} is dead!")
+        if self.defending.health <= 0:
+            raise ValueError(f"{self.defending} is dead!")
+        if self.attacking.played:
+            raise ValueError(f"{self.attacking} has already played!")
+
         self.attacking.prepare_battle()
         self.defending.prepare_battle()
 
@@ -110,6 +123,7 @@ class BattleAnimation(gui.LinearLayout):
             self.at, self.dt = self.dt, self.at
             self.att_swap, self.def_swap = self.def_swap, self.att_swap
         self.outcome = self.damage = None
+        self.done = (self.at <= 0 and self.dt <= 0) or self.attacking.health <= 0 or self.defending.health <= 0
 
     def loop(self, _events, dt):
         super().loop(_events, dt)
@@ -130,7 +144,6 @@ class BattleAnimation(gui.LinearLayout):
             animation.text.visible = False
             animation.invalidate()
             self.next_round()
-        self.done = (self.at <= 0 and self.dt <= 0) or self.attacking.health <= 0 or self.defending.health <= 0
 
     @staticmethod
     def exp_or_die(unit1: Unit, unit2: Unit) -> None:
@@ -173,7 +186,8 @@ class ExperienceAnimation(gui.LinearLayout):
         self.unit = _unit
         self.gained_exp = _unit.exp_prev + _unit.gained_exp()
         self.image = gui.Image(_unit.image, die_when_done=False, bg_color=c.MENU_BG)
-        self.bar = gui.LifeBar(max=99, value=_unit.exp_prev, blocks_per_row=100, block_size=(2, 10), life_color=c.YELLOW)
+        self.bar = gui.LifeBar(max=99, value=_unit.exp_prev, blocks_per_row=100, block_size=(2, 10),
+                               life_color=c.YELLOW)
         self.label = gui.Label(_("EXP: {experience}") + "\t" + _("LV: {level}"), f.SMALL, txt_color=c.YELLOW)
         self.label.format(**_unit.__dict__)
         self.add_children(self.image, self.bar, self.label)
@@ -204,6 +218,7 @@ class ExperienceAnimation(gui.LinearLayout):
 
 
 def test_battle_animation():
+    display.initialize()
     import gettext
     import logging
     import resources
@@ -223,6 +238,7 @@ def test_battle_animation():
     while unit1.health > 0 and unit2.health > 0:
         room.run_room(BattleAnimation(unit1, unit2))
         unit1, unit2 = unit2, unit1
+    pygame.quit()
 
 
 if __name__ == '__main__':
