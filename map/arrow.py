@@ -1,5 +1,5 @@
 """
-
+Show an arrow over a path.
 """
 
 
@@ -7,11 +7,20 @@ import pygame
 
 from basictypes import Point
 
-from typing import Tuple
+from typing import Tuple, List
 
 
 class Arrow(pygame.sprite.Sprite):
+    """
+    Class used to display an arrow over the path the unit will animate over while it's moving.
+    """
     def __init__(self, tilemap, image, *groups):
+        """
+        To make an Arrow you need to pass a :class:`map.TileMap` and a texture.
+        :param tilemap: :class:`map.TileMap`
+        :param image: pygame.Surface
+        :param groups: pygame.sprite.Group
+        """
         super().__init__(*groups)
         self.tilemap = tilemap
         self.zoom = -1
@@ -25,9 +34,12 @@ class Arrow(pygame.sprite.Sprite):
 
         self.update()
 
-    def zoom_changed(self):
+    def zoom_changed(self) -> None:
+        """
+        Call this when the zoom was changed by the user.
+        """
         self.rect = pygame.Rect((0, 0), self.tilemap.zoom_px_size)
-        self.image = pygame.Surface(self.rect.size).convert_alpha()
+        self.image = pygame.Surface(self.rect.size, flags=pygame.SRCALPHA)
 
         w, h = self.source_image.get_size()
         rw, rh = rectsize = (w // 4, h // 4)
@@ -57,7 +69,10 @@ class Arrow(pygame.sprite.Sprite):
         self.zoom = self.tilemap.zoom
         self.valid = False
 
-    def update(self):
+    def update(self) -> None:
+        """
+        Update self.image.
+        """
         if self.zoom != self.tilemap.zoom:
             self.zoom_changed()
         if not self.valid:
@@ -68,7 +83,14 @@ class Arrow(pygame.sprite.Sprite):
                 self.image.blit(img, pos)
             self.valid = True
 
-    def set_path(self, path, source=None):
+    def set_path(self, path: List[Tuple[int, int]], source: Tuple[int, int] = None) -> None:
+        """
+        Sets a new path and optionally a new source.
+
+        If the path or the source are actually new, invalidate.
+        :param path: path the arrow has to follow.
+        :param source: the source node where the arrow begins.
+        """
         if source in path:
             path.remove(source)
         if source is not None:
@@ -81,8 +103,9 @@ class Arrow(pygame.sprite.Sprite):
 
     def add_or_remove_coord(self, coord: Tuple[int, int]) -> None:
         """
-        Adds a coordinate to the path if coord is not the source. If coord is already in path removes all elements from
-        path until the last one is coord.
+        Adds a coordinate to the path if coord is not the source and is not already contained in self.path.
+
+        If coord is already in path removes all elements from path until the last one is coord.
         :param coord: new selected coordinate.
         """
         if self.source == coord:
@@ -100,7 +123,12 @@ class Arrow(pygame.sprite.Sprite):
         self.valid = False
         self.update()
 
-    def get_arrow_part(self, coord):
+    def get_arrow_part(self, coord: Tuple[int, int]) -> pygame.Surface:
+        """
+        Returns the image, part of the arrow, to blit on the cell at coord.
+        :param coord: map coordinates.
+        :return: a pygame.Surface containing the part of the arrow to render at coord.
+        """
         index = self.path.index(coord)
         a = self.path[index - 1] if index - 1 >= 0 else self.source
         b = self.path[index]
