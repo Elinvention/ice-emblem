@@ -7,6 +7,7 @@ import gui
 import fonts as f
 import state as s
 import resources
+import game
 
 from room import Gravity
 
@@ -26,7 +27,10 @@ class Sidebar(gui.NinePatch):
         self.coord_label = gui.Label('X: {0} Y: {1}', font, layout_gravity=Gravity.BOTTOM)
         self.clock = gui.Clock(font, layout_gravity=Gravity.BOTTOM)
 
-        self.add_children(self.turn_label, self.terrain_label, self.unit_label, self.coord_label, self.clock, self.endturn_btn)
+        self.add_children(self.turn_label, self.terrain_label, self.unit_label, self.coord_label, self.clock)
+
+        if isinstance(turn, game.PlayerTurn):
+            self.add_child(self.endturn_btn)
 
     def begin(self):
         super().begin()

@@ -2,8 +2,6 @@
 Simple widget that displays elapsed time.
 """
 
-import pygame
-
 from datetime import timedelta
 
 import gui
