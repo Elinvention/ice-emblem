@@ -15,12 +15,15 @@ class Dialog(LinearLayout):
     def __init__(self, text, font, **kwargs):
         super().__init__(**kwargs)
         self.label = Label(text, font)
-        self.ok_btn = Button("OK", font, callback=self.dismiss)
+        self.ok_btn = Button("OK", font, callback=self.dismiss, die_when_done=False)
         self.callback = kwargs.get('callback', None)
         self.add_children(self.label, self.ok_btn)
 
     def dismiss(self, *_):
         self.done = True
+        self.call_callback()
+
+    def call_callback(self):
         if callable(self.callback):
             self.callback(self)
 
@@ -34,18 +37,20 @@ class Modal(LinearLayout):
         self.callback = kwargs.get('callback', None)
         self.answer = None
         self.label = Label(text, font)
-        self.yesno = HorizontalMenu([("Yes", self.yes), ("No", self.no)], font)
+        self.yesno = HorizontalMenu([("Yes", self.yes), ("No", self.no)], font, die_when_done=False)
         self.add_children(self.label, self.yesno)
 
     def yes(self, *_):
         self.answer = True
         self.done = True
-        if callable(self.callback):
-            self.callback(self, self.answer)
+        self.call_callback()
 
     def no(self, *_):
         self.answer = False
         self.done = True
+        self.call_callback()
+
+    def call_callback(self):
         if callable(self.callback):
             self.callback(self, self.answer)
 
