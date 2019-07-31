@@ -9,6 +9,9 @@ import logging
 from pathlib import Path
 
 
+if not pygame.font.get_init():
+    pygame.font.init()
+
 RESOURCES_PATH = Path(__file__).absolute().parent / 'resources'  #: resources directory
 IMAGE_PATH =   RESOURCES_PATH / 'images'  #: images directory
 SOUNDS_PATH =  RESOURCES_PATH / 'sounds'

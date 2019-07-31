@@ -20,6 +20,8 @@ mode = pygame.RESIZABLE
 spinner_angle = 0
 spinner_size = (15, 15)
 
+pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
+
 
 def initialize() -> None:
     """
@@ -28,7 +30,7 @@ def initialize() -> None:
     global window, clock, FPS_FONT
     if pygame.get_init():
         return
-    pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
+
     pygame.init()
     pygame.display.set_icon(resources.load_image('icon.png'))
     version = utils.get_version()

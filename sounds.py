@@ -4,6 +4,10 @@ import logging
 import random
 
 
+if not pygame.mixer.get_init():
+    pygame.mixer.init()
+
+
 __logger = logging.getLogger('Sounds')
 extensions = ['.ogg', '.wav']
 sounds = {}
