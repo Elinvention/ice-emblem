@@ -1,5 +1,7 @@
 import pygame
 import pygame.locals as pl
+import os
+import gettext
 
 import display
 import gui
@@ -44,24 +46,57 @@ class MainMenu(gui.LinearLayout):
 
 class License(gui.Image):
     def __init__(self):
-        super().__init__(resources.load_image('GNU GPL.jpg'), layout_gravity=gui.Gravity.FILL, 
+        super().__init__(resources.load_image('GNU GPL.jpg'), layout_gravity=gui.Gravity.FILL,
                          allowed_events=[pl.MOUSEBUTTONDOWN, pl.KEYDOWN], die_when_done=True)
 
 
 class SettingsMenu(gui.LinearLayout):
 
     def __init__(self):
-        super().__init__()
-        self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=lambda *_: setattr(self, 'done', True), layout_gravity=gui.Gravity.BOTTOMRIGHT)
-        self.fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), f.MAIN, callback=lambda *_: display.toggle_fullscreen(), padding=25)
+        super().__init__(layout_gravity=gui.Gravity.FILL)
+        self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=lambda *_: setattr(self, 'done', True),
+                                   layout_gravity=gui.Gravity.BOTTOMRIGHT)
+        self.title = gui.Label(_("Settings"), f.MAIN)
+        self.display_label = gui.Label(_("Display"), f.SMALL)
+
+        # use a set comprehension to filter duplicates and too small resolutions
+        # However sets are not guaranteed to be ordered in every python
+        # implementation, so use sorted to switch back to an ordered list
+        resolutions = {res for res in pygame.display.list_modes()
+                       if res[0] >= display.min_resolution[0] and res[1] >= display.min_resolution[1]}
+        resolutions = sorted(resolutions, reverse=True)
+
+        def toggle_fullscreen(*_):
+            display.set_resolution(resolutions[0])
+            display.toggle_fullscreen()
+
+        self.fullscreen_btn = gui.CheckBox(_("Toggle Fullscreen"), f.SMALLER, callback=toggle_fullscreen)
 
         def res_setter(res):
             return lambda *_: display.set_resolution(res)
-        resolutions = [("{0[0]}x{0[1]}".format(res), res_setter(res)) for res in pygame.display.list_modes()]
-        self.resolutions_menu = gui.Menu(resolutions, f.MAIN, die_when_done=False)
-        self.add_children(self.back_btn, self.fullscreen_btn, self.resolutions_menu)
+
+        entries = [("{0[0]}x{0[1]}".format(res), res_setter(res)) for res in resolutions]
+        self.resolutions_menu = gui.Menu(entries, f.SMALLER, die_when_done=False)
+
+        self.lang_label = gui.Label(_("Language"), f.SMALL)
+
+        def lang_setter(lang):
+            def lang_set(*_):
+                f.load_fonts(lang)
+                gettext.translation('ice-emblem', resources.LOCALE_PATH, [lang]).install()
+                self.next = SettingsMenu()
+                self.next.next = MainMenu()
+                self.done = True
+
+            return lang_set
+
+        languages = [(locale, lang_setter(locale)) for locale in os.listdir(resources.LOCALE_PATH) if
+                     os.path.isdir(resources.LOCALE_PATH / locale)]
+        self.lang_menu = gui.Menu(languages, f.SMALLER, die_when_done=False)
+
+        self.add_children(self.back_btn, self.title, self.display_label, self.fullscreen_btn, self.resolutions_menu,
+                          self.lang_label, self.lang_menu)
 
     def handle_keydown(self, event):
         if event.key == pl.K_ESCAPE:
             self.done = True
-
