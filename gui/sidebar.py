@@ -19,7 +19,7 @@ class Sidebar(gui.NinePatch):
                          layout_width=270,
                          layout_gravity=gui.Gravity.RIGHT, gravity=Gravity.TOPLEFT, padding=30, **kwargs)
 
-        font = f.MEDIEVAL18
+        font = f.SMALLER
         self.endturn_btn = gui.Button(_("End Turn"), font, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: turn.end_turn())
         self.turn_label = gui.Label(_("{team} turn"), font)
         self.terrain_label = gui.Label(f'Terrain: {{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', font)

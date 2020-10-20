@@ -3,10 +3,12 @@ This module deals with "low level" handling of pygame.display.
 """
 
 import pygame
+import os
 
 import resources
 import utils
 import colors as c
+import fonts
 
 import math
 
@@ -44,6 +46,8 @@ def initialize() -> None:
     clock = pygame.time.Clock()
 
     FPS_FONT = pygame.font.SysFont("Liberation Sans", 12)
+
+    fonts.load_fonts(os.environ['LANG'])
 
 
 def modeset() -> None:
