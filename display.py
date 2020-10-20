@@ -13,12 +13,15 @@ import math
 from typing import Tuple
 
 
+window = None
 resolution = (1280, 720)
 min_resolution = (800, 600)
 fps = 60
+clock = None
 mode = pygame.RESIZABLE
 spinner_angle = 0
 spinner_size = (15, 15)
+FPS_FONT = None
 
 pygame.mixer.pre_init(frequency=44100, size=-16, channels=2)
 
@@ -88,12 +91,15 @@ def handle_videoresize(event: pygame.event.EventType) -> None:
     :param event: a pygame.VIDEORESIZE event
     """
     global window
-    screen_size = event.size
+    screen_size = list(event.size)
     if screen_size[0] < min_resolution[0]:
-        screen_size = (min_resolution[0], screen_size[1])
+        screen_size[0] = min_resolution[0]
     if screen_size[1] < min_resolution[1]:
-        screen_size = (screen_size[0], min_resolution[1])
-    window = pygame.display.set_mode(screen_size, mode)
+        screen_size[1] = min_resolution[1]
+
+    # no need to keep calling set_mode every time in pygame 2.0.0
+    if tuple(screen_size) != event.size:
+        window = pygame.display.set_mode(size=screen_size, flags=mode)
 
 
 def draw_fps(font=None) -> None:
