@@ -16,7 +16,11 @@ class MapMenu(gui.LinearLayout):
     def __init__(self, image):
         super().__init__(layout=Layout(width=LayoutParams.FILL_PARENT, height=LayoutParams.FILL_PARENT),
                          default_child_gravity=Gravity.CENTER, bg_color=c.BLACK, bg_image=image)
-        self.files = [(file, self.chosen) for file in resources.list_maps()]
+
+        def map_file_closure(file):
+            return lambda m, _: self.chosen(m, file)
+
+        self.files = [(map_name, map_file_closure(file)) for file, map_name in resources.list_maps()]
         self.choose_label = gui.Label(_("Choose a map!"), f.MAIN_MENU, txt_color=c.ICE, bg_color=c.MENU_BG)
         self.menu = gui.Menu(self.files, f.MAIN, padding=(25, 25), die_when_done=False)
         self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=self.back, layout=Layout(gravity=Gravity.BOTTOMRIGHT))
@@ -31,7 +35,8 @@ class MapMenu(gui.LinearLayout):
         try:
             s.load_map(map_path)
         except:
-            msg = _("Error while loading map \"%s\"! Please report this issue.\n\n%s") % (map_path, traceback.format_exc())
+            msg = _("Error while loading map \"%s\"! Please report this issue.\n\n%s") % (
+            map_path, traceback.format_exc())
             logging.error(msg)
             dialog = gui.Dialog(msg, f.MONOSPACE, layout=Layout(gravity=Gravity.FILL), padding=25)
             room.run_room(dialog)

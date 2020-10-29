@@ -1,12 +1,13 @@
 """
 Resources are cool. Contains a map of Ice Emblem file system and provides access to resources.
 """
-
+from typing import List, Tuple
 
 import pygame
 import logging
 
 from pathlib import Path
+from xml.etree import ElementTree
 
 
 if not pygame.font.get_init():
@@ -100,8 +101,27 @@ def list_sounds():
     return SOUNDS_PATH.iterdir()
 
 
-def list_maps():
+def get_map_name(filename):
+    try:
+        parsed_xml = ElementTree.parse(filename)
+        root = parsed_xml.getroot()
+        properties = root.find('properties')
+        if properties:
+            for prop in properties:
+                if prop.attrib['name'] == 'name':
+                    return prop.attrib['value']
+        logging.warning("Map %s misses name property.", filename)
+        return filename.stem
+    except ElementTree.ParseError:
+        logging.warning("File %s is not a valid Tiled Map file.", filename)
+
+
+def list_maps() -> List[Tuple[str, str]]:
     ls = MAPS_PATH.iterdir()
-    return [f.name for f in ls if is_map(f)]
-
-
+    maps = []
+    for file in ls:
+        if is_map(file):
+            map_name = get_map_name(file)
+            if map_name is not None:
+                maps.append((file.name, map_name))
+    return maps

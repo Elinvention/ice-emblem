@@ -1,22 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" tiledversion="1.0.3" orientation="orthogonal" renderorder="right-down" width="15" height="10" tilewidth="32" tileheight="32" nextobjectid="7">
+<map version="1.4" tiledversion="1.4.2" orientation="orthogonal" renderorder="right-down" width="15" height="10" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="7">
+ <properties>
+  <property name="name" value="Default Map"/>
+ </properties>
  <tileset firstgid="1" source="Terrain.tsx"/>
- <layer name="base" width="15" height="10">
+ <layer id="1" name="base" width="15" height="10">
   <data encoding="base64" compression="zlib">
    eJxTZWRgUCUC1zJgYmL04dObBMTJQKwExTD1SkgYpt6cEbu9IP2JUBpZLA2H3RkE3J2I5JYMLHpBeAWaGUpI9iLrRcaFDJhiuNwAswNZbyGaGcuxmIcNF2LRj2x2ORImxjxku8vx6AcAsQMxuw==
   </data>
  </layer>
- <layer name="decorations2" width="15" height="10">
+ <layer id="2" name="decorations2" width="15" height="10">
   <data encoding="base64" compression="zlib">
    eJxjYKAu4GVkYOADYn5G0vX6AvWcB9L6ZOgFAV1G8vWC7PZH0utOnjFUAQ5MQ98OALGjA0I=
   </data>
  </layer>
- <layer name="decorations" width="15" height="10">
+ <layer id="3" name="decorations" width="15" height="10">
   <data encoding="base64" compression="zlib">
    eJxjYCAMaohQQ0ivGCMDgzgQSzCSrtcMqscCSnsAsScBvXOAWA6Iw4B6woE4AsleDSLMgOlHBoFAHESEGelQ/XORMAgY4jADGWsS8Jchkn4QCAPicCQcQUB/ERK7DE3OHE3/RDQ8CY9eEKhAYgMASFoT3w==
   </data>
  </layer>
- <objectgroup color="#0000ff" name="Squadra Blu">
+ <objectgroup color="#0000ff" id="4" name="Squadra Blu">
   <properties>
    <property name="battle_music" value="The Last Encounter Short Loop.ogg"/>
    <property name="boss" value="Boss"/>
@@ -39,7 +42,7 @@
    </properties>
   </object>
  </objectgroup>
- <objectgroup color="#ff0000" name="Squadra Rossa">
+ <objectgroup color="#ff0000" id="5" name="Squadra Rossa">
   <properties>
    <property name="AI" value=""/>
    <property name="battle_music" value="The Last Encounter Short Loop.ogg"/>
