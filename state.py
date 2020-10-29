@@ -2,14 +2,16 @@
 
 """
 
+from typing import Union
 
 import display
 import map
+import unit
 
 
-loaded_map: map.Map = None
-units_manager = None
-winner = None
+loaded_map: Union[None, map.Map] = None
+units_manager: Union[None, unit.UnitsManager] = None
+winner: Union[None, unit.Team] = None
 
 
 def load_map(map_path):
