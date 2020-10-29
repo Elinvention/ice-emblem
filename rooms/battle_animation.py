@@ -169,7 +169,7 @@ class BattleAnimation(gui.LinearLayout):
         self.exp_or_die(self.attacking, self.defending)
         self.exp_or_die(self.defending, self.attacking)
 
-        s.loaded_map.sprites.update()
+        s.loaded_map.sprites_layer.update()
 
         if self.defending.team.is_defeated():
             s.winner = self.attacking.team

@@ -50,7 +50,7 @@ class TileMap(room.Room):
         self.w, self.h = self.tilemap.width, self.tilemap.height
 
         self.terrains = {}
-        self.sprites = tmx.SpriteLayer()
+        self.sprites_layer = tmx.SpriteLayer()
 
         yaml_units = utils.parse_yaml(resources.DATA_PATH / 'units.yml', unit)
         yaml_weapons = utils.parse_yaml(resources.DATA_PATH / 'weapons.yml', item)
@@ -91,7 +91,7 @@ class TileMap(room.Room):
                 for obj in layer.objects:
                     u = yaml_units[obj.name]
                     team = teams[u.team.color]
-                    UnitSprite(self.tilemap, u, team, self.sprites)
+                    UnitSprite(self.tilemap, u, team, self.sprites_layer)
 
         self.units_manager = unit.UnitsManager(list(teams.values()))
 
@@ -113,7 +113,7 @@ class TileMap(room.Room):
         self.highlight_layer = CellHighlightLayer(self.tilemap)
 
         self.tilemap.layers.append(self.highlight_layer)
-        self.tilemap.layers.append(self.sprites)
+        self.tilemap.layers.append(self.sprites_layer)
         self.tilemap.layers.append(arrow_layer)
         self.tilemap.layers.append(cursor_layer)
 
@@ -202,7 +202,7 @@ class TileMap(room.Room):
         if not path:
             path = self.path.shortest_path(who.coord, where, who.movement)
         px_path = list(map(lambda x: self.tilemap.pixel_at(*x, False), path))
-        sprite = self.find_sprite(unit=who)
+        sprite: UnitSprite = self.find_sprite(unit=who)
         animation = MoveUnitAnimation(who, where, sprite, px_path)
         # build the return path (used to undo the move)
         path.pop()
@@ -258,7 +258,7 @@ class TileMap(room.Room):
         self.units_manager.kill_unit(_unit)
         self.terrains[_unit.coord].unit = None
         sprite = self.find_sprite(unit=_unit)
-        self.sprites.remove(sprite)
+        self.sprites_layer.remove(sprite)
 
     def update_move_area(self):
         """
@@ -270,11 +270,12 @@ class TileMap(room.Room):
     def get_unit(self, coord):
         return self.terrains[coord].unit
 
-    def find_sprite(self, **kwargs):
-        for sprite in self.sprites:
+    def find_sprite(self, **kwargs) -> UnitSprite:
+        unit_sprite: UnitSprite
+        for unit_sprite in self.sprites_layer:
             for attr in kwargs:
-                if getattr(sprite, attr) == kwargs[attr]:
-                    return sprite
+                if getattr(unit_sprite, attr) == kwargs[attr]:
+                    return unit_sprite
 
     def __set_attack_area(self, coord, min_range, max_range):
         x, y = coord
@@ -452,7 +453,7 @@ class TileMap(room.Room):
             self.wait_set(not self.tilemap.can_scroll(self.vx, self.vy))
         if self.zoom != self.tilemap.zoom:
             self.tilemap.set_zoom(self.zoom, *self.cursor.rect.topleft)
-            self.sprites.update()
+            self.sprites_layer.update()
             self.cursor.update()
             self.arrow.update()
             self.update_highlight()
@@ -628,7 +629,7 @@ class MoveUnitAnimation(room.Room):
         super().__init__(wait=False, visible=False)
         self.who: unit.Unit = who
         self.where: Coord = where
-        self.sprite = sprite
+        self.sprite: UnitSprite = sprite
         self.path: List[Coord] = path
         self.next_path: Coord = path.pop(0)
 
@@ -646,6 +647,7 @@ class MoveUnitAnimation(room.Room):
                 self.next_path = None
 
     def end(self) -> None:
+        self.parent: TileMap
         self.parent.move_unit(self.who, self.where)
         self.sprite.reposition()
         super().end()
@@ -661,6 +663,7 @@ class MoveCursorAnimation(room.Room):
         self.set_interval(100, self.step)
 
     def step(self, *_) -> None:
+        self.parent: TileMap
         try:
             self.parent.cursor.point(*next(self.path))
             self.parent.invalidate()
@@ -677,6 +680,7 @@ class SelectAndWait(room.Room):
         self.coord = coord
 
     def begin(self) -> None:
+        self.parent: TileMap
         super().begin()
         self.parent.select(self.coord)
         self.set_timeout(100, self.mark_done)
