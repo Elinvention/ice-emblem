@@ -185,16 +185,16 @@ class Unit(object):
         self.skill        = int(skill)         # skill chance of hitting the enemy
         self.speed        = int(speed)         # speed chance to avoid enemy's attack
         self.luck         = int(luck)          # luck influences many things
-        self.defence      = int(defence)       # defence reduces phisical damages
+        self.defence      = int(defence)       # defence reduces physical damages
         self.resistance   = int(resistance)    # resistance reduces magical damages
         self.movement     = int(movement)      # movement determines how far the unit can move in a turn
-        self.constitution = int(constitution)  # constitution, or phisical size. affects rescues.
+        self.constitution = int(constitution)  # constitution, or physical size. affects rescues.
         self.aid          = int(aid)           # max rescuing constitution. units with lower con can be rescued.
         self.affinity     = affinity           # elemental affinity. determines compatibility with other units.
         self.condition    = NormalHealthCondition(self)
         self.wrank        = wrank              # weapons' levels.
         self.items        = Items()            # list of items
-        self.played       = False              # wether unit was used or not in a turn
+        self.played       = False              # whether unit was used or not in a turn
         self.team         = None               # team
         self.coord        = None
         self.modified     = True
@@ -202,7 +202,7 @@ class Unit(object):
             self.image = resources.load_sprite(self.name).convert_alpha()
             new_size = utils.resize_keep_ratio(self.image.get_size(), (200, 200))
             self.image = pygame.transform.smoothscale(self.image, new_size)
-        except pygame.error:
+        except FileNotFoundError:
             logging.warning("Couldn't load %s! Loading default image", resources.sprite_path(self.name))
             self.image = resources.load_sprite('no_image.png').convert_alpha()
 
@@ -405,13 +405,15 @@ class Water(Unit):
 
 
 class UnitFactory(ABC):
+    @staticmethod
     @abstractmethod
-    def make_unit(self) -> Unit:
+    def make_unit() -> Unit:
         raise NotImplementedError("Method not implemented.")
 
 
 class RandomUnitFactory(UnitFactory):
-    def make_unit(self) -> Unit:
+    @staticmethod
+    def make_unit() -> Unit:
         name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
         health = random.randint(5, 70)
         level = health // 4
@@ -505,7 +507,7 @@ class Team(object):
     def list_played(self) -> List[Unit]:
         return [u for u in self.units if u.played]
 
-    def play_music(self, music_key: str, resume: bool=False) -> None:
+    def play_music(self, music_key: str, resume: bool = False) -> None:
         music_pos = pygame.mixer.music.get_pos() // 1000
         try:
             pygame.mixer.music.load(self.music[music_key])
