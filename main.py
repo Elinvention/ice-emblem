@@ -63,9 +63,9 @@ args = parser.parse_args()
 logging.basicConfig(level=args.logging, filename=args.file, filemode='a')
 logging.info(_('Welcome to %s!') % ('Ice Emblem ' + VERSION))
 logging.info(_('You are using Pygame version %s.') % pygame.version.ver)
-if pygame.version.vernum < (1, 9, 2):
+if pygame.version.vernum < (2, 0, 0):
     logging.warning(_('You are running a version of Pygame that might be outdated.'))
-    logging.warning(_('Ice Emblem is tested only with Pygame 1.9.2+.'))
+    logging.warning(_('Ice Emblem is tested only with Pygame 2.0.0+.'))
 
 
 def launch():
