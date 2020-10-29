@@ -514,6 +514,8 @@ class Team(object):
                 self.music_pos[music_key] = 0
             pygame.mixer.music.play(-1, self.music_pos[music_key])
             self.music_pos[music_key] += music_pos
+        except TypeError:
+            logging.warning("No music for team %s.", self.name)
         except KeyError:
             logging.warning("Couldn't find key %s!", music_key)
         except pygame.error:
