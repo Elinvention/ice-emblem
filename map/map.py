@@ -21,7 +21,7 @@ from basictypes import Point
 from map.pathfinder import Pathfinder, Terrain, manhattan_path
 from map.unit import UnitSprite
 from map.arrow import Arrow
-from map.cellhighlight import CellHighlight
+from map.cellhighlight import CellHighlightLayer
 from map.cursor import Cursor
 
 from typing import List, Tuple
@@ -111,10 +111,9 @@ class TileMap(room.Room):
         arrow_layer = tmx.SpriteLayer()
         self.arrow = Arrow(self.tilemap, resources.load_image('arrow.png'), arrow_layer)
 
-        highlight_layer = tmx.SpriteLayer()
-        self.highlight = CellHighlight(self.tilemap, highlight_layer)
+        self.highlight_layer = CellHighlightLayer(self.tilemap)
 
-        self.tilemap.layers.append(highlight_layer)
+        self.tilemap.layers.append(self.highlight_layer)
         self.tilemap.layers.append(self.sprites)
         self.tilemap.layers.append(arrow_layer)
         self.tilemap.layers.append(cursor_layer)
@@ -282,7 +281,7 @@ class TileMap(room.Room):
         x, y = coord
         for i in range(x - max_range, x + max_range + 1):
             for j in range(y - max_range, y + max_range + 1):
-                if (i, j) not in self.move_area and (i, j) not in self.attack_area:
+                if self.check_coord((i, j)) and (i, j) not in self.move_area and (i, j) not in self.attack_area:
                     if min_range <= utils.distance((x, y), (i, j)) <= max_range:
                         self.attack_area.append((i, j))
 
@@ -335,7 +334,7 @@ class TileMap(room.Room):
 
     def update_highlight(self):
         played = [u.coord for u in self.units_manager.active_team.list_played()]
-        self.highlight.update(self.curr_sel, self.move_area, self.attack_area, played)
+        self.highlight_layer.update(self.curr_sel, self.move_area, self.attack_area, played)
         self.invalidate()
 
     def area(self, center, radius, hole=0):

@@ -16,10 +16,12 @@ YELLOW_A50 = Color(255, 200, 0, 50)
 GREY_A50   = Color(160, 160, 160, 50)
 GREY_A200  = Color(100, 100, 100, 200)
 
-SELECTED = Color(255, 200, 0, 100)
-MOVE     = Color(0, 0, 255, 75)
-ATTACK   = Color(255, 0, 0, 75)
-PLAYED   = Color(75, 75, 75, 150)
+highlight = {
+    'selected': Color(255, 200, 0, 100),
+    'move': Color(0, 0, 255, 75),
+    'attack': Color(255, 0, 0, 75),
+    'played': Color(75, 75, 75, 150),
+}
 
 MENU_SEL = Color(96, 144, 145)
 MENU_BG  = Color(51, 51, 51)

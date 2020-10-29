@@ -761,6 +761,14 @@ class TileMap(object):
         for layer in self.layers:
             if layer.visible:
                 layer.draw(screen)
+        horizontal_line = pygame.Surface((self.zoom_px_width, 2))
+        horizontal_line.set_alpha(100)
+        vertical_line = pygame.Surface((2, self.zoom_px_height))
+        vertical_line.set_alpha(100)
+        for i in range(1, self.width):
+             screen.blit(vertical_line, (-self.childs_ox + i * self.zoom_tile_width - 1, -self.childs_oy))
+        for j in range(1, self.height):
+             screen.blit(horizontal_line, (-self.childs_ox, -self.childs_oy + j * self.zoom_tile_height - 1))
 
     @classmethod
     def load(cls, filename, viewport, origin=(0, 0)):
