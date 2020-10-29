@@ -87,6 +87,7 @@ class Turn(gui.LinearLayout):
         super().loop(_events, dt)
         if s.winner is not None:
             self.done = True
+            self.next = rooms.Fadeout(duration=1000, next=rooms.VictoryScreen(next=rooms.Fadeout(duration=2000)))
         elif self.team.is_turn_over() and not self.next:
             self.end_turn()
 
