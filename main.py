@@ -109,7 +109,7 @@ else:
                                "%s\n"
                                "%s\n"
                                "\n"
-                               "Please open a report on our issue tracker lacated at %s\n"
+                               "Please open a report on our issue tracker located at %s\n"
                                "along with a short description of what you did when this crash happened\n"
                                "so that the error can be fixed.\n"
                                "\n"
