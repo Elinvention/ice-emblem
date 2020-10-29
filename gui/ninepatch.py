@@ -91,7 +91,8 @@ if __name__ == "__main__":
         import fonts as f
         import logging
         logging.basicConfig(level=logging.DEBUG)
-        nine = NinePatch(resources.load_image('WindowBorder.png'), (70, 70), wait=False, padding=100, layout_gravity=gui.Gravity.FILL)
+        nine = NinePatch(resources.load_image('WindowBorder.png'), (70, 70), wait=False, padding=100,
+                         layout=room.Layout(gravity=room.Gravity.FILL))
         nine.add_child(gui.Label("test", f.MAIN))
         nine.add_child(gui.Clock(f.MAIN))
         room.run_room(nine)

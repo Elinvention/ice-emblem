@@ -2,6 +2,8 @@
 Basic types definitions used all over Ice Emblem's code base
 """
 
+import pygame
+
 
 class Point(tuple):
     """
@@ -62,34 +64,39 @@ class NESW(object):
             self.n = self.s = args[0]
             self.e = self.w = args[1]
         elif len(args) == 4:
-            self.n = args[0]
-            self.e = args[1]
-            self.s = args[2]
-            self.w = args[3]
+            self.n: int = args[0]
+            self.e: int = args[1]
+            self.s: int = args[2]
+            self.w: int = args[3]
         else:
-            raise ValueError("'padding' shold be either 1, 2 or 4 ints")
+            raise ValueError("'padding' should be either 1, 2 or 4 ints")
 
     @property
-    def ns(self):
+    def ns(self) -> int:
         return self.n + self.s
 
     @property
-    def ew(self):
+    def ew(self) -> int:
         return self.e + self.w
 
-    we = ew
-    sn = ns
+    @property
+    def we(self) -> int:
+        return self.ew
 
-    def __getitem__(self, index):
+    @property
+    def sn(self) -> int:
+        return self.ns
+
+    def __getitem__(self, index) -> int:
         return getattr(self, ['n', 'e', 's', 'w'][index])
 
-    def grow(self, rect):
+    def grow(self, rect) -> pygame.Rect:
         rect = rect.move(-self.w, -self.n)
         rect.w += self.w + self.e
         rect.h += self.n + self.s
         return rect
 
-    def shrink(self, rect):
+    def shrink(self, rect) -> pygame.Rect:
         rect = rect.move(self.w, self.n)
         rect.w -= self.w + self.e
         rect.h += self.n + self.s

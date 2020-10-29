@@ -1,32 +1,31 @@
 """
 
 """
-from typing import Union
 
 import pygame
 import logging
+from gettext import gettext as _
+from typing import List, Tuple
+from typing import Union
 
+import action
+import ai
+import display
+import game
+import item
+import resources
 import room
 import rooms
 import tmx
-import display
+import unit
 import utils
-import resources
-import unit, item
-import ai
-import action
-import game
-
 from basictypes import Point
-from map.pathfinder import Pathfinder, Terrain, manhattan_path
-from map.unit import UnitSprite
 from map.arrow import Arrow
 from map.cellhighlight import CellHighlightLayer
 from map.cursor import Cursor
-
-from typing import List, Tuple
-from gettext import gettext as _
-
+from map.pathfinder import Pathfinder, Terrain, manhattan_path
+from map.unit import UnitSprite
+from room import Layout, LayoutParams
 
 Coord = Tuple[int, int]
 
@@ -41,8 +40,8 @@ class TileMap(room.Room):
         
         """
         super().__init__(wait=False, bg_image=resources.load_image("old-paper.jpg").convert(),
-                         bg_size='cover', layout_width=room.LayoutParams.FILL_PARENT,
-                         layout_height=room.LayoutParams.FILL_PARENT, **kwargs)
+                         layout=Layout(width=LayoutParams.FILL_PARENT, height=LayoutParams.FILL_PARENT),
+                         bg_size='cover', **kwargs)
 
         self.tilemap = tmx.load(map_path, self.rect.size, self.rect.topleft)
 
@@ -435,12 +434,12 @@ class TileMap(room.Room):
             self.select(self.cursor.coord)
         self.invalidate()
 
-    def layout(self, rect):
+    def layout_children(self, rect):
         if self.tilemap.viewport.size != rect.size:
             self.tilemap.viewport.size = rect.size
             self.tilemap.view_w, self.tilemap.view_h = rect.size
             self.tilemap.set_focus(self.tilemap.restricted_fx, self.tilemap.restricted_fy)
-        super().layout(rect)
+        super().layout_children(rect)
 
     def loop(self, _events, dt):
         super().loop(_events, dt)
@@ -540,7 +539,7 @@ class TileMap(room.Room):
         self.vx, self.vy = 0, 0
         if pos is None:
             pos = self.tilemap.pixel_at(*self.curr_sel, False) - self.tilemap.viewport.topleft + self.tilemap.zoom_tile_size / 2
-        menu = rooms.ActionMenu(attacking, defending, layout_position=pos, padding=10, leading=5)
+        menu = rooms.ActionMenu(attacking, defending, layout=Layout(position=pos), padding=10, leading=5)
         self.add_child(menu)
 
     def prepare_attack(self, _unit=None):

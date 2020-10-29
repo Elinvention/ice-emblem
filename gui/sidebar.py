@@ -9,28 +9,31 @@ import state as s
 import resources
 import game
 
-from room import Gravity
+from room import Layout, LayoutParams, Gravity, MeasureParams, MeasureSpec
 
 
 class Sidebar(gui.NinePatch):
     def __init__(self, turn, **kwargs):
         super().__init__(resources.load_image('WindowBorder.png'), (70, 70),
-                         layout_height=gui.LayoutParams.FILL_PARENT,
-                         layout_width=270,
-                         layout_gravity=gui.Gravity.RIGHT, gravity=Gravity.TOPLEFT, padding=30, **kwargs)
+                         layout=Layout(height=LayoutParams.FILL_PARENT, gravity=Gravity.RIGHT),
+                         default_child_gravity=Gravity.TOPLEFT, padding=30, **kwargs)
 
         font = f.SMALLER
-        self.endturn_btn = gui.Button(_("End Turn"), font, layout_gravity=Gravity.BOTTOMRIGHT, callback=lambda *_: turn.end_turn())
+        self.endturn_btn = gui.Button(_("End Turn"), font, layout=Layout(gravity=Gravity.BOTTOMRIGHT),
+                                      callback=lambda *_: turn.end_turn())
         self.turn_label = gui.Label(_("{team} turn"), font)
         self.terrain_label = gui.Label(f'Terrain: {{0}}\n{_("Def")}: {{1}}\n{_("Avoid")}: {{2}}\n{_("Allowed")}: {{3}}', font)
         self.unit_label = gui.Label('Unit: {0}\nHealth: {1}\nCan move on: {2}\nWeapon: {3}', font)
-        self.coord_label = gui.Label('X: {0} Y: {1}', font, layout_gravity=Gravity.BOTTOM)
-        self.clock = gui.Clock(font, layout_gravity=Gravity.BOTTOM)
+        self.coord_label = gui.Label('X: {0} Y: {1}', font, layout=Layout(gravity=Gravity.BOTTOM))
+        self.clock = gui.Clock(font, layout=Layout(gravity=Gravity.BOTTOM))
 
         self.add_children(self.turn_label, self.terrain_label, self.unit_label, self.coord_label, self.clock)
 
         if isinstance(turn, game.PlayerTurn):
             self.add_child(self.endturn_btn)
+
+    def measure(self, spec_width: MeasureParams, spec_height: MeasureParams) -> None:
+        super().measure(MeasureParams(MeasureSpec.EXACTLY, 270), spec_height)
 
     def begin(self):
         super().begin()

@@ -683,6 +683,7 @@ class SpriteLayer(pygame.sprite.AbstractGroup):
                                 int(sprite.rect.height)))
             screen.blit(sprite.image, (sx - ox, sy - oy), area)
 
+
 class Layers(list):
     def __init__(self):
         self.by_name = {}
@@ -695,6 +696,7 @@ class Layers(list):
         if isinstance(item, int):
             return self[item]
         return self.by_name[item]
+
 
 class TileMap(object):
     '''A TileMap is a collection of Layers which contain gridded maps or sprites

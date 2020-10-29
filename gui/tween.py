@@ -176,8 +176,8 @@ class Tween(LinearLayout):
         self.backward = kwargs.get('backward', False)
         self.playing = False
 
-    def layout(self, rect):
-        super().layout(rect)
+    def layout_children(self, rect):
+        super().layout_children(rect)
         self.initial = Point(rect.topleft)
         self.target = self.initial + self.change
 

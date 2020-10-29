@@ -3,13 +3,15 @@ This module is central in Ice Emblem's engine since it provides the Room class a
 upon Room objects.
 """
 
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union, Dict
 
 import pygame
 import pygame.locals as p
 import logging
 
 from enum import Flag, Enum, auto
+from pygame.surface import Surface, SurfaceType
+
 import colors as c
 
 import events
@@ -23,9 +25,8 @@ class Gravity(Flag):
     """
     Standard constants and tools for placing an object within a potentially larger container.
 
-    | Gravity is used in Room.layout_gravity and Room.layout.
-    | The former specify how a child would like to be positioned and sized by the parent.
-    | The latter specify how a parent should position and size it's children that have no preference.
+    | Gravity is used in Room.layout.gravity.
+    | It specifies how a child would like to be positioned and sized by the parent.
 
     This class has taken inspiration from android.view.Gravity.
     """
@@ -108,6 +109,16 @@ class MeasureParams(object):
         return MeasureParams(MeasureSpec.AT_MOST, self.value)
 
 
+class Layout(object):
+    def __init__(self, width=LayoutParams.WRAP_CONTENT, height=LayoutParams.WRAP_CONTENT, gravity=Gravity.NO_GRAVITY,
+                 position=(0, 0)):
+        self.width: LayoutParams = width
+        self.height: LayoutParams = height
+        self.gravity: Gravity = gravity
+        self.position: Tuple[int, int] = position
+        self.valid: bool = False
+
+
 class Room(object):
     """
     Room class is at the heart of Ice Emblem's engine.
@@ -163,51 +174,41 @@ class Room(object):
         next: Room, optional
             When this room is done the next one will take its place. (defaults to None)
         """
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.fps = kwargs.get('fps', display.fps)
-        self.wait_prefer = self.wait = kwargs.get('wait', True)
-        self.wait_valid = True
-        self.allowed_events = kwargs.get('allowed_events', [])
-        self.die_when_done = kwargs.get('die_when_done', True)
-        self.clear_screen = kwargs.get('clear_screen', (0, 0, 0))
+        self.logger: logging.Logger = logging.getLogger(self.__class__.__name__)
+        self.fps: int = kwargs.get('fps', display.fps)
+        self.wait_prefer: bool = kwargs.get('wait', True)
+        self.wait: bool = self.wait_prefer
+        self.wait_valid: bool = False
+        self.allowed_events: List[int] = kwargs.get('allowed_events', [])
+        self.die_when_done: bool = kwargs.get('die_when_done', True)
+        self.clear_screen: pygame.Color = kwargs.get('clear_screen', pygame.Color(0, 0, 0))
 
-        self.parent = None
-        self.done = False
-        self.root = False
-        self.valid = False
-        self.visible = kwargs.get('visible', True)
-        self.rect = pygame.Rect((0, 0), (0, 0))
-        self.surface = pygame.Surface(self.rect.size)
-        self.callbacks = {}
-        self.next = kwargs.get('next', None)
+        self.parent: Union['Room', None] = None
+        self.done: bool = False
+        self.root: bool = False
+        self.valid: bool = False
+        self.visible: bool = kwargs.get('visible', True)
+        self.rect: pygame.Rect = pygame.Rect((0, 0), (0, 0))
+        self.surface: pygame.Surface = pygame.Surface(self.rect.size)
+        self.callbacks: Dict[int, List[Callable]] = {}
+        self.next: Union['Room', None] = kwargs.get('next', None)
 
-        self.layout_width = kwargs.get('layout_width', LayoutParams.WRAP_CONTENT)
-        self.layout_height = kwargs.get('layout_height', LayoutParams.WRAP_CONTENT)
-        self.layout_gravity = kwargs.get('layout_gravity', Gravity.NO_GRAVITY)
-        self.layout_position = kwargs.get('layout_position', (0, 0))
-        self.layout_valid = False
+        self.layout: Layout = kwargs.get('layout', Layout())
 
-        self.children = []
+        self.children: List['Room'] = []
         self.add_children(*kwargs.get('children', []))
 
-        self.padding = NESW(kwargs.get('padding', 0))
-        self.border = NESW(kwargs.get('border', 0))
-        self.margin = NESW(kwargs.get('margin', 0))
+        self.padding: NESW = NESW(kwargs.get('padding', 0))
+        self.border: NESW = NESW(kwargs.get('border', 0))
+        self.margin: NESW = NESW(kwargs.get('margin', 0))
 
-        self.bg_color = kwargs.get('bg_color', c.MENU_BG)
-        self.bg_image = kwargs.get('bg_image', None)
-        self.bg_size = kwargs.get('bg_size', 'contain')  # Possible values: 'contain', 'cover', (int, int)
+        self.bg_color: pygame.Color = kwargs.get('bg_color', c.MENU_BG)
+        self.bg_image: Union[pygame.Surface, None] = kwargs.get('bg_image', None)
+        self.bg_size: Union[str, Tuple[int, int]] = kwargs.get('bg_size', 'contain')  # Possible values: 'contain', 'cover', (int, int)
         self._bg_image_size = None
 
     def __str__(self):
         return self.logger.name
-
-    @property
-    def layout_wh(self) -> Tuple[int, int]:
-        """
-        Layout's width and height.
-        """
-        return self.layout_width, self.layout_height
 
     @property
     def measured_size(self) -> Tuple[int, int]:
@@ -231,7 +232,7 @@ class Room(object):
                 return False
         return True
 
-    def prepare_child(self, child: 'Room') -> None:
+    def prepare_child(self, child: 'Room') -> 'Room':
         """
         Called before adding a child to the tree.
         :param child: the Room to prepare before being added to the tree to ensure it is consistent
@@ -294,8 +295,8 @@ class Room(object):
         The room_layout function will be called on the root Room before next frame.
         """
         node = self
-        while node and node.layout_valid:
-            node.layout_valid = False
+        while node and node.layout.valid:
+            node.layout.valid = False
             node = node.parent
         self.logger.debug("Layout requested")
 
@@ -359,26 +360,26 @@ class Room(object):
         if spec_width.mode == MeasureSpec.EXACTLY:
             self.measured_width = spec_width.value
         else:
-            if self.layout_width == LayoutParams.FILL_PARENT:
+            if self.layout.width == LayoutParams.FILL_PARENT:
                 self.measured_width = spec_width.value
-            elif self.layout_width == LayoutParams.WRAP_CONTENT:
+            elif self.layout.width == LayoutParams.WRAP_CONTENT:
                 self.measured_width = min(spec_width.value, content_width)
             else:
-                self.measured_width = min(spec_width.value, self.layout_width)
+                self.measured_width = min(spec_width.value, self.layout.width)
 
         if spec_height.mode == MeasureSpec.EXACTLY:
             self.measured_height = spec_height.value
         else:
-            if self.layout_height == LayoutParams.FILL_PARENT:
+            if self.layout.height == LayoutParams.FILL_PARENT:
                 self.measured_height = spec_height.value
-            elif self.layout_height == LayoutParams.WRAP_CONTENT:
+            elif self.layout.height == LayoutParams.WRAP_CONTENT:
                 self.measured_height = min(spec_height.value, content_height)
             else:
-                self.measured_height = min(spec_height.value, self.layout_height)
+                self.measured_height = min(spec_height.value, self.layout.height)
         self.logger.debug("W: (%s) -> %s; H: (%s) -> %s", spec_width, self.measured_width, spec_height,
                           self.measured_height)
 
-    def layout(self, rect: pygame.Rect) -> None:
+    def layout_children(self, rect: pygame.Rect) -> None:
         """
         Top-down traversal of the tree. The parent positions its children. This method will be called after measure.
 
@@ -386,7 +387,7 @@ class Room(object):
         :param rect: contains the position and size this child should use.
         """
         for child in self.children:
-            child.layout(pygame.Rect(child.layout_position, child.measured_size))
+            child.layout_children(pygame.Rect(child.layout.position, child.measured_size))
         self.resolve_layout(rect)
 
     def resolve_layout(self, rect: pygame.Rect) -> None:
@@ -396,8 +397,8 @@ class Room(object):
         """
         self.rect.topleft = rect.topleft
         self.resize(rect.size)
-        self.layout_valid = True
-        self.logger.debug("layout gravity: %s; rect: %s", self.layout_gravity, self.rect)
+        self.layout.valid = True
+        self.logger.debug("layout gravity: %s; rect: %s", self.layout.gravity, self.rect)
 
     def resize(self, size: Tuple[int, int]) -> None:
         """
@@ -502,7 +503,7 @@ class Room(object):
         for child in self.children:
             child.fill_recursive()
 
-    def bg_image_resized(self) -> None:
+    def bg_image_resized(self) -> Union[Surface, SurfaceType]:
         """
         Resize self.bg_image so that it can fit self.surface respecting the type of resize specified by self.bg_size.
         """
@@ -715,11 +716,11 @@ def layout_room(room: Room) -> None:
     Layout the root Room.
     :param room: the root Room
     """
-    if Gravity.FILL_HORIZONTAL in room.layout_gravity:
+    if Gravity.FILL_HORIZONTAL in room.layout.gravity:
         spec_width = MeasureParams(MeasureSpec.EXACTLY, display.get_width())
     else:
         spec_width = MeasureParams(MeasureSpec.AT_MOST, display.get_width())
-    if Gravity.FILL_VERTICAL in room.layout_gravity:
+    if Gravity.FILL_VERTICAL in room.layout.gravity:
         spec_height = MeasureParams(MeasureSpec.EXACTLY, display.get_height())
     else:
         spec_height = MeasureParams(MeasureSpec.AT_MOST, display.get_height())
@@ -727,24 +728,24 @@ def layout_room(room: Room) -> None:
 
     rect = pygame.Rect((0, 0), room.measured_size)
 
-    if room.layout_gravity == Gravity.NO_GRAVITY:
+    if room.layout.gravity == Gravity.NO_GRAVITY:
         rect.center = display.get_rect().center
 
-    if Gravity.LEFT in room.layout_gravity:
+    if Gravity.LEFT in room.layout.gravity:
         rect.left = 0
-    elif Gravity.RIGHT in room.layout_gravity:
+    elif Gravity.RIGHT in room.layout.gravity:
         rect.right = display.get_width()
-    elif Gravity.CENTER_HORIZONTAL in room.layout_gravity:
+    elif Gravity.CENTER_HORIZONTAL in room.layout.gravity:
         rect.centerx = display.get_width() // 2
 
-    if Gravity.TOP in room.layout_gravity:
+    if Gravity.TOP in room.layout.gravity:
         rect.top = 0
-    elif Gravity.BOTTOM in room.layout_gravity:
+    elif Gravity.BOTTOM in room.layout.gravity:
         rect.bottom = display.get_height()
-    elif Gravity.CENTER_VERTICAL in room.layout_gravity:
+    elif Gravity.CENTER_VERTICAL in room.layout.gravity:
         rect.centery = display.get_height() // 2
 
-    room.layout(rect)
+    room.layout_children(rect)
 
 
 def draw_room(room: Room, first_draw=False):
@@ -755,7 +756,7 @@ def draw_room(room: Room, first_draw=False):
     """
     if room.clear_screen:
         display.window.fill(room.clear_screen)
-    if not room.layout_valid:
+    if not room.layout.valid:
         layout_room(room)
     if first_draw:
         room.fill_recursive()

@@ -11,7 +11,7 @@ import sounds
 import colors as c
 
 from unit import Unit, Team
-from gui import Gravity
+from room import Layout, Gravity
 
 from gettext import gettext as _
 
@@ -49,10 +49,9 @@ class BattleAnimation(gui.LinearLayout):
         super().__init__(wait=False, orientation=gui.Orientation.HORIZONTAL, **kwargs)
         self.attacking = attacking
         self.defending = defending
-        self.att_stats = self.att_swap = BattleUnitStats(self.attacking, (50, 0), self.anim_finished,
-                                                         layout_gravity=Gravity.CENTER)
-        self.def_stats = self.def_swap = BattleUnitStats(self.defending, (-50, 0), self.anim_finished,
-                                                         layout_gravity=Gravity.CENTER)
+        center = Layout(gravity=Gravity.CENTER)
+        self.att_stats = self.att_swap = BattleUnitStats(self.attacking, (50, 0), self.anim_finished, layout=center)
+        self.def_stats = self.def_swap = BattleUnitStats(self.defending, (-50, 0), self.anim_finished, layout=center)
         self.add_children(self.att_stats, self.def_stats)
         self.at = self.dt = self.round = 0
         self.outcome = self.damage = None
@@ -182,7 +181,7 @@ class BattleAnimation(gui.LinearLayout):
 
 class ExperienceAnimation(gui.LinearLayout):
     def __init__(self, _unit: Unit, **kwargs) -> None:
-        super().__init__(wait=False, gravity=Gravity.CENTER, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], **kwargs)
+        super().__init__(wait=False, default_child_gravity=Gravity.CENTER, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], **kwargs)
         self.unit = _unit
         self.gained_exp = _unit.exp_prev + _unit.gained_exp()
         self.image = gui.Image(_unit.image, die_when_done=False, bg_color=c.MENU_BG)

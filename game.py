@@ -37,7 +37,8 @@ import state as s
 
 class NextTurnTransition(gui.Label):
     def __init__(self, team):
-        super().__init__(_("%s phase") % team.name, f.MAIN_MENU, txt_color=team.color, layout_gravity=gui.Gravity.FILL,
+        super().__init__(_("%s phase") % team.name, f.MAIN_MENU, txt_color=team.color,
+                         layout=room.Layout(gravity=room.Gravity.FILL),
                          bg_color=c.BLACK, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN])
         self.next_team = team
 
@@ -96,7 +97,8 @@ class Turn(gui.LinearLayout):
             (_('Return to O.S.'), utils.return_to_os)
         ]
         display.darken(200)
-        menu = gui.Menu(menu_entries, f.MAIN, layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
+        menu = gui.Menu(menu_entries, f.MAIN, layout=room.Layout(gravity=room.Gravity.CENTER), dismiss_callback=True,
+                        clear_screen=None)
         room.run_room(menu)
 
     def reset(self, *_):
@@ -123,8 +125,9 @@ class PlayerTurn(Turn):
             super().end_turn()
             self.set_timeout(100, self.mark_done)
         else:
-            modal = gui.Modal(_("Are you sure you want to end your turn? There are still units that can move."), f.SMALL,
-                              layout_gravity=gui.Gravity.CENTER, dismiss_callback=True, clear_screen=None)
+            modal = gui.Modal(_("Are you sure you want to end your turn? There are still units that can move."),
+                              f.SMALL, layout=room.Layout(gravity=gui.Gravity.CENTER), dismiss_callback=True,
+                              clear_screen=None)
             room.run_room(modal)
             if modal.answer:
                 super().end_turn()

@@ -127,7 +127,7 @@ def draw_fps(font=None) -> None:
     window.blit(surf, surf.get_rect(top=5, right=screen_w - 5))
 
 
-def tick(_fps=None) -> None:
+def tick(_fps=None) -> int:
     """
     Wait to reach target fps.
     :param _fps: target fps

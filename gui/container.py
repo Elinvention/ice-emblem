@@ -21,7 +21,10 @@ class LinearLayout(room.Room):
     def __init__(self, **kwargs):
         self.spacing = kwargs.get('spacing', 10)
         self.orientation = kwargs.get('orientation', Orientation.VERTICAL)
-        self.gravity = kwargs.get('gravity', Gravity.TOP | Gravity.CENTER_HORIZONTAL if self.orientation == Orientation.VERTICAL else Gravity.LEFT | Gravity.CENTER_VERTICAL)
+        if self.orientation == Orientation.VERTICAL:
+            self.default_child_gravity = kwargs.get('default_child_gravity', Gravity.TOP | Gravity.CENTER_HORIZONTAL)
+        else:
+            self.default_child_gravity = kwargs.get('default_child_gravity', Gravity.LEFT | Gravity.CENTER_VERTICAL)
 
         super().__init__(**kwargs)
 
@@ -41,15 +44,11 @@ class LinearLayout(room.Room):
         fill_parent_children = []
 
         for child in self.children:
-            if child.layout_height == LayoutParams.WRAP_CONTENT:
+            if child.layout.height == LayoutParams.WRAP_CONTENT:
                 child.measure(MeasureParams(MeasureSpec.AT_MOST, w), MeasureParams(MeasureSpec.AT_MOST, h))
                 h -= child.measured_height
-            elif child.layout_height == LayoutParams.FILL_PARENT:
+            elif child.layout.height == LayoutParams.FILL_PARENT:
                 fill_parent_children.append(child)
-            else:
-                child_height = min(h, child.layout_height)
-                child.measure(MeasureParams(MeasureSpec.AT_MOST, w), MeasureParams(MeasureSpec.EXACTLY, child_height))
-                h -= child_height
         if fill_parent_children:
             h //= len(fill_parent_children)
             for child in fill_parent_children:
@@ -69,15 +68,11 @@ class LinearLayout(room.Room):
         fill_parent_children = []
 
         for child in self.children:
-            if child.layout_width == LayoutParams.WRAP_CONTENT:
+            if child.layout.width == LayoutParams.WRAP_CONTENT:
                 child.measure(MeasureParams(MeasureSpec.AT_MOST, w), MeasureParams(MeasureSpec.AT_MOST, h))
                 w -= child.measured_width
-            elif child.layout_width == LayoutParams.FILL_PARENT:
+            elif child.layout.width == LayoutParams.FILL_PARENT:
                 fill_parent_children.append(child)
-            else:
-                child_w = min(w, child.layout_width)
-                child.measure(MeasureParams(MeasureSpec.EXACTLY, child_w), MeasureParams(MeasureSpec.AT_MOST, h))
-                w -= child_w
         if fill_parent_children:
             w //= len(fill_parent_children)
             for child in fill_parent_children:
@@ -88,7 +83,7 @@ class LinearLayout(room.Room):
 
         return min(spec_width.value, width_children), min(spec_height.value, height_children)
 
-    def layout(self, rect):
+    def layout_children(self, rect):
         size = rect.size
         NOT_FILL = ~Gravity.FILL
 
@@ -98,11 +93,11 @@ class LinearLayout(room.Room):
             ncenterys, centery = 0, size[1] // 2
 
             for child in self.children:
-                gravity = child.layout_gravity
+                gravity = child.layout.gravity
                 if not gravity & Gravity.VERTICAL:
-                    gravity |= self.gravity & Gravity.VERTICAL
+                    gravity |= self.default_child_gravity & Gravity.VERTICAL
                 if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.gravity & Gravity.HORIZONTAL
+                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
 
                 if Gravity.BOTTOM in gravity:
                     bottom -= child.measured_height + self.spacing
@@ -112,12 +107,12 @@ class LinearLayout(room.Room):
                     ncenterys += 1
 
             for child in self.children:
-                gravity = child.layout_gravity
+                gravity = child.layout.gravity
                 gravity &= NOT_FILL
                 if not gravity & Gravity.VERTICAL:
-                    gravity |= self.gravity & Gravity.VERTICAL
+                    gravity |= self.default_child_gravity & Gravity.VERTICAL
                 if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.gravity & Gravity.HORIZONTAL
+                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
 
                 child_rect = pygame.Rect((self.padding.w, top), child.measured_size)
 
@@ -141,18 +136,18 @@ class LinearLayout(room.Room):
                 if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
                     or child.rect.topleft != child_rect.topleft):
                     self.fill(child.rect)
-                child.layout(child_rect)
+                child.layout_children(child_rect)
         else:
             left = self.padding.w
             nrights, right = 0, size[0] - self.padding.e
             ncenterxs, centerx = 0, size[0] // 2
 
             for child in self.children:
-                gravity = child.layout_gravity
+                gravity = child.layout.gravity
                 if not gravity & Gravity.VERTICAL:
-                    gravity |= self.gravity & Gravity.VERTICAL
+                    gravity |= self.default_child_gravity & Gravity.VERTICAL
                 if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.gravity & Gravity.HORIZONTAL
+                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
 
                 if Gravity.RIGHT in gravity:
                     right -= child.measured_width + self.spacing
@@ -162,12 +157,12 @@ class LinearLayout(room.Room):
                     ncenterxs += 1
 
             for child in self.children:
-                gravity = child.layout_gravity
+                gravity = child.layout.gravity
                 gravity &= NOT_FILL
                 if not gravity & Gravity.VERTICAL:
-                    gravity |= self.gravity & Gravity.VERTICAL
+                    gravity |= self.default_child_gravity & Gravity.VERTICAL
                 if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.gravity & Gravity.HORIZONTAL
+                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
 
                 child_rect = pygame.Rect((left, self.padding.n), child.measured_size)
 
@@ -191,7 +186,7 @@ class LinearLayout(room.Room):
                 if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
                     or child.rect.topleft != child_rect.topleft):
                     self.fill(child.rect)
-                child.layout(child_rect)
+                child.layout_children(child_rect)
 
         self.resolve_layout(rect)
 
