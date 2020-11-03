@@ -49,6 +49,10 @@ class LinearLayout(room.Room):
                 h -= child.measured_height
             elif child.layout.height == LayoutParams.FILL_PARENT:
                 fill_parent_children.append(child)
+            else:
+                child_height = min(h, child.layout.height)
+                child.measure(MeasureParams(MeasureSpec.AT_MOST, w), MeasureParams(MeasureSpec.EXACTLY, child_height))
+                h -= child_height
         if fill_parent_children:
             h //= len(fill_parent_children)
             for child in fill_parent_children:
@@ -73,6 +77,10 @@ class LinearLayout(room.Room):
                 w -= child.measured_width
             elif child.layout.width == LayoutParams.FILL_PARENT:
                 fill_parent_children.append(child)
+            else:
+                child_w = min(w, child.layout.width)
+                child.measure(MeasureParams(MeasureSpec.EXACTLY, child_w), MeasureParams(MeasureSpec.AT_MOST, h))
+                w -= child_w
         if fill_parent_children:
             w //= len(fill_parent_children)
             for child in fill_parent_children:

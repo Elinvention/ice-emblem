@@ -12,10 +12,10 @@ import game
 from room import Layout, LayoutParams, Gravity, MeasureParams, MeasureSpec
 
 
-class Sidebar(gui.NinePatch):
+class Sidebar(gui.LinearLayout):
     def __init__(self, turn, **kwargs):
-        super().__init__(resources.load_image('WindowBorder.png'), (70, 70),
-                         layout=Layout(height=LayoutParams.FILL_PARENT, gravity=Gravity.RIGHT),
+        super().__init__(background=gui.NinePatch(resources.load_image('WindowBorder.png'), (70, 70)),
+                         layout=Layout(height=LayoutParams.FILL_PARENT, width=270, gravity=Gravity.RIGHT),
                          default_child_gravity=Gravity.TOPLEFT, padding=30, **kwargs)
 
         font = f.SMALLER
@@ -31,9 +31,6 @@ class Sidebar(gui.NinePatch):
 
         if isinstance(turn, game.PlayerTurn):
             self.add_child(self.endturn_btn)
-
-    def measure(self, spec_width: MeasureParams, spec_height: MeasureParams) -> None:
-        super().measure(MeasureParams(MeasureSpec.EXACTLY, 270), spec_height)
 
     def begin(self):
         super().begin()

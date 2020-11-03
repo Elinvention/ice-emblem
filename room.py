@@ -110,10 +110,25 @@ class MeasureParams(object):
 
 
 class Layout(object):
+    """
+    Used to define how the parents should layout the children.
+
+    Parameters
+    ----------
+
+    width: LayoutParams or int, optional
+        (defaults to LayoutParams.WRAP_CONTENT)
+    height: LayoutParams or int, optional
+        (defaults to LayoutParams.WRAP_CONTENT)
+    gravity: Gravity, optional
+        (defaults to Gravity.NO_GRAVITY)
+    position: Tuple[int, int], optional
+        (defaults to (0, 0))
+    """
     def __init__(self, width=LayoutParams.WRAP_CONTENT, height=LayoutParams.WRAP_CONTENT, gravity=Gravity.NO_GRAVITY,
                  position=(0, 0)):
-        self.width: LayoutParams = width
-        self.height: LayoutParams = height
+        self.width: Union[LayoutParams, int] = width
+        self.height: Union[LayoutParams, int] = height
         self.gravity: Gravity = gravity
         self.position: Tuple[int, int] = position
         self.valid: bool = False
