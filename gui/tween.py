@@ -3,6 +3,7 @@
 """
 
 
+import pygame
 import math
 
 from basictypes import Point
@@ -201,10 +202,23 @@ class Tween(LinearLayout):
         self.backward = kwargs.get('backward', False)
         self.playing = False
 
+    def measure_vertical(self, spec_width, spec_height):
+        w, h = super().measure_vertical(spec_width, spec_height)
+        # Lie to our parent because we need space to move!
+        self.actual_size = w, h
+        return min(spec_width.value, w + abs(self.change.x)), min(spec_height.value, h + abs(self.change.y))
+
     def layout_children(self, rect):
-        super().layout_children(rect)
+        # we lied to our parent, but we don't actually need all that space
+        if self.change.x < 0:
+            rect.left -= self.change.x
+        if self.change.y < 0:
+            rect.top -= self.change.y
+        corrected = rect.clip(pygame.Rect(rect.topleft, self.actual_size))
+        super().layout_children(corrected)
         self.initial = Point(rect.topleft)
         self.target = self.initial + self.change
+        self.reposition()
 
     def reset(self, *_):
         self.clock = 0
@@ -217,10 +231,7 @@ class Tween(LinearLayout):
         if reset:
             self.reset()
 
-    def loop(self, _events, dt):
-        super().loop(_events, dt)
-        if not self.playing:
-            return
+    def reposition(self):
         prev_rect = self.rect.copy()
         if self.clock <= 0:
             self.done = self.backward
@@ -236,8 +247,13 @@ class Tween(LinearLayout):
             self.rect.topleft = self.target
             if self.done and callable(self.callback):
                 self.callback(self)
-        self.clock = self.clock - dt if self.backward else self.clock + dt
-
         if prev_rect.topleft != self.rect.topleft:
             self.parent.invalidate()
             self.parent.fill(area=prev_rect)
+
+    def loop(self, _events, dt):
+        super().loop(_events, dt)
+        if not self.playing:
+            return
+        self.reposition()
+        self.clock = self.clock - dt if self.backward else self.clock + dt
