@@ -27,7 +27,7 @@ class Fadeout(room.Room):
         alpha = int(gui.tween.linear(self.clock, 255, -int(255 * self.percent), self.duration))
         self.fade.set_alpha(alpha)
         self.clock += dt
-        self.done = alpha < 0
+        self.done = self.clock >= self.duration
         self.valid = False
 
     def draw(self):
