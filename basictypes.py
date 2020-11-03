@@ -71,6 +71,9 @@ class NESW(object):
         else:
             raise ValueError("'padding' should be either 1, 2 or 4 ints")
 
+    def __repr__(self):
+        return "(%d, %d, %d, %d)" % (self.n, self.e, self.s, self.w)
+
     @property
     def ns(self) -> int:
         return self.n + self.s
