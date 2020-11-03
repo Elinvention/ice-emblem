@@ -776,8 +776,6 @@ def generic_event_handler(_events: List[pygame.event.EventType]) -> None:
     for event in _events:
         if event.type == pygame.QUIT:
             utils.return_to_os()
-        if event.type == pygame.VIDEORESIZE:
-            display.handle_videoresize(event)
 
 
 def run_room(room: Room) -> None:

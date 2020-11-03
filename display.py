@@ -89,23 +89,6 @@ def set_resolution(res: Tuple[int, int]):
     pygame.event.post(pygame.event.Event(pygame.VIDEORESIZE, size=res, w=res[0], h=res[1]))
 
 
-def handle_videoresize(event: pygame.event.EventType) -> None:
-    """
-    Handles pygame.VIDEORESIZE events.
-    :param event: a pygame.VIDEORESIZE event
-    """
-    global window
-    screen_size = list(event.size)
-    if screen_size[0] < min_resolution[0]:
-        screen_size[0] = min_resolution[0]
-    if screen_size[1] < min_resolution[1]:
-        screen_size[1] = min_resolution[1]
-
-    # no need to keep calling set_mode every time in pygame 2.0.0
-    if tuple(screen_size) != event.size:
-        window = pygame.display.set_mode(size=screen_size, flags=mode)
-
-
 def draw_fps(font=None) -> None:
     """
     Draws an FPS counter and a spinner.
