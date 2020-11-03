@@ -462,8 +462,11 @@ class Room(object):
         This method should be redefined by subclasses to enforce their layout.
         :param rect: contains the position and size this child should use.
         """
+        w, h = 0, 0
         for child in self.children:
             child.layout_children(pygame.Rect(child.layout.position, child.measured_size))
+            w = max(w, child.rect.w)
+            h = max(h, child.rect.h)
         self.resolve_layout(rect)
 
     def resolve_layout(self, rect: pygame.Rect) -> None:
