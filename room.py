@@ -118,6 +118,75 @@ class Layout(object):
         self.position: Tuple[int, int] = position
         self.valid: bool = False
 
+    @staticmethod
+    def fill_parent(width=LayoutParams.FILL_PARENT, height=LayoutParams.FILL_PARENT, gravity=Gravity.NO_GRAVITY,
+                    position=(0, 0)) -> 'Layout':
+        return Layout(width, height, gravity, position)
+
+    @staticmethod
+    def center(width=LayoutParams.WRAP_CONTENT, height=LayoutParams.WRAP_CONTENT, gravity=Gravity.CENTER,
+               position=(0, 0)) -> 'Layout':
+        return Layout(width, height, gravity, position)
+
+    def __repr__(self) -> str:
+        return "<Layout w: %s h: %s %s %s %s>" % (self.width, self.height, self.gravity, self.position, self.valid)
+
+
+class BackgroundSize(Enum):
+    CONTAIN = auto()
+    COVER = auto()
+
+
+class Background(object):
+    def __init__(self, color=c.MENU_BG, image=None, size=BackgroundSize.CONTAIN, transparent=False):
+        """
+        Parameters
+        ----------
+
+        color: pygame.Color, optional
+            (defaults to c.MENU_BG)
+        image: pygame.Surface, optional
+            (defaults to None)
+        size: BackgroundSize or Tuple[int, int], optional
+            (defaults to BackgroundSize.CONTAIN)
+        transparent: bool, optional
+            (defaults to False), whether this background requires per pixel alpha
+        """
+        self.color: pygame.Color = color
+        self.image: Union[pygame.Surface, None] = image
+        self.size: Union[BackgroundSize, Tuple[int, int]] = size
+        self.transparent = transparent
+        self._bg_image_resized = None
+
+    def fill(self, surface: pygame.Surface, area: pygame.Rect) -> None:
+        if self.color:
+            if area:
+                surf = pygame.Surface(area.size)
+                surf.fill(self.color)
+                surface.blit(surf, area)
+            else:
+                surface.fill(self.color)
+        if self.image:
+            resized = self.bg_image_resized(surface.get_size())
+            pos = resized.get_rect(center=surface.get_rect().center)
+            surface.blit(resized, pos, area)
+
+    def bg_image_resized(self, surface_size) -> Union[Surface, SurfaceType]:
+        """
+        Resize self.image so that it can fit in surface_size, respecting the type of resize specified by self.size.
+        """
+        if self.size == BackgroundSize.CONTAIN:
+            new_size = utils.resize_keep_ratio(self.image.get_size(), surface_size)
+        elif self.size == BackgroundSize.COVER:
+            new_size = utils.resize_cover(self.image.get_size(), surface_size)
+        else:
+            new_size = (int(self.size[0] / 100 * surface_size[0]), int(self.size[1] / 100 * surface_size[1]))
+
+        if not self._bg_image_resized or new_size != self._bg_image_resized.get_size():
+            self._bg_image_resized = pygame.transform.smoothscale(self.image, new_size)
+
+        return self._bg_image_resized
+
 
 class Room(object):
     """
@@ -149,28 +218,20 @@ class Room(object):
             color to fill the main window with. If None no clear is performed. (defaults to black (0, 0, 0))
         visible: bool, optional
             whether this room is visible or not (if it is blit on the parent) (defaults to True)
-        layout_width: LayoutParams, optional
-            (defaults to LayoutParams.WRAP_CONTENT)
-        layout_height: LayoutParams, optional
-            (defaults to LayoutParams.WRAP_CONTENT)
-        layout_gravity: Gravity, optional
-            (defaults to Gravity.NO_GRAVITY)
-        layout_position: Tuple[int, int], optional
-            (defaults to (0, 0))
+        layout: Layout, optional
+            (defaults to Layout()))
         children: List[Room], optional
             the list of children (defaults to [])
         padding: Union[int, Tuple[int, int], Tuple[int, int, int, int], optional
             (defaults to 0)
         border: Union[int, Tuple[int, int], Tuple[int, int, int, int], optional
             (defaults to 0)
+            TODO: not implemented!
         margin: Union[int, Tuple[int, int], Tuple[int, int, int, int], optional
             (defaults to 0)
-        bg_color: pygame.Color, optional
-            (defaults to c.MENU_BG)
-        bg_image: pygame.Surface, optional
-            (defaults to None)
-        bg_size: str, optional
-            (defaults to 'contain')
+            TODO: not implemented!
+        background: Background, optional
+            (defaults to Background())
         next: Room, optional
             When this room is done the next one will take its place. (defaults to None)
         """
@@ -188,12 +249,17 @@ class Room(object):
         self.root: bool = False
         self.valid: bool = False
         self.visible: bool = kwargs.get('visible', True)
+
+        self.background: Background = kwargs.get('background', Background())
+        self.layout: Layout = kwargs.get('layout', Layout())
+
         self.rect: pygame.Rect = pygame.Rect((0, 0), (0, 0))
-        self.surface: pygame.Surface = pygame.Surface(self.rect.size)
+        if self.background.transparent:
+            self.surface: pygame.Surface = pygame.Surface(self.rect.size, flags=pygame.SRCALPHA)
+        else:
+            self.surface: pygame.Surface = pygame.Surface(self.rect.size)
         self.callbacks: Dict[int, List[Callable]] = {}
         self.next: Union['Room', None] = kwargs.get('next', None)
-
-        self.layout: Layout = kwargs.get('layout', Layout())
 
         self.children: List['Room'] = []
         self.add_children(*kwargs.get('children', []))
@@ -201,11 +267,6 @@ class Room(object):
         self.padding: NESW = NESW(kwargs.get('padding', 0))
         self.border: NESW = NESW(kwargs.get('border', 0))
         self.margin: NESW = NESW(kwargs.get('margin', 0))
-
-        self.bg_color: pygame.Color = kwargs.get('bg_color', c.MENU_BG)
-        self.bg_image: Union[pygame.Surface, None] = kwargs.get('bg_image', None)
-        self.bg_size: Union[str, Tuple[int, int]] = kwargs.get('bg_size', 'contain')  # Possible values: 'contain', 'cover', (int, int)
-        self._bg_image_size = None
 
     def __str__(self):
         return self.logger.name
@@ -408,11 +469,14 @@ class Room(object):
         """
         if self.rect.size != size:
             self.rect.size = size
-            self.surface = pygame.Surface(self.rect.size)
+            if self.background.transparent:
+                self.surface: pygame.Surface = pygame.Surface(self.rect.size, flags=pygame.SRCALPHA)
+            else:
+                self.surface: pygame.Surface = pygame.Surface(self.rect.size)
             self.fill()
             self.invalidate()
 
-    def handle_videoresize(self, _event: pygame.event.EventType) -> None:
+    def handle_videoresize(self, _event: pygame.event.Event) -> None:
         """
         Request new layout on resize event.
         :param _event: useless
@@ -444,7 +508,7 @@ class Room(object):
         self.wait_invalidate()
         self.logger.debug("begin")
 
-    def loop(self, _events: List[pygame.event.EventType], dt: int) -> None:
+    def loop(self, _events: List[pygame.event.Event], dt: int) -> None:
         """
         Called every frame.
         :param _events: a list of pygame.event.Event
@@ -476,23 +540,18 @@ class Room(object):
 
     def fill(self, area=None) -> None:
         """
-        Fill self.surface with self.bg_color and/or with self.bg_image.
+        Fill self.surface with self.background.color and/or with self.backgrond.image.
 
         This method is called before draw. and is generally avoided because filling a surface and drawing from scratch
         is pretty expensive.
         :param area: if not None restricts the fill to an area.
         """
-        if self.bg_color:
-            if area:
-                surf = pygame.Surface(area.size)
-                surf.fill(self.bg_color)
-                self.surface.blit(surf, area)
-            else:
-                self.surface.fill(self.bg_color)
-        if self.bg_image:
-            resized = self.bg_image_resized()
-            pos = resized.get_rect(center=self.rect.center).move(-self.rect.x, -self.rect.y)
-            self.surface.blit(resized, pos, area)
+        self.surface.set_clip(None)
+        self.background.fill(self.surface, area)
+        clip_area = self.rect.inflate(-self.padding.we, -self.padding.ns)
+        clip_area.top = self.padding.n
+        clip_area.left = self.padding.w
+        self.surface.set_clip(clip_area)
 
     def fill_recursive(self) -> None:
         """
@@ -502,22 +561,6 @@ class Room(object):
         self.valid = False
         for child in self.children:
             child.fill_recursive()
-
-    def bg_image_resized(self) -> Union[Surface, SurfaceType]:
-        """
-        Resize self.bg_image so that it can fit self.surface respecting the type of resize specified by self.bg_size.
-        """
-        if self.bg_size == 'contain':
-            new_size = utils.resize_keep_ratio(self.bg_image.get_size(), self.rect.size)
-        elif self.bg_size == 'cover':
-            new_size = utils.resize_cover(self.bg_image.get_size(), self.rect.size)
-        else:
-            new_size = (int(self.bg_size[0] / 100 * self.rect.w), int(self.bg_size[1] / 100 * self.rect.h))
-        if new_size == self._bg_image_size:
-            return self._bg_image_resized
-        self._bg_image_resized = pygame.transform.smoothscale(self.bg_image, new_size)
-        self._bg_image_size = self.rect.size
-        return self._bg_image_resized
 
     def end_children(self) -> None:
         """
@@ -767,7 +810,7 @@ def draw_room(room: Room, first_draw=False):
     display.flip()
 
 
-def generic_event_handler(_events: List[pygame.event.EventType]) -> None:
+def generic_event_handler(_events: List[pygame.event.Event]) -> None:
     """
     Handle common events.
     :param _events:
@@ -789,7 +832,7 @@ def run_room(room: Room) -> None:
     room.root = True
     room.done = False
     room.valid = False
-    room.layout_valid = False
+    room.layout.valid = False
     room.begin()
     draw_room(room, first_draw=True)
     dt = display.tick(room.fps)

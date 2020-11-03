@@ -25,15 +25,15 @@ import room
 
 class Image(room.Room):
     def __init__(self, image, **kwargs):
-        super().__init__(bg_image=image, **kwargs)
-        self.bg_color = kwargs.get('bg_color', None)
+        bg = kwargs.pop('background', room.Background(color=(0, 0, 0, 0), transparent=True))
+        bg.image = image
+        super().__init__(background=bg, **kwargs)
 
     def measure(self, spec_width, spec_height):
-        self.resolve_measure(spec_width, spec_height, *self.bg_image.get_size())
+        self.resolve_measure(spec_width, spec_height, *self.background.image.get_size())
 
     def handle_keydown(self, _event):
         self.done = True
 
     def handle_mousebuttondown(self, _event):
         self.done = True
-

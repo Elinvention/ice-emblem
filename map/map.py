@@ -4,7 +4,6 @@
 
 import pygame
 import logging
-from gettext import gettext as _
 from typing import List, Tuple
 from typing import Union
 
@@ -25,7 +24,7 @@ from map.cellhighlight import CellHighlightLayer
 from map.cursor import Cursor
 from map.pathfinder import Pathfinder, Terrain, manhattan_path
 from map.unit import UnitSprite
-from room import Layout, LayoutParams
+from room import Layout, LayoutParams, Background, BackgroundSize
 
 Coord = Tuple[int, int]
 
@@ -39,9 +38,9 @@ class TileMap(room.Room):
         """
         
         """
-        super().__init__(wait=False, bg_image=resources.load_image("old-paper.jpg").convert(),
-                         layout=Layout(width=LayoutParams.FILL_PARENT, height=LayoutParams.FILL_PARENT),
-                         bg_size='cover', **kwargs)
+        super().__init__(wait=False,
+                         background=Background(image=resources.load_image("old-paper.jpg"), size=BackgroundSize.COVER),
+                         layout=Layout(width=LayoutParams.FILL_PARENT, height=LayoutParams.FILL_PARENT), **kwargs)
 
         self.tilemap = tmx.load(map_path, self.rect.size, self.rect.topleft)
 
@@ -312,7 +311,8 @@ class TileMap(room.Room):
         return cost
 
     def update_arrow(self, target=None):
-        if self.curr_unit and not self.curr_unit.played and self.units_manager.active_team.is_mine(self.curr_unit) and target:
+        if self.curr_unit and not self.curr_unit.played \
+                and self.units_manager.active_team.is_mine(self.curr_unit) and target:
             target_unit = self.get_unit(target)
             if target in self.move_area:
                 self.arrow.source = self.curr_sel
@@ -340,9 +340,9 @@ class TileMap(room.Room):
     def area(self, center, radius, hole=0):
         x, y = center
         _area = [(i, j) for i in range(x - radius, x + radius + 1)
-                    for j in range(y - radius, y + radius + 1)
-                    if self.check_coord((i, j))
-                    and hole <= utils.distance((x, y), (i, j)) <= radius]
+                 for j in range(y - radius, y + radius + 1)
+                 if self.check_coord((i, j))
+                 and hole <= utils.distance((x, y), (i, j)) <= radius]
         return _area
 
     def nearby_enemies(self, _unit=None, coord=None):
@@ -415,7 +415,7 @@ class TileMap(room.Room):
 
             if y - self.rect.top < border:
                 self.vy = int(-speed * (1 - ((y - self.rect.top) / border)))
-            elif self.rect.bottom -y < border:
+            elif self.rect.bottom - y < border:
                 self.vy = int(speed * (1 - ((self.rect.bottom - y) / border)))
             else:
                 self.vy = 0
@@ -539,7 +539,8 @@ class TileMap(room.Room):
     def action_menu(self, attacking=None, defending=None, pos=None):
         self.vx, self.vy = 0, 0
         if pos is None:
-            pos = self.tilemap.pixel_at(*self.curr_sel, False) - self.tilemap.viewport.topleft + self.tilemap.zoom_tile_size / 2
+            pos = self.tilemap.pixel_at(*self.curr_sel, False) - self.tilemap.viewport.topleft + \
+                  self.tilemap.zoom_tile_size / 2
         menu = rooms.ActionMenu(attacking, defending, layout=Layout(position=pos), padding=10, leading=5)
         self.add_child(menu)
 
@@ -633,7 +634,7 @@ class MoveUnitAnimation(room.Room):
         self.path: List[Coord] = path
         self.next_path: Coord = path.pop(0)
 
-    def loop(self, _events: List[pygame.event.EventType], dt: int) -> None:
+    def loop(self, _events: List[pygame.event.Event], dt: int) -> None:
         super().loop(_events, dt)
         if self.next_path is None:
             return

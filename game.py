@@ -39,14 +39,14 @@ class NextTurnTransition(gui.Label):
     def __init__(self, team):
         super().__init__(_("%s phase") % team.name, f.MAIN_MENU, txt_color=team.color,
                          layout=room.Layout(gravity=room.Gravity.FILL),
-                         bg_color=c.BLACK, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN])
+                         background=room.Background(color=c.BLACK), allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN])
         self.next_team = team
 
     def begin(self):
         super().begin()
         bg = display.window.copy().convert()
         bg.set_alpha(100)
-        self.bg_image = bg
+        self.background.image = bg
         pygame.mixer.music.fadeout(1000)
         if isinstance(self.next_team, ai.AI):
             self.next = AITurn()

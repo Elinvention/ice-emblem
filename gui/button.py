@@ -22,7 +22,8 @@ class Button(room.Room):
 
     def set_text(self, text):
         self.text = text
-        self.rendered_text = self.font.render(text, True, self.txt_color, self.sel_color if self._focus else self.bg_color)
+        self.rendered_text = self.font.render(text, True, self.txt_color,
+                                              self.sel_color if self._focus else self.background.color)
         self.layout_request()
 
     def measure(self, spec_width, spec_height):
@@ -45,7 +46,7 @@ class Button(room.Room):
 
     def unfocus(self):
         if self._focus:
-            self.rendered_text = self.font.render(self.text, True, self.txt_color, self.bg_color)
+            self.rendered_text = self.font.render(self.text, True, self.txt_color, self.background.color)
             self._focus = False
             self.invalidate()
 
@@ -73,7 +74,8 @@ class CheckBox(Button):
 
     def measure(self, spec_width, spec_height):
         w = self.rendered_text.get_width() + self.rendered_text.get_height()
-        self.resolve_measure(spec_width, spec_height, w + self.padding.we, self.rendered_text.get_height() + self.padding.ns)
+        self.resolve_measure(spec_width, spec_height, w + self.padding.we,
+                             self.rendered_text.get_height() + self.padding.ns)
 
     def handle_mousebuttondown(self, event):
         if event.button == 1:

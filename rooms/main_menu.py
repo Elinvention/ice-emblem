@@ -8,7 +8,7 @@ import gui
 import resources
 import fonts as f
 import colors as c
-from room import Layout, LayoutParams, Gravity
+from room import Layout, LayoutParams, Gravity, Background
 
 from rooms.map_menu import MapMenu
 
@@ -16,7 +16,7 @@ from rooms.map_menu import MapMenu
 class MainMenu(gui.LinearLayout):
     def __init__(self):
         super().__init__(allowed_events=[pl.MOUSEMOTION, pl.MOUSEBUTTONDOWN, pl.KEYDOWN],
-                         bg_color=c.BLACK, bg_image=resources.load_image('Ice Emblem.png'),
+                         background=Background(color=c.BLACK, image=resources.load_image('Ice Emblem.png')),
                          layout=Layout(width=LayoutParams.FILL_PARENT, height=LayoutParams.FILL_PARENT), spacing=50)
         self.click_to_start = gui.Label(_("Click to Start"), f.MAIN_MENU, padding=10,
                                         txt_color=c.ICE, layout=Layout(gravity=Gravity.BOTTOM), die_when_done=False)
@@ -27,7 +27,7 @@ class MainMenu(gui.LinearLayout):
         self.bind_click((1,), self.show_map_menu, self.hmenu.rect, False)
 
     def show_map_menu(self, *_):
-        self.next = MapMenu(self.bg_image)
+        self.next = MapMenu(self.background)
         self.done = True
 
     def show_license(self, *_):
@@ -50,7 +50,8 @@ class License(gui.Image):
 class SettingsMenu(gui.LinearLayout):
 
     def __init__(self):
-        super().__init__(layout=Layout(gravity=Gravity.FILL))
+        super().__init__(padding=30, layout=Layout(gravity=Gravity.FILL),
+                         background=gui.NinePatch(resources.load_image('WindowBorder.png'), (70, 70)))
         self.back_btn = gui.Button(_("Go Back"), f.MAIN, callback=lambda *_: setattr(self, 'done', True),
                                    layout=Layout(gravity=Gravity.BOTTOMRIGHT))
         self.title = gui.Label(_("Settings"), f.MAIN)
@@ -94,6 +95,10 @@ class SettingsMenu(gui.LinearLayout):
         self.add_children(self.back_btn, self.title, self.display_label, self.fullscreen_btn, self.resolutions_menu,
                           self.lang_label, self.lang_menu)
 
-    def handle_keydown(self, event):
+    def handle_keydown(self, event: pygame.event.Event):
         if event.key == pl.K_ESCAPE:
+            self.done = True
+
+    def handle_mousebuttondown(self, event: pygame.event.Event):
+        if event.button == pl.BUTTON_RIGHT:
             self.done = True

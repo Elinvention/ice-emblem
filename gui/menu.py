@@ -80,7 +80,7 @@ class Menu(room.Room):
         if index is None:
             if self.index is not None:
                 txt = self.menu_entries[self.index][0]
-                r = self.font.render(txt, True, self.txt_color, self.bg_color).convert_alpha()
+                r = self.font.render(txt, True, self.txt_color, self.background.color).convert_alpha()
                 self.rendered_entries[self.index] = r
                 self.invalidate()
             self.prev_index = self.index
@@ -97,7 +97,7 @@ class Menu(room.Room):
                     render = self.font.render(entry_text, True, self.txt_color, self.sel_color).convert_alpha()
                     self.rendered_entries[i] = render
                 elif i == self.prev_index:
-                    render = self.font.render(entry_text, True, self.txt_color, self.bg_color).convert_alpha()
+                    render = self.font.render(entry_text, True, self.txt_color, self.background.color).convert_alpha()
                     self.rendered_entries[i] = render
             self.invalidate()
 

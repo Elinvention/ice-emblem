@@ -11,12 +11,13 @@ import resources
 
 from fonts import MAIN_MENU
 from colors import BLACK
+from room import Background
 from .main_menu import MainMenu
 
 
 class SplashScreen(gui.Label):
     def __init__(self):
-        super().__init__("Elinvention\n" + _("PRESENTS"), MAIN_MENU, bg_color=BLACK,
+        super().__init__("Elinvention\n" + _("PRESENTS"), MAIN_MENU, background=Background(color=BLACK),
                          allowed_events=[MOUSEBUTTONDOWN, KEYDOWN])
 
     def begin(self):
