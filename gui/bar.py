@@ -61,27 +61,28 @@ if __name__ == "__main__":
     import gui
     import logging
     import fonts as f
-    logging.basicConfig(level=10)
+    import display
+
+    logging.basicConfig(level=logging.DEBUG)
+    display.initialize()
 
     class TestLifeBar(gui.LinearLayout):
         def __init__(self):
             self.bar = LifeBar(points=11)
-            self.label = gui.Label("{0}/{1}", f.SMALL)
+            self.label = gui.Label("{0}/{1}", f.SMALL, layout=room.Layout(width=100))
             self.label.format(self.bar.value, self.bar.points)
             super().__init__(wait=True, children=[self.bar, self.label], orientation=gui.Orientation.HORIZONTAL)
 
-        def loop(self, events, dt):
-            for event in events:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        self.bar.value += 1
-                    elif event.key == pygame.K_DOWN:
-                        self.bar.value -= 1
-                    elif event.key == pygame.K_LEFT:
-                        if self.bar.points > 1:
-                            self.bar.points -= 1
-                    elif event.key == pygame.K_RIGHT:
-                        self.bar.points += 1
-                    self.label.format(self.bar.value, self.bar.points)
+        def handle_keydown(self, event: pygame.event.Event):
+            if event.key == pygame.K_UP:
+                self.bar.value += 1
+            elif event.key == pygame.K_DOWN:
+                self.bar.value -= 1
+            elif event.key == pygame.K_LEFT:
+                if self.bar.points > 1:
+                    self.bar.points -= 1
+            elif event.key == pygame.K_RIGHT:
+                self.bar.points += 1
+            self.label.format(self.bar.value, self.bar.points)
 
     room.run_room(TestLifeBar())
