@@ -2,7 +2,6 @@
 
 """
 
-
 import pygame
 
 from enum import Enum, auto
@@ -97,104 +96,75 @@ class LinearLayout(room.Room):
 
         if self.orientation == Orientation.VERTICAL:
             top = self.padding.n
-            nbottoms, bottom = 0, size[1] - self.padding.s
-            ncenterys, centery = 0, size[1] // 2
+            bottom = size[1] - self.padding.s
+            center = size[1] // 2
+        else:
+            top = self.padding.w
+            bottom = size[0] - self.padding.e
+            center = size[0] // 2
 
-            for child in self.children:
-                gravity = child.layout.gravity
-                if not gravity & Gravity.VERTICAL:
-                    gravity |= self.default_child_gravity & Gravity.VERTICAL
-                if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
+        for child in self.children:
+            gravity = child.layout.gravity
+            if not gravity & Gravity.VERTICAL:
+                gravity |= self.default_child_gravity & Gravity.VERTICAL
+            if not gravity & Gravity.HORIZONTAL:
+                gravity |= self.default_child_gravity & Gravity.HORIZONTAL
 
+            if self.orientation == Orientation.VERTICAL:
                 if Gravity.BOTTOM in gravity:
                     bottom -= child.measured_height + self.spacing
-                    nbottoms += 1
                 elif Gravity.CENTER_VERTICAL in gravity:
-                    centery -= (child.measured_height + self.spacing) // 2
-                    ncenterys += 1
+                    center -= (child.measured_height + self.spacing) // 2
+            else:
+                if Gravity.RIGHT in gravity:
+                    bottom -= child.measured_width + self.spacing
+                elif Gravity.CENTER_HORIZONTAL in gravity:
+                    center -= (child.measured_width + self.spacing) // 2
 
-            for child in self.children:
-                gravity = child.layout.gravity
-                gravity &= NOT_FILL
-                if not gravity & Gravity.VERTICAL:
-                    gravity |= self.default_child_gravity & Gravity.VERTICAL
-                if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
+        for child in self.children:
+            gravity = child.layout.gravity
+            gravity &= NOT_FILL
+            if not gravity & Gravity.VERTICAL:
+                gravity |= self.default_child_gravity & Gravity.VERTICAL
+            if not gravity & Gravity.HORIZONTAL:
+                gravity |= self.default_child_gravity & Gravity.HORIZONTAL
 
+            if self.orientation == Orientation.VERTICAL:
                 child_rect = pygame.Rect((self.padding.w, top), child.measured_size)
 
                 if Gravity.TOP in gravity:
-                    child_rect.top = top
                     top += child_rect.h + self.spacing
                 elif Gravity.CENTER_VERTICAL in gravity:
-                    child_rect.top = centery
-                    centery += child_rect.h + self.spacing
+                    child_rect.top = center
+                    center += child_rect.h + self.spacing
                 elif Gravity.BOTTOM in gravity:
                     bottom += child_rect.h + self.spacing
                     child_rect.bottom = bottom
 
                 if Gravity.CENTER_HORIZONTAL in gravity:
                     child_rect.centerx = size[0] // 2
-                elif Gravity.LEFT in gravity:
-                    child_rect.left = self.padding.w
                 elif Gravity.RIGHT in gravity:
                     child_rect.right = size[0] - self.padding.e
-
-                if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
-                    or child.rect.topleft != child_rect.topleft):
-                    self.fill(child.rect)
-                child.layout_children(child_rect)
-        else:
-            left = self.padding.w
-            nrights, right = 0, size[0] - self.padding.e
-            ncenterxs, centerx = 0, size[0] // 2
-
-            for child in self.children:
-                gravity = child.layout.gravity
-                if not gravity & Gravity.VERTICAL:
-                    gravity |= self.default_child_gravity & Gravity.VERTICAL
-                if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
-
-                if Gravity.RIGHT in gravity:
-                    right -= child.measured_width + self.spacing
-                    nrights += 1
-                elif Gravity.CENTER_VERTICAL in gravity:
-                    centerx -= (child.measured_width + self.spacing) // 2
-                    ncenterxs += 1
-
-            for child in self.children:
-                gravity = child.layout.gravity
-                gravity &= NOT_FILL
-                if not gravity & Gravity.VERTICAL:
-                    gravity |= self.default_child_gravity & Gravity.VERTICAL
-                if not gravity & Gravity.HORIZONTAL:
-                    gravity |= self.default_child_gravity & Gravity.HORIZONTAL
-
-                child_rect = pygame.Rect((left, self.padding.n), child.measured_size)
+            else:
+                child_rect = pygame.Rect((top, self.padding.n), child.measured_size)
 
                 if Gravity.LEFT in gravity:
-                    child_rect.left = left
-                    left += child_rect.w + self.spacing
+                    top += child_rect.w + self.spacing
                 elif Gravity.CENTER_HORIZONTAL in gravity:
-                    child_rect.left = centerx
-                    centerx += child_rect.w + self.spacing
+                    child_rect.left = center
+                    center += child_rect.w + self.spacing
                 elif Gravity.RIGHT in gravity:
-                    right += child_rect.w + self.spacing
-                    child_rect.right = right
+                    bottom += child_rect.w + self.spacing
+                    child_rect.right = bottom
 
-                if Gravity.TOP in gravity:
-                    child_rect.top = self.padding.n
-                elif Gravity.CENTER_VERTICAL in gravity:
+                if Gravity.CENTER_VERTICAL in gravity:
                     child_rect.centery = size[1] // 2
                 elif Gravity.BOTTOM in gravity:
-                    child_rect.right = size[1] - self.padding.s
+                    child_rect.bottom = size[1] - self.padding.s
 
-                if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
+            if (child.rect.w > child_rect.w or child.rect.h > child_rect.h
                     or child.rect.topleft != child_rect.topleft):
-                    self.fill(child.rect)
-                child.layout_children(child_rect)
+                self.fill(child.rect)
+            child.layout_children(child_rect)
 
         self.resolve_layout(rect)
-
