@@ -20,15 +20,15 @@ class AttackAnimation(gui.Tween):
     def __init__(self, image, vector, on_animation_finished):
         super().__init__(vector, 200, callback=on_animation_finished, die_when_done=False)
         self.text = gui.Label("", f.SMALL, visible=False)
-        self.add_children(self.text, image)
+        self.image = gui.Image(image, die_when_done=False)
+        self.add_children(self.text, self.image)
 
 
 class BattleUnitStats(gui.LinearLayout):
     def __init__(self, unit: Unit, vector, on_animation_finished, **kwargs):
         super().__init__(padding=100, **kwargs)
         self.unit = unit
-        self.animation = AttackAnimation(
-            gui.Image(unit.image, die_when_done=False, bg_color=c.MENU_BG), vector, on_animation_finished)
+        self.animation = AttackAnimation(unit.image, vector, on_animation_finished)
         self.name = gui.Label(unit.name, f.MAIN, txt_color=unit.team.color)
         self.life = gui.LifeBar(points=unit.health_max, value=unit.health)
         self.stats = gui.Label(str(unit), f.SMALL)
@@ -101,11 +101,11 @@ class BattleAnimation(gui.LinearLayout):
         self.att_swap.update()
         self.def_swap.update()
 
-    def handle_mousebuttondown(self, _event: pygame.event.EventType):
+    def handle_mousebuttondown(self, _event: pygame.event.Event):
         if _event.button == pygame.BUTTON_LEFT:
             self.skip_round()
 
-    def handle_keydown(self, _event: pygame.event.EventType):
+    def handle_keydown(self, _event: pygame.event.Event):
         if _event.key == pygame.K_SPACE:
             self.skip_round()
 
@@ -132,7 +132,7 @@ class BattleAnimation(gui.LinearLayout):
             print(f'{" " * 6}{"-" * 6}Round {self.round}{"-" * 6}')
             self.outcome, self.damage = self.att_swap.unit.attack(self.def_swap.unit)
             if self.outcome == 'critical':
-                animation.easing = gui.tween.inBack
+                animation.easing = gui.tween.in_back
                 animation.duration = 500
             else:
                 animation.easing = gui.tween.linear
@@ -181,10 +181,12 @@ class BattleAnimation(gui.LinearLayout):
 
 class ExperienceAnimation(gui.LinearLayout):
     def __init__(self, _unit: Unit, **kwargs) -> None:
-        super().__init__(wait=False, default_child_gravity=Gravity.CENTER, allowed_events=[p.MOUSEBUTTONDOWN, p.KEYDOWN], **kwargs)
+        super().__init__(wait=False,
+                         layout=room.Layout(width=room.LayoutParams.FILL_PARENT, height=room.LayoutParams.FILL_PARENT),
+                         default_child_gravity=room.Gravity.CENTER, **kwargs)
         self.unit = _unit
         self.gained_exp = _unit.exp_prev + _unit.gained_exp()
-        self.image = gui.Image(_unit.image, die_when_done=False, bg_color=c.MENU_BG)
+        self.image = gui.Image(_unit.image, die_when_done=False)
         self.bar = gui.LifeBar(max=99, value=_unit.exp_prev, blocks_per_row=100, block_size=(2, 10),
                                life_color=c.YELLOW)
         self.label = gui.Label(_("EXP: {experience}") + "\t" + _("LV: {level}"), f.SMALL, txt_color=c.YELLOW)
@@ -222,7 +224,7 @@ def test_battle_animation():
     import logging
     import resources
     gettext.install('ice-emblem', resources.LOCALE_PATH)
-    logging.basicConfig(level=80)
+    logging.basicConfig(level=logging.DEBUG)
     s.load_map('resources/maps/default.tmx')
     unit1 = Unit(name='Soldier', health=30, level=1, experience=99, strength=5, skill=500, speed=1, luck=2, defence=1,
                  resistance=1, movement=1, constitution=1, aid=1, affinity=None, wrank=[])
@@ -230,13 +232,14 @@ def test_battle_animation():
                  resistance=1, movement=1, constitution=1, aid=1, affinity=None, wrank=[])
     unit1.coord = (1, 1)
     unit2.coord = (1, 2)
-    team1 = Team('Ones', (255, 0, 0), 0, [unit1], unit1, {})
-    team2 = Team('Twos', (0, 0, 255), 0, [unit2], unit2, {})
+    Team('Ones', (255, 0, 0), 0, [unit1], unit1, {})
+    Team('Twos', (0, 0, 255), 0, [unit2], unit2, {})
     s.units_manager.units = [unit1, unit2]
     display.window.fill(c.GREY)
     while unit1.health > 0 and unit2.health > 0:
         room.run_room(BattleAnimation(unit1, unit2))
         unit1, unit2 = unit2, unit1
+        unit1.played = unit2.played = False
     pygame.quit()
 
 
