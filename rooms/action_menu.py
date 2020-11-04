@@ -2,6 +2,8 @@ import pygame
 
 import room
 import gui
+import map
+
 from fonts import SMALL
 
 from gettext import gettext as _
@@ -9,10 +11,12 @@ from gettext import gettext as _
 
 class AttackSelect(room.Room):
     def begin(self):
+        self.parent: map.Map
         super().begin()
         self.parent.prepare_attack()
 
     def handle_mousebuttondown(self, event):
+        self.parent: map.Map
         # user must click on an enemy unit
         if event.button == 1 and self.parent.is_attack_click(event.pos):
             self.parent.prev_sel = self.parent.curr_sel
@@ -25,17 +29,19 @@ class AttackSelect(room.Room):
         return True  # prevent event propagation to parent
 
     def handle_keydown(self, event):
+        self.parent: map.Map
+        m: map.Map = self.parent
         # user must choose an enemy unit
-        self.parent.cursor.update(event)
-        if event.key == pygame.K_SPACE and self.parent.is_enemy_cursor():
-            self.parent.prev_sel = self.parent.curr_sel
-            self.parent.curr_sel = self.parent.cursor.coord
-            self.parent.attack()
+        m.cursor.update(event)
+        if event.key == pygame.K_SPACE and m.is_enemy_cursor():
+            m.prev_sel = m.curr_sel
+            m.curr_sel = m.cursor.coord
+            m.attack()
             self.done = True
         elif event.key == pygame.K_ESCAPE:
-            self.parent.move_unit_undo()
+            m.move_unit_undo()
             self.done = True
-        self.parent.invalidate()
+        m.invalidate()
         return True  # prevent event propagation to parent
 
 
@@ -50,12 +56,14 @@ class ActionMenu(gui.Menu):
         super().__init__([], SMALL, dismiss_callback=self.undo, **kwargs)
 
     def menu_attack(self):
+        self.parent: map.Map
         if self.defending:
             self.parent.attack(self.attacking, self.defending)
         else:
             self.parent.add_child(AttackSelect())
 
     def menu_items(self):
+        self.parent: map.Map
         unit = self.parent.curr_unit
 
         def setitem(item):
@@ -68,10 +76,12 @@ class ActionMenu(gui.Menu):
         self.done = False
 
     def menu_wait(self):
+        self.parent: map.Map
         self.parent.curr_unit.wait()
         self.parent.reset_selection()
 
     def undo(self, *_):
+        self.parent: map.Map
         self.visible = False
         self.parent.move_unit_undo()
 
@@ -88,6 +98,7 @@ class ActionMenu(gui.Menu):
         return True  # prevent event propagation to parent
 
     def begin(self):
+        self.parent: map.Map
         super().begin()
         self.menu_entries = [
             (_("Attack"), lambda *_: self.menu_attack()),

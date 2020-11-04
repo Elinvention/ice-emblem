@@ -4,7 +4,7 @@
 
 import pygame
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from typing import Union
 
 import action
@@ -259,13 +259,6 @@ class TileMap(room.Room):
         sprite = self.find_sprite(unit=_unit)
         self.sprites_layer.remove(sprite)
 
-    def update_move_area(self):
-        """
-        Updates the area which will be highlighted on the map to show
-        which nodes can be reached by the selected unit.
-        """
-        self.move_area = self.path.area(self.curr_sel, self.curr_unit.movement)
-
     def get_unit(self, coord):
         return self.terrains[coord].unit
 
@@ -275,34 +268,6 @@ class TileMap(room.Room):
             for attr in kwargs:
                 if getattr(unit_sprite, attr) == kwargs[attr]:
                     return unit_sprite
-
-    def __set_attack_area(self, coord, min_range, max_range):
-        x, y = coord
-        for i in range(x - max_range, x + max_range + 1):
-            for j in range(y - max_range, y + max_range + 1):
-                if self.check_coord((i, j)) and (i, j) not in self.move_area and (i, j) not in self.attack_area:
-                    if min_range <= utils.distance((x, y), (i, j)) <= max_range:
-                        self.attack_area.append((i, j))
-
-    def move_attack_area(self):
-        """
-        Updates the area which will be highlighted on the map to show
-        how far the selected unit can move and attack.
-        """
-        min_range, max_range = self.curr_unit.get_weapon_range()
-        self.attack_area = []
-        for (x, y) in self.move_area:
-            self.__set_attack_area((x, y), min_range, max_range)
-
-    def still_attack_area(self):
-        """
-        Update the area which will be highlighted on the map to show
-        how far the selected unit can attack with her weapon
-        """
-        min_range, max_range = self.curr_unit.get_weapon_range()
-        self.attack_area = []
-        self.move_area = []
-        self.__set_attack_area(self.curr_sel, min_range, max_range)
 
     def path_cost(self, path):
         cost = 0
@@ -370,11 +335,6 @@ class TileMap(room.Room):
         self.attack_area = []
         self.arrow.set_path([])
         self.update_highlight()
-
-    def can_selection_move(self):
-        return (self.prev_unit is not None and not self.prev_unit.played and
-                self.units_manager.active_team.is_mine(self.prev_unit) and
-                self.curr_sel in self.move_area)
 
     def handle_mousebuttondown(self, event):
         if isinstance(self.parent, game.AITurn):
@@ -465,6 +425,60 @@ class TileMap(room.Room):
         self.valid = True
         self.surface = self.surface.convert()
 
+    def __set_attack_area(self, coord: Tuple[int, int], min_range: int, max_range: int):
+        # Auxiliary method for update_move_attack_area and update_still_attack_area
+        x, y = coord
+        for i in range(x - max_range, x + max_range + 1):
+            for j in range(y - max_range, y + max_range + 1):
+                if self.check_coord((i, j)) and (i, j) not in self.move_area and (i, j) not in self.attack_area:
+                    if min_range <= utils.distance((x, y), (i, j)) <= max_range:
+                        self.attack_area.append((i, j))
+
+    def update_move_attack_area(self, _unit: Optional[unit.Unit]):
+        """
+        Updates the area which will be highlighted on the map to show how far unit can move and attack.
+        """
+        if _unit is not None and not _unit.played:
+            self.move_area = self.path.area(_unit.coord, _unit.movement)
+            min_range, max_range = _unit.get_weapon_range()
+            self.attack_area = []
+            for coord in self.move_area:
+                self.__set_attack_area(coord, min_range, max_range)
+        else:
+            self.move_area = []
+            self.attack_area = []
+
+    def update_still_attack_area(self, _unit: Optional[unit.Unit]):
+        """
+        Update the area which will be highlighted on the map to show
+        how far the selected unit can attack with her weapon
+        """
+        if _unit is not None and not _unit.played:
+            min_range, max_range = self.curr_unit.get_weapon_range()
+            self.attack_area = []
+            self.move_area = []
+            self.__set_attack_area(self.curr_sel, min_range, max_range)
+        else:
+            self.attack_area = []
+            self.move_area = []
+
+    def can_selection_move(self):
+        return (self.prev_unit is not None and not self.prev_unit.played and
+                self.units_manager.active_team.is_mine(self.prev_unit) and
+                self.curr_sel in self.move_area)
+
+    def move_then_action_menu(self, target: Optional[Tuple[int, int]] = None):
+        if target is None:
+            target = self.curr_sel
+        target_unit = self.curr_unit
+        animation = self.make_move_unit_animation(self.prev_unit, target, self.arrow.path)
+        self.add_move_unit_animation(animation)
+        self.move_unit(self.prev_unit, target)
+        self.curr_sel = target  # otherwise move_undo will move back the defending unit!
+        self.update_still_attack_area(self.curr_unit)
+        self.update_highlight()
+        self.action_menu(attacking=self.curr_unit, defending=target_unit)
+
     def select(self, coord: Coord) -> None:
         """
         Handles selection on the map.
@@ -476,63 +490,38 @@ class TileMap(room.Room):
 
         if self.prev_sel is None:
             # Nothing has been previously selected
-            sel_unit = self.get_unit(coord)
-            if sel_unit is None or sel_unit.played:
-                self.move_area = []
-                self.attack_area = []
+            self.update_move_attack_area(self.curr_unit)
+            self.update_highlight()
+        elif self.prev_unit is not None and self.curr_unit is not None:
+            # Selected a unit and then another unit
+            if self.prev_unit.played or not active_team.is_mine(self.prev_unit):
+                # The previous unit can't be controlled. Just show what it can do
+                self.update_move_attack_area(self.curr_unit)
                 self.update_highlight()
-            else:
-                # Show the currently selected unit's move and attack area
-                self.update_move_area()
-                self.move_attack_area()
-                self.update_highlight()
-        else:
-            # Something has been previously selected
-            if self.prev_unit is not None and self.curr_unit is not None:
-                # Selected a unit two times
-                if self.prev_sel == self.curr_sel and not self.prev_unit.played and active_team.is_mine(self.prev_unit):
-                    # Two times on the same playable unit. Show the action menu.
-                    self.action_menu()
-                elif self.curr_sel in self.attack_area:
-                    # Two different units: prev_unit can attack curr_unit
-                    # This results in a combined action: move the unit next to the enemy and propose the user to attack
-                    target_unit = self.curr_unit
-                    nearest = self.arrow.path[-1] if self.arrow.path else self.prev_sel
-                    if self.nearby_enemies(self.prev_unit, nearest):
-                        animation = self.make_move_unit_animation(self.prev_unit, nearest, self.arrow.path)
-                        self.add_move_unit_animation(animation)
-                        self.move_unit(self.prev_unit, nearest)
-                        self.curr_sel = nearest  # otherwise move_undo will move back the defending unit!
-                        self.still_attack_area()
-                        self.update_highlight()
-                        self.action_menu(attacking=self.curr_unit, defending=target_unit)
-                    else:
-                        self.reset_selection()
-                else:
-                    # Two different units: prev_unit can't attack curr_unit
-                    # show the current unit's move and attack area
-                    self.update_move_area()
-                    self.move_attack_area()
-                    self.update_highlight()
-            elif self.can_selection_move():
-                # Move the previously selected unit to the currently selected coordinate.
-                animation = self.make_move_unit_animation(self.prev_unit, self.curr_sel, self.arrow.path)
-                self.add_move_unit_animation(animation)
-                self.move_unit(self.prev_unit, self.curr_sel)
-                self.still_attack_area()
-                self.update_highlight()
+            elif self.prev_sel == self.curr_sel:
+                # Two times on the same playable unit. Show the action menu.
                 self.action_menu()
-            else:
-                # Previously something irrelevant was chosen
-                self.reset_selection()
-                self.curr_sel = coord
+            elif self.curr_sel in self.attack_area:
+                # Two different units: prev_unit can attack curr_unit
+                # This results in a combined action: move the unit next to the enemy and propose the user to attack
+                nearest = self.arrow.path[-1] if self.arrow.path else self.prev_sel
+                if self.nearby_enemies(self.prev_unit, nearest):
+                    # prev_unit can actually move near the enemy and attack
+                    self.move_then_action_menu(nearest)
+                else:
+                    # prev_unit can't reach the enemy
+                    self.reset_selection()
+        elif self.can_selection_move():
+            # Move the previously selected unit to the currently selected coordinate.
+            self.move_then_action_menu()
+        else:
+            # Previously something irrelevant was chosen
+            self.reset_selection()
+            self.curr_sel = coord
 
-                if self.curr_unit is not None and not self.curr_unit.played:
-                    # Selected a unit: show its move and attack area
-                    self.update_move_area()
-                    self.move_attack_area()
-
-                self.update_highlight()
+            # show move and attack area of unit if present
+            self.update_move_attack_area(self.curr_unit)
+            self.update_highlight()
 
         self.arrow.set_path([])
 
