@@ -35,7 +35,7 @@ class LinearLayout(room.Room):
         self.resolve_measure(spec_width, spec_height, w, h)
 
     def measure_vertical(self, spec_width, spec_height):
-        w, h = spec_width.value, spec_height.value
+        w, h = spec_width.value - self.padding.we, spec_height.value - self.padding.ns
 
         spacing = self.spacing * (len(self.children) - 1)
         width_children = self.padding.we
