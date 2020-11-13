@@ -9,6 +9,7 @@ import pygame.locals as p
 import room
 
 import colors as c
+from basictypes import Point
 
 
 class Menu(room.Room):
@@ -157,10 +158,10 @@ class HorizontalMenu(Menu):
         self.resolve_measure(spec_width, spec_height, w, h)
 
     def get_entry_pos(self, index):
-        x = self.padding[3]
+        x = self.padding.w
         for i in range(index):
             x += self.rendered_entries[i].get_width() + self.leading
-        return self.global_coord((x, self.padding[0]))
+        return self.global_coord(Point(x, self.padding[0]))
 
     def draw(self):
         self.fill()

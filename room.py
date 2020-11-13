@@ -711,35 +711,43 @@ class Room(object):
 
         self.register(p.MOUSEBUTTONDOWN, f)
 
-    def global_coord(self, coord):
+    def parent_coord(self, coord: Point) -> Point:
+        """
+        Translates local coordinates to coordinates relative to the parent
+        :param coord: local coordinates (relative to this room's top-left corner)
+        :return: local parent coordinates (relative to the parent's top-left corner
+        """
+        return coord + self.rect.topleft
+
+    def global_coord(self, coord: Point) -> Point:
         """
         Translates local coordinates to global coordinates.
 
         The inverse method is self.local_coord
-        :param coord: local coordinates (relative to the parent's top-left corner)
+        :param coord: local coordinates (relative to this room's top-left corner)
         :return: global coordinates (relative to the window's top-left corner)
         """
         node = self
         while node:
-            coord = coord[0] + node.rect.x, coord[1] + node.rect.y
+            coord = node.parent_coord(coord)
             node = node.parent
         return coord
 
-    def global_pos(self) -> Tuple[int, int]:
+    def global_pos(self) -> Point:
         """
         Returns the position relative to the top-left corner of the window.
         :return: global position
         """
-        return self.global_coord((0, 0))
+        return self.global_coord(Point())
 
     def global_rect(self):
         """
-        Returns global rect, that is a rect having self.flobal_pos() as topleft and self.rect.size as size.
+        Returns global rect, that is a rect having self.global_pos() as topleft and self.rect.size as size.
         :return: global rect
         """
         return pygame.Rect(self.global_pos(), self.rect.size)
 
-    def local_coord(self, coord: Tuple[int, int]) -> Tuple[int, int]:
+    def local_coord(self, coord: Point) -> Point:
         """
         Translates global coordinates to local coordinates.
 
@@ -749,7 +757,7 @@ class Room(object):
         """
         node = self
         while node:
-            coord = coord[0] - node.rect.x, coord[1] - node.rect.y
+            coord -= node.rect.topleft
             node = node.parent
         return coord
 

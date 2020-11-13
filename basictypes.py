@@ -10,45 +10,53 @@ class Point(tuple):
     A tuple with more convenient operators to use for points
     """
     def __new__(cls, *args):
-        return tuple.__new__(cls, *args)
+        if len(args) == 0:
+            return tuple.__new__(cls, (0, 0))
+        try:
+            return tuple.__new__(cls, *args)
+        except TypeError:
+            return tuple.__new__(cls, args)
 
-    def __add__(self, other):
+    def __add__(self, other) -> 'Point':
         if isinstance(other, int):
             return Point(int(x + other) for x in self)
         return Point(int(x + y) for x, y in zip(self, other))
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> 'Point':
         return self.__add__(int(-i) for i in other)
 
-    def __neg__(self):
+    def __neg__(self) -> 'Point':
         return Point(int(-x) for x in self)
 
-    def __abs__(self):
+    def __abs__(self) -> 'Point':
         return Point(abs(int(x)) for x in self)
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> 'Point':
         return Point(int(x * other) for x in self)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> 'Point':
         return Point(int(x / other) for x in self)
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other) -> 'Point':
         return Point(int(x // other) for x in self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'({"; ".join(str(x) for x in self)})'
 
-    def norm(self):
+    def norm(self) -> 'Point':
         return sum(abs(x) for x in self)
 
-    def normalized(self):
+    def normalized(self) -> 'Point':
         return self / self.norm() if self.norm() > 0 else self
 
     def __getattr__(self, attr):
         try:
             return self[['x', 'y', 'z', 'w'].index(attr)]
         except (IndexError, ValueError):
-            raise AttributeError('%s is not an attribute of this Point' % attr)
+            raise AttributeError('%s is not an attribute of Point %s' % (attr, self))
+
+    def __setattr__(self, key, value):
+        raise AttributeError('Point is immutable!')
 
 
 class NESW(object):
@@ -92,6 +100,12 @@ class NESW(object):
 
     def __getitem__(self, index) -> int:
         return getattr(self, ['n', 'e', 's', 'w'][index])
+
+    def __add__(self, other) -> Point:
+        return Point(self.w + other[0], self.n + other[1])
+
+    def __radd__(self, other) -> Point:
+        return Point(self.w + other[0], self.n + other[1])
 
     def grow(self, rect) -> pygame.Rect:
         rect = rect.move(-self.w, -self.n)
