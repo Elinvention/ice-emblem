@@ -57,17 +57,20 @@ class Tile(object):
         self.zoom = 1
 
     @classmethod
-    def fromSurface(cls, surface):
-        '''Create a new Tile object straight from a pygame Surface.
+    def from_surface(cls, surface):
+        """
+        Create a new Tile object straight from a pygame Surface.
 
         Its tile_width and tile_height will be set using the Surface dimensions.
         Its gid will be 0.
-        '''
-        class ts:
-            tile_width, tile_height = surface.get_size()
-        return cls(0, surface, ts)
+        """
 
-    def loadxml(self, tag):
+        class Ts:
+            tile_width, tile_height = surface.get_size()
+
+        return cls(0, surface, Ts)
+
+    def load_xml(self, tag):
         props = tag.find('properties')
         if props is None:
             return
@@ -123,20 +126,20 @@ class Tileset(object):
                 tileset.add_image(filename)
             elif c.tag == 'tile':
                 gid = tileset.firstgid + int(c.attrib['id'])
-                tileset.get_tile(gid).loadxml(c)
+                tileset.get_tile(gid).load_xml(c)
         return tileset
 
     def add_image(self, file):
         image = pygame.image.load(file).convert_alpha()
         if not image:
             sys.exit("Error creating new Tileset: file %s not found" % file)
-        id = self.firstgid
+        gid = self.firstgid
         for line in range(image.get_height() // self.tile_height):
             for column in range(image.get_width() // self.tile_width):
                 pos = Rect(column * self.tile_width, line * self.tile_height,
-                    self.tile_width, self.tile_height)
-                self.tiles.append(Tile(id, image.subsurface(pos), self))
-                id += 1
+                           self.tile_width, self.tile_height)
+                self.tiles.append(Tile(gid, image.subsurface(pos), self))
+                gid += 1
 
     def get_tile(self, gid):
         return self.tiles[gid - self.firstgid]
@@ -150,7 +153,8 @@ class Tilesets(dict):
 
 
 class Cell(object):
-    '''Layers are made of Cells (or empty space).
+    """
+    Layers are made of Cells (or empty space).
 
     Cells have some basic properties:
 
@@ -166,7 +170,8 @@ class Cell(object):
     You may assign a new value for a property to or even delete an existing
     property from the cell - this will not affect the Tile or any other Cells
     using the Cell's Tile.
-    '''
+    """
+
     def __init__(self, x, y, px, py, tile):
         self.x, self.y = x, y
         self.px, self.py = px, py
@@ -204,9 +209,10 @@ class Cell(object):
         self._deleted_properties.add(key)
 
     def intersects(self, other):
-        '''Determine whether this Cell intersects with the other rect (which has
+        """
+        Determine whether this Cell intersects with the other rect (which has
         .x, .y, .width and .height attributes.)
-        '''
+        """
         if self.px + self.tile.tile_width < other.x:
             return False
         if other.x + other.width - 1 < self.px:
@@ -219,8 +225,10 @@ class Cell(object):
 
 
 class LayerIterator(object):
-    '''Iterates over all the cells in a layer in column,row order.
-    '''
+    """
+    Iterates over all the cells in a layer in column,row order.
+    """
+
     def __init__(self, layer):
         self.layer = layer
         self.i, self.j = 0, 0
@@ -239,7 +247,8 @@ class LayerIterator(object):
 
 
 class Layer(object):
-    '''A 2d grid of Cells.
+    """
+    A 2d grid of Cells.
 
     Layers have some basic properties:
 
@@ -256,21 +265,25 @@ class Layer(object):
        layer[x, y] is layer.cells[x, y]
 
     Note that empty cells will be set to None instead of a Cell instance.
-    '''
-    def __init__(self, name, visible, position, map):
+    """
+
+    def __init__(self, name, visible, position, tmap):
         self.name = name
         self.visible = visible
         self.position = position
-        self.px_width = map.px_width
-        self.px_height = map.px_height
-        self.tile_width = map.tile_width
-        self.tile_height = map.tile_height
-        self.width = map.width
-        self.height = map.height
-        self.tilesets = map.tilesets
+        self.px_width = tmap.px_width
+        self.px_height = tmap.px_height
+        self.tile_width = tmap.tile_width
+        self.tile_height = tmap.tile_height
+        self.width = tmap.width
+        self.height = tmap.height
+        self.tilesets = tmap.tilesets
         self.group = pygame.sprite.Group()
         self.properties = {}
         self.cells = {}
+        self.view_x, self.view_y = 0, 0
+        self.view_w, self.view_h = 0, 0
+        self.zoom = 1
 
     def __repr__(self):
         return '<Layer "%s" at 0x%x>' % (self.name, id(self))
@@ -288,30 +301,31 @@ class Layer(object):
         return LayerIterator(self)
 
     @classmethod
-    def fromxml(cls, tag, map):
+    def fromxml(cls, tag, tmap):
         offset = (int(tag.attrib.get('offsetx', 0)), int(tag.attrib.get('offsety', 0)))
-        layer = cls(tag.attrib['name'], int(tag.attrib.get('visible', 1)), offset, map)
+        layer = cls(tag.attrib['name'], int(tag.attrib.get('visible', 1)), offset, tmap)
 
         data_tag = tag.find('data')
         if data_tag is None:
             raise ValueError('layer %s does not contain <data>' % layer.name)
 
         data = data_tag.text.strip()
-        data = data.encode() # Convert to bytes
+        data = data.encode()  # Convert to bytes
         # Decode from base 64 and decompress via zlib
         data = b64decode(data)
         if data_tag.attrib["compression"] == "gzip":
             data = gzip.decompress(data)
         elif data_tag.attrib["compression"] == "zlib":
             data = zlib.decompress(data)
-        data = struct.unpack('<%di' % (len(data)/4,), data)
+        data = struct.unpack('<%di' % (len(data) / 4,), data)
         assert len(data) == layer.width * layer.height
         for i, gid in enumerate(data):
-            if gid < 1: continue   # not set
-            tile = map.tilesets[gid]
+            if gid < 1:
+                continue  # not set
+            tile = tmap.tilesets[gid]
             x = i % layer.width
             y = i // layer.width
-            layer.cells[x,y] = Cell(x, y, x*map.tile_width, y*map.tile_height, tile)
+            layer.cells[x, y] = Cell(x, y, x * tmap.tile_width, y * tmap.tile_height, tile)
 
         return layer
 
@@ -327,8 +341,9 @@ class Layer(object):
             cell.tile.set_zoom(zoom)
 
     def draw(self, surface):
-        '''Draw this layer, limited to the current viewport, to the Surface.
-        '''
+        """
+        Draw this layer, limited to the current viewport, to the Surface.
+        """
         ox, oy = self.view_x, self.view_y
         w, h = self.view_w, self.view_h
         tw, th = self.tile_width * self.zoom, self.tile_height * self.zoom
@@ -342,7 +357,9 @@ class Layer(object):
                 surface.blit(cell.tile.scaled, (cell.px * self.zoom - ox, cell.py * self.zoom - oy))
 
     def find(self, *properties):
-        '''Find all cells with the given properties set.'''
+        """
+        Find all cells with the given properties set.
+        """
         r = []
         for propname in properties:
             for cell in list(self.cells.values()):
@@ -351,8 +368,9 @@ class Layer(object):
         return r
 
     def match(self, **properties):
-        '''Find all cells with the given properties set to the given values.
-        '''
+        """
+        Find all cells with the given properties set to the given values.
+        """
         r = []
         for propname in properties:
             for cell in list(self.cells.values()):
@@ -363,12 +381,13 @@ class Layer(object):
         return r
 
     def collide(self, rect, propname):
-        '''Find all cells the rect is touching that have the indicated property
+        """
+        Find all cells the rect is touching that have the indicated property
         name set.
-        '''
+        """
         r = []
         for cell in self.get_in_region(rect.left, rect.top, rect.right,
-                rect.bottom):
+                                       rect.bottom):
             if not cell.intersects(rect):
                 continue
             if propname in cell:
@@ -376,36 +395,39 @@ class Layer(object):
         return r
 
     def get_in_region(self, x1, y1, x2, y2):
-        '''Return cells (in [column][row]) that are within the map-space
+        """
+        Return cells (in [column][row]) that are within the map-space
         pixel bounds specified by the bottom-left (x1, y1) and top-right
         (x2, y2) corners.
 
         Return a list of Cell instances.
-        '''
+        """
         i1 = max(0, x1 // self.tile_width)
         j1 = max(0, y1 // self.tile_height)
         i2 = min(self.width, x2 // self.tile_width + 1)
         j2 = min(self.height, y2 // self.tile_height + 1)
         return [self.cells[i, j]
-            for i in range(int(i1), int(i2))
+                for i in range(int(i1), int(i2))
                 for j in range(int(j1), int(j2))
-                    if (i, j) in self.cells]
+                if (i, j) in self.cells]
 
     def get_at(self, x, y):
-        '''Return the cell at the nominated (x, y) coordinate.
+        """
+        Return the cell at the nominated (x, y) coordinate.
 
         Return a Cell instance or None.
-        '''
+        """
         i = x // self.tile_width
         j = y // self.tile_height
         return self.cells.get((i, j))
 
     def neighbors(self, index):
-        '''Return the indexes of the valid (ie. within the map) cardinal (ie.
+        """
+        Return the indexes of the valid (ie. within the map) cardinal (ie.
         North, South, East, West) neighbors of the nominated cell index.
 
         Returns a list of 2-tuple indexes.
-        '''
+        """
         i, j = index
         n = []
         if i < self.width - 1:
@@ -420,19 +442,21 @@ class Layer(object):
 
 
 class Object(object):
-    '''An object in a TMX object layer.
-name: The name of the object. An arbitrary string.
-type: The type of the object. An arbitrary string.
-x: The x coordinate of the object in pixels.
-y: The y coordinate of the object in pixels.
-width: The width of the object in pixels (defaults to 0).
-height: The height of the object in pixels (defaults to 0).
-gid: An reference to a tile (optional).
-visible: Whether the object is shown (1) or hidden (0). Defaults to 1.
-    '''
-    def __init__(self, type, x, y, width=0, height=0, name=None,
-            gid=None, tile=None, visible=1):
-        self.type = type
+    """
+    An object in a TMX object layer.
+    name: The name of the object. An arbitrary string.
+    type: The type of the object. An arbitrary string.
+    x: The x coordinate of the object in pixels.
+    y: The y coordinate of the object in pixels.
+    width: The width of the object in pixels (defaults to 0).
+    height: The height of the object in pixels (defaults to 0).
+    gid: An reference to a tile (optional).
+    visible: Whether the object is shown (1) or hidden (0). Defaults to 1.
+    """
+
+    def __init__(self, _type, x, y, width=0, height=0, name=None,
+                 gid=None, tile=None, visible=1):
+        self.type = _type
         self.px = x
         self.left = x
         if tile:
@@ -497,21 +521,21 @@ visible: Whether the object is shown (1) or hidden (0). Defaults to 1.
             pygame.draw.rect(surface, (255, 100, 100), r, 2)
 
     @classmethod
-    def fromxml(cls, tag, map):
+    def fromxml(cls, tag, tmap):
         if 'gid' in tag.attrib:
             gid = int(tag.attrib['gid'])
-            tile = map.tilesets[gid]
+            tile = tmap.tilesets[gid]
             w = tile.tile_width
             h = tile.tile_height
         else:
             gid = None
             tile = None
-            w = int(tag.attrib['width'])
-            h = int(tag.attrib['height'])
+            w = int(float(tag.attrib['width']))
+            h = int(float(tag.attrib['height']))
 
         o = cls(tag.attrib.get('type', 'rect'), int(float(tag.attrib['x'])),
-            int(float(tag.attrib['y'])), w, h, tag.attrib.get('name'), gid, tile,
-            int(float(tag.attrib.get('visible', 1))))
+                int(float(tag.attrib['y'])), w, h, tag.attrib.get('name'), gid, tile,
+                int(float(tag.attrib.get('visible', 1))))
 
         props = tag.find('properties')
         if props is None:
@@ -541,7 +565,8 @@ visible: Whether the object is shown (1) or hidden (0). Defaults to 1.
 
 
 class ObjectLayer(object):
-    '''A layer composed of basic primitive shapes.
+    """
+    A layer composed of basic primitive shapes.
 
     Actually encompasses a TMX <objectgroup> but even the TMX documentation
     refers to them as object layers, so I will.
@@ -554,9 +579,10 @@ class ObjectLayer(object):
         opacity - the opacity of the layer as a value from 0 to 1.
         visible - whether the layer is shown (1) or hidden (0).
         objects - the objects in this Layer (Object instances)
-    '''
-    def __init__(self, name, color, objects, opacity=1,
-            visible=1, position=(0, 0)):
+    """
+
+    def __init__(self, name, color, objects, opacity=1.0,
+                 visible=1, position=(0, 0)):
         self.name = name
         self.color = color
         self.objects = objects
@@ -564,6 +590,9 @@ class ObjectLayer(object):
         self.visible = visible
         self.position = position
         self.properties = {}
+        self.view_x, self.view_y = 0, 0
+        self.view_w, self.view_h = 0, 0
+        self.zoom = 1
 
     def __repr__(self):
         return '<ObjectLayer "%s" at 0x%x>' % (self.name, id(self))
@@ -572,12 +601,12 @@ class ObjectLayer(object):
         return self.objects[item]
 
     @classmethod
-    def fromxml(cls, tag, map):
+    def fromxml(cls, tag, tmap):
         layer = cls(tag.attrib['name'], tag.attrib.get('color'), [],
-            float(tag.attrib.get('opacity', 1)),
-            int(tag.attrib.get('visible', 1)))
-        for object in tag.findall('object'):
-            layer.objects.append(Object.fromxml(object, map))
+                    float(tag.attrib.get('opacity', 1)),
+                    int(tag.attrib.get('visible', 1)))
+        for obj in tag.findall('object'):
+            layer.objects.append(Object.fromxml(obj, tmap))
         for c in tag.find('properties').findall('property'):
             # store additional properties.
             name = c.attrib['name']
@@ -599,73 +628,82 @@ class ObjectLayer(object):
         self.zoom = zoom
 
     def draw(self, surface):
-        '''Draw this layer, limited to the current viewport, to the Surface.
-        '''
+        """
+        Draw this layer, limited to the current viewport, to the Surface.
+        """
         if not self.visible:
             return
-        for object in self.objects:
-            object.draw(surface, self.view_x, self.view_y, self.zoom)
+        for obj in self.objects:
+            obj.draw(surface, self.view_x, self.view_y, self.zoom)
 
     def find(self, *properties):
-        '''Find all cells with the given properties set.
-        '''
+        """
+        Find all cells with the given properties set.
+        """
         r = []
         for propname in properties:
-            for object in self.objects:
-                if object and propname in object or propname in self.properties:
-                    r.append(object)
+            for obj in self.objects:
+                if obj and propname in obj or propname in self.properties:
+                    r.append(obj)
         return r
 
     def match(self, **properties):
-        '''Find all objects with the given properties set to the given values.
-        '''
+        """
+        Find all objects with the given properties set to the given values.
+        """
         r = []
         for propname in properties:
-            for object in self.objects:
-                if propname in object:
-                    val = object[propname]
+            for obj in self.objects:
+                if propname in obj:
+                    val = obj[propname]
                 elif propname in self.properties:
                     val = self.properties[propname]
                 else:
                     continue
                 if properties[propname] == val:
-                    r.append(object)
+                    r.append(obj)
         return r
 
     def collide(self, rect, propname):
-        '''Find all objects the rect is touching that have the indicated
+        """
+        Find all objects the rect is touching that have the indicated
         property name set.
-        '''
+        """
         r = []
-        for object in self.get_in_region(rect.left, rect.top, rect.right,
-                rect.bottom):
-            if propname in object or propname in self.properties:
-                r.append(object)
+        for obj in self.get_in_region(rect.left, rect.top, rect.right, rect.bottom):
+            if propname in obj or propname in self.properties:
+                r.append(obj)
         return r
 
     def get_in_region(self, x1, y1, x2, y2):
-        '''Return objects that are within the map-space
+        """
+        Return objects that are within the map-space
         pixel bounds specified by the bottom-left (x1, y1) and top-right
         (x2, y2) corners.
 
         Return a list of Object instances.
-        '''
+        """
         return [obj for obj in self.objects if obj.intersects(x1, y1, x2, y2)]
 
     def get_at(self, x, y):
-        '''Return the first object found at the nominated (x, y) coordinate.
+        """
+        Return the first object found at the nominated (x, y) coordinate.
 
         Return an Object instance or None.
-        '''
-        for object in self.objects:
-            if object.contains(x,y):
-                return object
+        """
+        for obj in self.objects:
+            if obj.contains(x, y):
+                return obj
 
 
 class SpriteLayer(pygame.sprite.AbstractGroup):
     def __init__(self):
         super().__init__()
         self.visible = True
+        self.view_x, self.view_y = 0, 0
+        self.view_w, self.view_h = 0, 0
+        self.position = 0, 0
+        self.zoom = 1
 
     def set_view(self, x, y, w, h, zoom):
         self.view_x, self.view_y = x, y
@@ -686,6 +724,7 @@ class SpriteLayer(pygame.sprite.AbstractGroup):
 
 class Layers(list):
     def __init__(self):
+        super().__init__()
         self.by_name = {}
 
     def add_named(self, layer, name):
@@ -699,7 +738,8 @@ class Layers(list):
 
 
 class TileMap(object):
-    '''A TileMap is a collection of Layers which contain gridded maps or sprites
+    """
+    A TileMap is a collection of Layers which contain gridded maps or sprites
     which are drawn constrained by a viewport.
 
     And breathe.
@@ -724,8 +764,9 @@ class TileMap(object):
         view_x, view_y - viewport offset (origin)
         viewport - a Rect instance giving the current viewport specification
 
-    '''
-    def __init__(self, size, origin=(0,0)):
+    """
+
+    def __init__(self, size, origin=(0, 0)):
         self.px_width = 0
         self.px_height = 0
         self.px_size = Point((0, 0))
@@ -733,15 +774,17 @@ class TileMap(object):
         self.tile_height = 0
         self.tile_size = Point((0, 0))
         self.width = 0
-        self.height  = 0
+        self.height = 0
         self.properties = {}
         self.layers = Layers()
         self.tilesets = Tilesets()
-        self.fx, self.fy = 0, 0             # viewport focus point
-        self.view_w, self.view_h = size     # viewport size
-        self.view_x, self.view_y = origin   # viewport offset
+        self.fx, self.fy = 0, 0  # viewport focus point
+        self.view_w, self.view_h = size  # viewport size
+        self.view_x, self.view_y = origin  # viewport offset
         self.viewport = Rect(origin, size)
         self.zoom = 1
+        self.restricted_fx, self.restricted_fy = 0, 0
+        self.childs_ox, self.childs_oy = 0, 0
         self.set_focus(self.view_w // 2, self.view_h // 2)
 
     def set_zoom(self, zoom, fx, fy):
@@ -768,47 +811,48 @@ class TileMap(object):
         vertical_line = pygame.Surface((2, self.zoom_px_height))
         vertical_line.set_alpha(100)
         for i in range(1, self.width):
-             screen.blit(vertical_line, (-self.childs_ox + i * self.zoom_tile_width - 1, -self.childs_oy))
+            screen.blit(vertical_line, (-self.childs_ox + i * self.zoom_tile_width - 1, -self.childs_oy))
         for j in range(1, self.height):
-             screen.blit(horizontal_line, (-self.childs_ox, -self.childs_oy + j * self.zoom_tile_height - 1))
+            screen.blit(horizontal_line, (-self.childs_ox, -self.childs_oy + j * self.zoom_tile_height - 1))
 
     @classmethod
     def load(cls, filename, viewport, origin=(0, 0)):
         with open(filename) as f:
-            map = ElementTree.fromstring(f.read())
+            tmap = ElementTree.fromstring(f.read())
 
         # get most general map informations and create a surface
         tilemap = TileMap(viewport, origin)
-        tilemap.width = int(map.attrib['width'])
-        tilemap.height  = int(map.attrib['height'])
-        tilemap.tile_width = int(map.attrib['tilewidth'])
-        tilemap.tile_height = int(map.attrib['tileheight'])
+        tilemap.width = int(tmap.attrib['width'])
+        tilemap.height = int(tmap.attrib['height'])
+        tilemap.tile_width = int(tmap.attrib['tilewidth'])
+        tilemap.tile_height = int(tmap.attrib['tileheight'])
         tilemap.tile_size = Point((tilemap.tile_width, tilemap.tile_height))
         tilemap.px_width = tilemap.width * tilemap.tile_width
         tilemap.px_height = tilemap.height * tilemap.tile_height
         tilemap.px_size = Point((tilemap.px_width, tilemap.px_height))
 
-        for tag in map.findall('tileset'):
+        for tag in tmap.findall('tileset'):
             tilemap.tilesets.add(Tileset.fromxml(tag, os.path.dirname(filename)))
 
-        for tag in map.findall('layer'):
+        for tag in tmap.findall('layer'):
             layer = Layer.fromxml(tag, tilemap)
             tilemap.layers.add_named(layer, layer.name)
 
-        for tag in map.findall('objectgroup'):
+        for tag in tmap.findall('objectgroup'):
             layer = ObjectLayer.fromxml(tag, tilemap)
             tilemap.layers.add_named(layer, layer.name)
 
         return tilemap
 
     def set_focus(self, fx, fy):
-        '''Determine the viewport based on a desired focus pixel in the
+        """
+        Determine the viewport based on a desired focus pixel in the
         Layer space (fx, fy) and honoring any bounding restrictions of
         child layers.
 
         The focus will always be shifted to ensure no child layers display
         out-of-bounds data, as defined by their dimensions px_width and px_height.
-        '''
+        """
         # The result is that all chilren will have their viewport set, defining
         # which of their pixels should be visible.
         fx, fy = int(fx), int(fy)
@@ -816,7 +860,7 @@ class TileMap(object):
 
         # get our viewport information, scaled as appropriate
         w, h = self.view_w, self.view_h
-        w2, h2 = w//2, h//2
+        w2, h2 = w // 2, h // 2
 
         px_w_zoom, px_h_zoom = self.zoom_px_width, self.zoom_px_height
 
@@ -826,9 +870,9 @@ class TileMap(object):
             restricted_fx = px_w_zoom / 2
         else:
             if (fx - w2) < 0:
-                restricted_fx = w2       # hit minimum X extent
+                restricted_fx = w2  # hit minimum X extent
             elif (fx + w2) > px_w_zoom:
-                restricted_fx = px_w_zoom - w2       # hit maximum X extent
+                restricted_fx = px_w_zoom - w2  # hit maximum X extent
             else:
                 restricted_fx = fx
         if px_h_zoom <= h:
@@ -837,9 +881,9 @@ class TileMap(object):
             restricted_fy = px_h_zoom / 2
         else:
             if (fy - h2) < 0:
-                restricted_fy = h2       # hit minimum Y extent
+                restricted_fy = h2  # hit minimum Y extent
             elif (fy + h2) > px_h_zoom:
-                restricted_fy = px_h_zoom - h2       # hit maximum Y extent
+                restricted_fy = px_h_zoom - h2  # hit maximum Y extent
             else:
                 restricted_fy = fy
 
@@ -872,10 +916,11 @@ class TileMap(object):
         self.set_focus(self.restricted_fx + vx, self.restricted_fy + vy)
 
     def force_focus(self, fx, fy):
-        '''Force the manager to focus on a point, regardless of any managed layer
+        """
+        Force the manager to focus on a point, regardless of any managed layer
         visible boundaries.
 
-        '''
+        """
         # This calculation takes into account the scaling of this Layer (and
         # therefore also its children).
         # The result is that all chilren will have their viewport set, defining
@@ -886,7 +931,7 @@ class TileMap(object):
         # get our view size
         w = int(self.view_w)
         h = int(self.view_h)
-        w2, h2 = w//2, h//2
+        w2, h2 = w // 2, h // 2
 
         # bottom-left corner of the viewport
         x, y = fx - w2, fy - h2
@@ -900,39 +945,43 @@ class TileMap(object):
             layer.set_view(x, y, w, h, self.zoom)
 
     def pixel_from_screen(self, x, y):
-        '''Look up the Layer-space pixel matching the screen-space pixel.
-        '''
+        """Look up the Layer-space pixel matching the screen-space pixel.
+        """
         vx, vy = self.childs_ox, self.childs_oy
         return Point((vx + x, vy + y))
 
     def pixel_to_screen(self, x, y):
-        '''Look up the screen-space pixel matching the Layer-space pixel.
-        '''
+        """
+        Look up the screen-space pixel matching the Layer-space pixel.
+        """
         screen_x = x - self.childs_ox
         screen_y = y - self.childs_oy
         return Point((screen_x, screen_y))
 
     def index_at(self, x, y):
-        '''Return the map index at the (screen-space) pixel position.
-        '''
+        """
+        Return the map index at the (screen-space) pixel position.
+        """
         sx, sy = self.pixel_from_screen(x, y)
         cx, cy = sx // self.zoom_tile_width, sy // self.zoom_tile_height
         if 0 <= cx < self.width and 0 <= cy < self.height:
             return Point((cx, cy))
 
     def pixel_at(self, x, y, screen=True):
-        '''
+        """
         Return the top left (screen space) pixel position of map index.
-        '''
+        """
         sx, sy = x * self.zoom_tile_width, y * self.zoom_tile_height
         if screen:
             return self.pixel_to_screen(sx, sy)
         return Point((sx, sy))
 
+
 def load(filename, viewport, origin=(0, 0)):
     return TileMap.load(filename, viewport, origin)
 
-if __name__ == '__main__':
+
+def main():
     pygame.init()
     screen_size = (1280, 720)
     screen = pygame.display.set_mode(screen_size)
@@ -950,10 +999,9 @@ if __name__ == '__main__':
                 done = True
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 4:
-                    t.zoom = min(t.zoom + 0.05, 5.0)
+                    t.zoom = min(t.zoom + 1, 5)
                 elif event.button == 5:
-                    t.zoom = max(t.zoom - 0.05, 0.2)
-                print(t.zoom)
+                    t.zoom = max(t.zoom - 1, 1)
             elif event.type == pygame.MOUSEMOTION:
                 x, y = event.pos
                 if pos.collidepoint(event.pos):
@@ -979,3 +1027,6 @@ if __name__ == '__main__':
         pygame.time.wait(17)
     pygame.quit()
 
+
+if __name__ == '__main__':
+    main()
