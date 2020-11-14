@@ -7,8 +7,14 @@ import pygame.locals as p
 import logging
 from typing import List, Iterator
 
+"""
+Events in ALWAYS_ALLOWED are allowed even if you call block_all
+Events in ALWAYS_DISABLED are disabled even if you call allow all
+See https://wiki.libsdl.org/SDL_SysWMEvent to understand what SYSWMEVENT is for.
+"""
 
 ALWAYS_ALLOWED = [p.QUIT, p.VIDEORESIZE]
+ALWAYS_DISABLED = [p.SYSWMEVENT]
 
 EMPTY_EVENT = pygame.event.Event(p.NOEVENT, {})
 
@@ -35,8 +41,7 @@ def get_allowed() -> Iterator[int]:
     Queries pygame and returns the generator of allowed event types.
     """
     blocked = map(pygame.event.get_blocked, range(0, p.NUMEVENTS))
-    allowed = map(lambda x: not x, blocked)
-    return (i for i, v in enumerate(allowed) if v)
+    return (i for i, v in enumerate(blocked) if not v and i not in ALWAYS_DISABLED)
 
 
 def get_blocked() -> Iterator[int]:
@@ -44,17 +49,15 @@ def get_blocked() -> Iterator[int]:
     Queries pygame and returns the set of blocked event types.
     """
     blocked = map(pygame.event.get_blocked, range(0, p.NUMEVENTS))
-    return (i for i, v in enumerate(blocked) if v)
+    return (i for i, v in enumerate(blocked) if v and i not in ALWAYS_ALLOWED)
 
 
 def allow_all() -> None:
     """
-    All event types are allowed again except SYSWMEVENT (don't know what it is,
-    is blocked by default and at the moment is not needed anyhow)
+    Allow all event types.
     """
     # workaround to re-enable all events except SYSWMEVENT
-    pygame.event.set_allowed(list(range(p.NOEVENT, p.NUMEVENTS)))
-    pygame.event.set_blocked(p.SYSWMEVENT)
+    pygame.event.set_allowed(list(range(p.NOEVENT, p.NUMEVENTS)) - ALWAYS_DISABLED)
 
 
 def block_all() -> None:
