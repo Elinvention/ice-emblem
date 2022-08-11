@@ -18,7 +18,7 @@ import events
 import display
 import utils
 
-from basictypes import NESW
+from basictypes import NESW, Point
 
 
 class Gravity(Flag):

@@ -109,8 +109,9 @@ class Menu(room.Room):
             self.set_index(self.index + amount)
 
     def get_entry_pos(self, i):
-        return self.global_coord((self.padding[3],
-                self.padding[0] + i * (self.font.get_linesize() + self.leading)))
+        line_height = self.font.get_linesize() + self.leading
+        return self.global_coord(Point(self.padding[3],
+                                       self.padding[0] + i * line_height))
 
     def handle_mousebuttondown(self, event):
         if event.button == 1:
