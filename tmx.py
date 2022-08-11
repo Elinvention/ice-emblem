@@ -119,7 +119,7 @@ class Tileset(object):
 
         tileset = cls(name, tile_width, tile_height, firstgid)
 
-        for c in tag.getchildren():
+        for c in list(tag):
             if c.tag == "image":
                 # create a tileset
                 filename = os.path.join(pwd, c.attrib['source'])
