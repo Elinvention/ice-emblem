@@ -74,6 +74,17 @@ def return_to_os(*args):
     sys.exit(0)
 
 
+def read(fname):
+    """
+    Reads a whole file and returns it as a string. fname is the name of the file
+    to read relative to the main ice-emblem directory.
+    """
+    main_directory = Path(__file__).absolute().parent
+    return open(main_directory / fname, encoding='utf-8').read()
+
+
 def get_version():
-    version_file_path = Path(__file__).absolute().parent / 'VERSION'
-    return open(version_file_path).read().strip('\n')
+    """
+    Reads Ice Emblem's version from VERSION file and returns it
+    """
+    return read('VERSION').strip('\n')
