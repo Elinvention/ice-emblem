@@ -26,10 +26,17 @@ import sys
 import yaml
 
 from pathlib import Path
+from typing import Tuple
+
+
+Rectangle = Tuple[int, int]
+Coord = Tuple[int, int]
 
 
 def timeit(f):
-
+    """
+    Decorator to time a function call
+    """
     def timed(*args, **kw):
         ts = pygame.time.get_ticks()
         result = f(*args, **kw)
@@ -41,8 +48,12 @@ def timeit(f):
     return timed
 
 def parse_yaml(path, module):
+    """
+    Parses yaml files used by the game and returns a dictionary that maps a name
+    to a game object (unit, weapon, ...).
+    """
     objects = {}
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
         for u in data:
             u_class = module.__dict__[list(u.keys())[0]]
@@ -50,16 +61,27 @@ def parse_yaml(path, module):
             objects[kwargs['name']] = u_class(**kwargs)
     return objects
 
-def distance(p0, p1):
+def distance(p0: Coord, p1: Coord):
+    """
+    Returns the Manhattan distance between two coordinates.
+    """
     return abs(p0[0] - p1[0]) + abs(p0[1] - p1[1])
 
-def resize_keep_ratio(size, max_size):
+def resize_keep_ratio(size: Rectangle, max_size: Rectangle) -> Rectangle:
+    """
+    Resize the first rectangle to make sure it's fully inside the second one
+    respecting its aspect ratio.
+    """
     w, h = size
     max_w, max_h = max_size
     resize_ratio = min(max_w / w, max_h / h)
     return int(w * resize_ratio), int(h * resize_ratio)
 
-def resize_cover(size, max_size):
+def resize_cover(size: Rectangle, max_size: Rectangle) -> Rectangle:
+    """
+    Resize the first rectangle to cover the entire container, even if it has to
+    stretch it or cut a little bit off one of the edges
+    """
     w, h = size
     max_w, max_h = max_size
     resize_ratio = max(max_w / w, max_h / h)
@@ -69,7 +91,10 @@ def center(rect1, rect2, xoffset=0, yoffset=0):
     """Center rect2 in rect1 with offset."""
     return (rect1.centerx - rect2.centerx + xoffset, rect1.centery - rect2.centery + yoffset)
 
-def return_to_os(*args):
+def return_to_os(*_):
+    """
+    Quits the game and returns to OS
+    """
     pygame.quit()
     sys.exit(0)
 
